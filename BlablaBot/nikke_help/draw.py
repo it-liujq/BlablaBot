@@ -81,11 +81,11 @@ def build_help_context(permission: int = 6, *, login_mode='browser') -> dict:
             {'command': f'{command_prefix()}自动兑换码 / {command_prefix()}关闭自动兑换码', 'description': '新码跨来源去重；库存更新后处理，新绑定仅核对本人'},
         ]},
         {'title': 'LI PASS 奖励中心', 'tag': 'LPass', 'description': 'pass.levelinfinite.com 奖励中心；独立于 blablalink 游戏登录，仅操作本人账号。', 'items': [
-            {'command': 'Lpass绑定 Cookie内容', 'description': '粘贴 pass 站点 Cookie（含 lip_openid/lip_token）完成绑定'},
-            {'command': 'Lpass绑定 邮箱 密码', 'description': '由 Bot 打开网页登录并保存登录态；触发人机验证时改用 Cookie'},
-            {'command': 'Lpass日常 / Lpass日常 演练', 'description': '签到+好友请求/分享+领取，逐项列出进度与奖励；演练只读'},
-            {'command': 'Lpass自动任务 开启 08:30 / 关闭 / 状态', 'description': '每天北京时间定时执行日常并私聊推送结果'},
-            {'command': 'Lpass状态 / Lpass解绑', 'description': '查看金币与登录态剩余天数；解绑清除本地凭据'},
+            {'command': '#LPass绑定 Cookie内容', 'description': '粘贴 pass 站点 Cookie（含 lip_openid/lip_token）完成绑定'},
+            {'command': '#LPass绑定 邮箱 密码', 'description': '由 Bot 打开网页登录并保存登录态；触发人机验证时改用 Cookie'},
+            {'command': '#LPass日常 / #LPass日常 演练', 'description': '签到+好友请求/分享+领取，逐项列出进度与奖励；演练只读'},
+            {'command': '#LPass自动任务 开启 08:30 / 关闭 / 状态', 'description': '每天北京时间定时执行日常并私聊推送结果'},
+            {'command': '#LPass状态 / #LPass解绑', 'description': '查看金币与登录态剩余天数；解绑清除本地凭据'},
         ]}
     ]
     if permission == 0:

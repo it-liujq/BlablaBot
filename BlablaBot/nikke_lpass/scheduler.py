@@ -54,7 +54,7 @@ class LPassAutoScheduler:
     async def run_one(self, bind, day: str):
         cookie = decrypt_cookie(bind.cookie_enc)
         if cookie is None or cookie.expired:
-            text = "LPass 自动任务：登录态已过期，请重新发送 Lpass绑定。"
+            text = "LPass 自动任务：登录态已过期，请重新发送 #LPass绑定。"
             await LPassBind.mark_ran(bind.user_id, bind.bot_id, day=day, summary=text)
             await self.notify(bind, text)
             return
@@ -73,7 +73,7 @@ class LPassAutoScheduler:
             text = render(result)
         except Exception as exc:  # noqa: BLE001
             logger.warning("LPass auto error_type=%s", type(exc).__name__)
-            text = "LPass 自动任务执行异常，未确认完成，请稍后手动发送 Lpass日常。"
+            text = "LPass 自动任务执行异常，未确认完成，请稍后手动发送 #LPass日常。"
         await LPassBind.mark_ran(bind.user_id, bind.bot_id, day=day, summary=text)
         await self.notify(bind, text)
 

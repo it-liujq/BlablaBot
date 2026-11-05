@@ -35,7 +35,7 @@ hr{border:0;border-top:1px solid #302a49;margin:26px 0}
 .foot{margin-top:24px;color:#6f688c;font-size:12px}
 </style></head><body><div class="wrap">
 <h1>LEVEL INFINITE PASS 绑定</h1>
-<p class="tip">登录 pass.levelinfinite.com 后，Bot 会保存登录态用于每日任务。账号密码只发给本机 Core，不写入日志。<br><b>此链接 10 分钟内有效</b>，过期请重新发送「Lpass绑定」。</p>
+<p class="tip">登录 pass.levelinfinite.com 后，Bot 会保存登录态用于每日任务。账号密码只发给本机 Core，不写入日志。<br><b>此链接 10 分钟内有效</b>，过期请重新发送「#LPass绑定」。</p>
 <form id="f">
 <label>邮箱地址</label><input id="email" type="email" autocomplete="username" required>
 <label>密码</label><input id="password" type="password" autocomplete="current-password" required>
@@ -135,7 +135,7 @@ def _bad(msg: str, status: int = 410) -> HTMLResponse:
 async def lpass_login_page(token: str):
     session = sessions.get(token)
     if session is None or session.mode != "lpass":
-        return _bad("链接已失效，请在聊天里重新发送「Lpass绑定」。")
+        return _bad("链接已失效，请在聊天里重新发送「#LPass绑定」。")
     return HTMLResponse(_HEAD.replace("__TOKEN__", html.escape(token)))
 
 
@@ -143,7 +143,7 @@ async def lpass_login_page(token: str):
 async def lpass_login_submit(token: str, payload: LoginBody):
     session = sessions.get(token)
     if session is None or session.mode != "lpass":
-        return JSONResponse({"ok": False, "msg": "链接已失效，请重新发送 Lpass绑定。"},
+        return JSONResponse({"ok": False, "msg": "链接已失效，请重新发送 #LPass绑定。"},
                             status_code=410)
     email = payload.email.strip()
     password = payload.password
@@ -190,7 +190,7 @@ async def lpass_login_submit(token: str, payload: LoginBody):
 async def lpass_login_cookie(token: str, payload: CookieBody):
     session = sessions.get(token)
     if session is None or session.mode != "lpass":
-        return JSONResponse({"ok": False, "msg": "链接已失效，请重新发送 Lpass绑定。"},
+        return JSONResponse({"ok": False, "msg": "链接已失效，请重新发送 #LPass绑定。"},
                             status_code=410)
     cookie = parse_cookie(payload.cookie)
     if cookie is None:

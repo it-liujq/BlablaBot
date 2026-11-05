@@ -150,7 +150,7 @@ def render_bind(nickname: str, points: int, *, masked: str = "", expire_days: in
         lines.append(f"openid：{masked}")
     lines.append(f"登录态剩余约 {expire_days} 天" if expire_days
                  else "登录态有效期未知，失效后需重新绑定")
-    lines.append("下次执行：Lpass日常")
+    lines.append("下次执行：#LPass日常")
     return "\n".join(lines)
 
 
