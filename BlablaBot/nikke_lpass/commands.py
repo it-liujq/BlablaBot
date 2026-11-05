@@ -8,6 +8,7 @@ from __future__ import annotations
 import asyncio
 import re
 import time
+from dataclasses import replace
 from typing import Optional
 
 from gsuid_core.bot import Bot
@@ -68,7 +69,10 @@ async def _load_api(user_id: str, bot_id: str) -> tuple[Optional[LPassBind], Opt
     bind = await LPassBind.get_bind(user_id, bot_id)
     if bind is None:
         return None, None
-    return bind, decrypt_cookie(bind.cookie_enc)
+    cookie = decrypt_cookie(bind.cookie_enc)
+    if cookie is not None and not cookie.expire_at and bind.expire_at:
+        cookie = replace(cookie, expire_at=int(bind.expire_at))
+    return bind, cookie
 
 
 @sv_lpass.on_command("Lpass绑定", prefix=False)

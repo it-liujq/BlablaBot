@@ -103,6 +103,8 @@ class LPassCookie:
             parts.append(f"lip_user_name={self.user_name}")
         if self.region:
             parts.append(f"lip_region={self.region}")
+        if self.expire_at:
+            parts.append(f"lip_expire_time={int(self.expire_at)}")
         return "; ".join(parts)
 
     def login_body(self) -> dict:
