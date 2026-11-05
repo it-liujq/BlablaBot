@@ -1,4 +1,4 @@
-"""本人角色练度查询：nk爱丽丝练度 / nk练度 爱丽丝。"""
+"""本人角色练度查询：#bla爱丽丝练度 / #bla练度 爱丽丝。"""
 from __future__ import annotations
 from contextlib import AsyncExitStack
 from ..nikke_commands import command_prefix
@@ -154,7 +154,7 @@ async def nikke_character_cmd(bot: Bot, ev: Event):
 @sv_character.on_suffix('练度')
 async def nikke_character_suffix_cmd(bot: Bot, ev: Event):
     # Core's command and suffix triggers can both match a deliberately combined
-    # input such as nk练度爱丽丝练度. get_command consumes the leading keyword in
+    # input such as #bla练度爱丽丝练度. get_command consumes the leading keyword in
     # that case, leaving 练度 at the end; only the command route should query it.
     text = (ev.text or '').strip()
     if not text or '练度' in text or '面板' in text:

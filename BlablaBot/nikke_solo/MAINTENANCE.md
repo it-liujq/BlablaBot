@@ -1,12 +1,12 @@
 # 个人突袭推荐（实验性）
 
-命令：nk个人突袭推荐[刷新] [亮色/暗色/随机]，框架权限pm=6，仍受Core与BlablaBot名单限制。仅本人当前绑定，发送前持绑定锁复核。查询前明确第三方来源；不记录Cookie、Token、分享URL、openid或原始响应。
+命令：#bla个人突袭推荐[刷新] [亮色/暗色/随机]，框架权限pm=6，仍受Core与BlablaBot名单限制。仅本人当前绑定，发送前持绑定锁复核。查询前明确第三方来源；不记录Cookie、Token、分享URL、openid或原始响应。
 
 官方端使用现有NikkeClient进行带Cookie的本人GetSavedRoleInfo与GetUserInfoNew读取。分享标识来自本人认证响应，不把登录openid直接当分享openid。DILDORO上下文全新、非持久、禁用service worker，不注入官方Cookie；缓存未命中或显式刷新时重新导入，结束即关闭。单进程最多一个网站计算，同一发起者重复请求提示在途；含排队总等待最多720秒，浏览器阶段最多600秒，不自动重发执行。
 
 公开参考：2026-10-21的首页、app.js、profileconv.js、i18n.js，原件/哈希仅保存在开发.references/dildoro，不随插件安装。/account为页面而非公开API承诺。网址输入可读取openid参数；导入后按share_openid+area精确选择资料，绝不使用固定值默认账号。
 
-DOM契约：url-in/url-go → profile-pick → mode-solo/code → fast-toggle/fast-wrap → fast-rank → lab-sheet中的draft-rank卡片 → lab-srv服务器 → data-role=go。监听页面sr-rank/list并核对同弱点赛季服务器；对随后sets响应再核对服务器，阻止网站静默回退。源映射JP81、NA82、KR83、GLOBAL84、SEA85、TW-HK91。北美是否能网址导入由实际同步结果决定，不因存在排行选项就声称支持。
+DOM契约：url-in/url-go → profile-pick → mode-solo/code → fast-toggle/fast-wrap → fast-rank → lab-sheet中的draft-ra#bla卡片 → lab-srv服务器 → data-role=go。监听页面sr-rank/list并核对同弱点赛季服务器；对随后sets响应再核对服务器，阻止网站静默回退。源映射JP81、NA82、KR83、GLOBAL84、SEA85、TW-HK91。北美是否能网址导入由实际同步结果决定，不因存在排行选项就声称支持。
 
 当前网站配置模式会把推荐添加为第二个fg-set，截图该容器。严格验证5行、25个角色、5个数字伤害且无错误，等待头像和字体。DOM不符即拒绝截图。结果标签显示“网站当前弱点”与参考赛季，推荐可能来自历史同弱点赛季；缺失回收室等养成可能采用网站默认值。
 

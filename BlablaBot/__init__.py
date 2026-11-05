@@ -8,7 +8,7 @@ if os.environ.get("BLABLABOT_STANDALONE") != "1":
     if "BlablaBot" not in SL.plugins:
         Plugins(
             name="BlablaBot",
-            force_prefix=["nk"],
+            force_prefix=["#bla"],
             allow_empty_prefix=False,
         )
 
@@ -67,6 +67,7 @@ if os.environ.get("BLABLABOT_STANDALONE") != "1":
     # LPass 奖励中心：先导入模型建表，再注册 Lpass* 命令（prefix=False，不带 nk）
     from .nikke_lpass import store as _lpass_store  # noqa: E402,F401
     from .nikke_lpass import commands as _lpass_commands  # noqa: E402,F401
+    from .nikke_lpass import routes as _lpass_routes  # noqa: E402,F401
     from .nikke_lpass.scheduler import setup_auto as _setup_lpass_auto  # noqa: E402
     _setup_lpass_auto()
 

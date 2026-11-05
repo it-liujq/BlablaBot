@@ -1,6 +1,6 @@
 # 1.1.13 更新（优先于历史说明）
 
-nk出刀和nk查刀在同一个on_command元组注册到同一个总览handler；详情及排名仅推荐nk出刀详情[数字]。禁止对Core已装饰函数传detail_alias等额外关键字，真实装饰器wrapper只收bot,msg。真实Core_on/Trigger回归见test_v1113_union_alias.py和test_union_commands.py。缓存/赛季/模板/配色逻辑保持。滑刀仅留笔记。
+#bla出刀和#bla查刀在同一个on_command元组注册到同一个总览handler；详情及排名仅推荐#bla出刀详情[数字]。禁止对Core已装饰函数传detail_alias等额外关键字，真实装饰器wrapper只收bot,msg。真实Core_on/Trigger回归见test_v1113_union_alias.py和test_union_commands.py。缓存/赛季/模板/配色逻辑保持。滑刀仅留笔记。
 
 # 1.1.12 更新
 
@@ -29,7 +29,7 @@ nk出刀和nk查刀在同一个on_command元组注册到同一个总览handler�
 - 从 `nikke_union.commands` 导入 `sv_union`；pm=6、priority=3。一个 `on_command(('出刀','联盟突袭','突袭'))` 装饰器把三个互不重叠的前缀注册到同一handler，内部解析速查、Day1/Day2、详情、缺刀、尾刀、刷新。不要另加“出刀速查”前缀Trigger。
 - 可调用 `set_before_send(callback)`。callback签名为 `async (bot, event) -> bool`，唯一回复发送前重新调用；False不发送，已经取得的结果也不发。父root全局用户黑白hook仍应在命令开始前负责拦截；本模块不自行读取或推测父全局配置。
 - `union_queries.query(client, bind, *, view='quick', day=None, refresh=False, static=None, character_map=()) -> dict`。day是backend编号：0=Day1，1=Day2；None自动选择（有Day2记录即Day2，否则Day1）。view支持quick/detail/missing/tails；详情仅本人Day2。`invalidate(bind)`只清该加密绑定版本缓存。
-- 默认 `nk出刀`；显式 `nk出刀速查 Day2`；本人 `nk出刀详情`；同handler还有 `nk出刀缺刀` / `nk出刀尾刀`。`nk联盟突袭详情`与`nk突袭`共用handler。暂不实现跨成员查询、分页、Boss筛选或独立“nk缺刀”命令；完整成员表一次显示。
+- 默认 `#bla出刀`；显式 `#bla出刀速查 Day2`；本人 `#bla出刀详情`；同handler还有 `#bla出刀缺刀` / `#bla出刀尾刀`。`#bla联盟突袭详情`与`#bla突袭`共用handler。暂不实现跨成员查询、分页、Boss筛选或独立“#bla缺刀”命令；完整成员表一次显示。
 - 由父root完成SV引入、help和source缓存维护，本模块没有修改它们，也没有修改现有api/client。
 
 ## 已核实请求与口径

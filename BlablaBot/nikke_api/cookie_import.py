@@ -38,7 +38,7 @@ def parse_import_cookie(text, *, now=None):
             expired = True
             return
         if key in values and values[key] != value:
-            raise CookieInputError('Blablalink登录字段存在冲突，请只导出当前账号的站点Cookie。')
+            raise CookieInputError('Blablali#bla登录字段存在冲突，请只导出当前账号的站点Cookie。')
         values[key] = value
         if expiry:
             expiries.append(expiry)
@@ -79,6 +79,6 @@ def parse_import_cookie(text, *, now=None):
                 add(key.strip(),value.strip())
     if not values.get('game_openid') or not values.get('game_token'):
         if expired:
-            raise CookieInputError('Blablalink登录Cookie已到期，请重新登录官网后导出。')
+            raise CookieInputError('Blablali#bla登录Cookie已到期，请重新登录官网后导出。')
         return {}, 0
     return values, min(expiries,default=0)

@@ -1,4 +1,4 @@
-"""nk日历: public screenshot query, guarded before opening any browser."""
+"""#bla日历: public screenshot query, guarded before opening any browser."""
 from __future__ import annotations
 from ..nikke_commands import command_prefix
 

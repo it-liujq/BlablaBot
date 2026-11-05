@@ -9,7 +9,7 @@
 1. 更新GsCore端的BlablaBot插件，并保留原data/BlablaBot、数据库和密钥。
 2. 将本目录整层napcat-plugin-blablabot-native-forward放入NapCat的plugins目录，与现有GScore适配器目录同级；可使用发行版提供的独立NapCat配套ZIP。文件夹内应直接包含package.json、index.mjs和本说明。
 3. 在NapCat插件管理中启用本插件，重启NapCat与Core。首次启动应看到`[BlablaBot Native] enabled for BlablaBot card forwards only`。不兼容时会显示inactive，不要将其视为已启用。
-4. 先测试nk帮助，再测试nk出刀和nk卡片。命令在Core中仍可自定义前缀。转发开关已保存为关闭时需手动开启，新的默认值不覆盖旧设置。
+4. 先测试#bla帮助，再测试#bla出刀和#bla卡片。命令在Core中仍可自定义前缀。转发开关已保存为关闭时需手动开启，新的默认值不覆盖旧设置。
 
 **需要Core插件和本NapCat配套同时安装。** 只更新BlablaBot不能把远端NapCat切换到原生路径。无需修改GScore适配器、全局packetBackend、账号头像或配置Token，也不需要NoneBot。
 

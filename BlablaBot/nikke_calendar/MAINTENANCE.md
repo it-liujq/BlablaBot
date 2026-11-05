@@ -13,7 +13,7 @@ from .nikke_calendar.commands import setup as setup_calendar
 setup_calendar()
 ```
 
-仅注册一个 `SV('妮姬活动日历', pm=6, priority=3)` 和一个 `日历` 命令。`nk日历` 发图，`nk日历 帮助` 或任何非空参数返回用法，避免多个前缀处理器重复响应。回调先使用 `GroupPolicy(MAIN_PATH / 'group_policy.json').query_allowed(ev.group_id)`；禁用群在服务创建、浏览器及网络访问前返回。不读取绑定、他人资料或凭据。
+仅注册一个 `SV('妮姬活动日历', pm=6, priority=3)` 和一个 `日历` 命令。`#bla日历` 发图，`#bla日历 帮助` 或任何非空参数返回用法，避免多个前缀处理器重复响应。回调先使用 `GroupPolicy(MAIN_PATH / 'group_policy.json').query_allowed(ev.group_id)`；禁用群在服务创建、浏览器及网络访问前返回。不读取绑定、他人资料或凭据。
 
 ```python
 from .nikke_calendar.service import get_calendar

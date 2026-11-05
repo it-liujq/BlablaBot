@@ -16,7 +16,7 @@ nikke_time.beijing_text仅将已有epoch格式化为北京时间；time_metadata
 
 ### 1.1.10 横版信息卡（当前实现）
 
-nk信息/名片唯一生产布局为1228×720，原竖版profile.html已替换，无竖版切换入口。profile_wide.css提供左右玻璃分区，保留1张大立绘+4小头像；身份、部队战斗力、五项养成指标、战役与爬塔、前哨资料密排。职业与属性使用官方图标，独立Alpha阴影保持原图清晰。
+#bla信息/名片唯一生产布局为1228×720，原竖版profile.html已替换，无竖版切换入口。profile_wide.css提供左右玻璃分区，保留1张大立绘+4小头像；身份、部队战斗力、五项养成指标、战役与爬塔、前哨资料密排。职业与属性使用官方图标，独立Alpha阴影保持原图清晰。
 
 nikke_profile.presentation.prepare_profile_art在成品图缓存未命中后准备资源，优先当前皮肤full，缺失回退对应MI/SI，禁止用另一皮肤full冒充；full/MI传统定位沿用隔离进程和素材哈希缓存。类型、当前皮肤、头像、数值均沿用本人资料。头像保持方形显示，信息卡尺寸72px，沿用1.1.08用户头像/立绘角色头像回退策略。依赖跟踪含准备后的full，旧720px成品因模板、CSS和painter指纹变化自然重绘；正式渲染root_width=1228、PNG/DPI不变。
 
@@ -26,7 +26,7 @@ nikke_profile.presentation.prepare_profile_art在成品图缓存未命中后准�
 
 wide布局visible_rows至少3行，工具区顶部固定按三行计算。aggregate-rows最小高度84px、双列grid-auto-rows=28px；四类词条额外插入一个跨两列、带顶部分割线的空白展示行，不参与统计。0～6类词条均按三行占位，原数值、总阶、排序不变。缓存版本alice-v1109-three-row-summary-1。
 
-nk信息的横版重构已在1.1.10完成。
+#bla信息的横版重构已在1.1.10完成。
 
 ### 1.1.08 跨卡片头像与署名
 
@@ -233,7 +233,7 @@ BlablaBot/                       ← 可安装外壳
 
 [内层入口](BlablaBot/__init__.py) 在正常模式下执行：
 
-1. 注册 `Plugins(name="BlablaBot", force_prefix=["nk"], allow_empty_prefix=False)`。
+1. 注册 `Plugins(name="BlablaBot", force_prefix=["#bla"], allow_empty_prefix=False)`。
 2. 在任何SV与StringConfig初始化前，通过Core PluginConfigStore完成旧前缀的一次性迁移，通过Plugins.set同步内存前缀，再调用Core的get_plugin_available_prefix读取帮助文案快照；随后建立插件配置与四名单策略。
 3. 导入 `AliceBind` 模型并尝试挂载Core后台管理；不兼容的管理界面不会阻止普通登录。
 4. 导入各模块命令和登录Web路由；部分模块在 `setup()` 中注册。
@@ -436,7 +436,7 @@ OneBot私聊与Core非「允许」策略直接普通发送。共享边界依连�
 
 ### 1.0.08 修订：复用卡片完整单图路线
 
-2026-10-20，用户已确认candidate3的nk卡片、nk帮助、nk出刀三类群转发成功。正式交付冻结该发送实现，仅更新验收与发布文档；本节后续候选阶段的待验收说明不覆盖该结果。JPG转换和原生配套仍为可选路线，不能将三项标准路线成功当作这些可选方案的实机验收。
+2026-10-20，用户已确认candidate3的#bla卡片、#bla帮助、#bla出刀三类群转发成功。正式交付冻结该发送实现，仅更新验收与发布文档；本节后续候选阶段的待验收说明不覆盖该结果。JPG转换和原生配套仍为可选路线，不能将三项标准路线成功当作这些可选方案的实机验收。
 
 当前candidate3以保存的1.0.07 fix1 ZIP为消息结构基线，恢复默认标准转发，无需安装NapCat配套。send_with_forward构造纯MessageSegment.node，首节点标题文字，下一节点完整原图；帮助附注并入标题。过滤输入中的at/at_all，不传at_sender=True给转发；Core默认False，普通回退仍可at。保留wait_recall，它是回执观察参数，不改变适配器最终send_msg节点内容。
 
@@ -789,7 +789,7 @@ python tools_alice/build_release.py --plugin-only --build-tag docs
 - 旧23:00周期迁移没有逐请求时间戳，因此将可能重叠的旧预算与动作保守带入第一个08:00周期，标记legacy，不制造签到确认。服务可做任务状态检查，但不重复结果不确定的写入。
 - community/report.py与runtime.report_group：Core Bot主在当前群查询，按bot_id与群作用域筛选AliceBind和近期观察记录，40条分页；不调用社区、不过问成员Cookie。没有Core统一实时群名单时明示范围，不能把绑定群记录称为全群实时成员。
 - nikke_user/auth_state.py：known_invalid/mark_invalid/unavailable_message统一失效状态。load_client在解密与缓存命中前检查明确过期或已知无效；客户端只对401/300001写失效标记，403/429不写。标记按owner与cookie_enc摘要隔离，重登新revision不继承。
-- 新配置键BlablaBot_CommunitySignTime；新聊天命令nk签到查询[页码]。原nk签到改为精确匹配，避免与新查询命令重叠。
+- 新配置键BlablaBot_CommunitySignTime；新聊天命令#bla签到查询[页码]。原#bla签到改为精确匹配，避免与新查询命令重叠。
 - 当前源码工作区的Python解释器、45个依赖包和环境验证入口位于CodexZone/DevelopmentEnvironment。读取environment.json中的相对路径与-I -B参数，具体说明见该目录README；不再依赖GptZone或宿主site-packages。
 - 共享数据根现在只有BlablaBot主树，新增3个公开元数据JSON；1207张PNG和27项固定装饰图标已核验。旧NikkeUID/private_preview仅归档，用workspace_paths中的legacy_private_preview_root继续做发布隐私检查，不合并到运行账号数据。
 
@@ -838,9 +838,9 @@ nikke_solo.cache保存本人账号/区服/Bot/凭据修订隔离的PNG和原子�
 
 `refresh_panel()`在角色账号锁内获取profile._fetch的五个资料接口；从返回的本人角色列表取name_code，每批最多20个获取详情，每事务最多5个请求，5秒间隔、全局两槽及300秒任务上限。500角色是本地任务保护预算，不代表上游API限制。响应必须覆盖每批全部唯一角色，皮肤字段原样保留。全部成功后在绑定锁内复核绑定、权限、epoch，将profile/roster/details/complete一次性原子写入；失败保留旧完整快照，不自动重试。快照16MiB上限在写前检查。
 
-`ensure_profile()`先等同绑定正在进行的预缓存，再读取完整持久快照；缺失时只补建一次。生产RosterService通过snapshot_provider注入该入口；普通图鉴流程只准备公共图片并按既有指纹复用或渲染。`_profile_data()`同样使用该快照，不再600秒自动取数或使角色缓存失效。1.0.11的`nk刷新信息`与`nk刷新面板`共用queue_refresh，全量重取后输出信息图。
+`ensure_profile()`先等同绑定正在进行的预缓存，再读取完整持久快照；缺失时只补建一次。生产RosterService通过snapshot_provider注入该入口；普通图鉴流程只准备公共图片并按既有指纹复用或渲染。`_profile_data()`同样使用该快照，不再600秒自动取数或使角色缓存失效。1.0.11的`#bla刷新信息`与`#bla刷新面板`共用queue_refresh，全量重取后输出信息图。
 
-角色查询恢复同一快照的roster/details，持久数据无TTL；只在显式角色更新或缺少该角色详情时访问玩家接口。`nk刷新角色名面板`仅更新目标角色的角色行和详情，同时更新profile.chars中对应行，保留其他角色和个人资料。查询发布复核绑定和权限，图片写入检查快照saved_at，解绑或更新后旧渲染不写回缓存。
+角色查询恢复同一快照的roster/details，持久数据无TTL；只在显式角色更新或缺少该角色详情时访问玩家接口。`#bla刷新角色名面板`仅更新目标角色的角色行和详情，同时更新profile.chars中对应行，保留其他角色和个人资料。查询发布复核绑定和权限，图片写入检查快照saved_at，解绑或更新后旧渲染不写回缓存。
 
 1.0.11保留fullmatch“刷新面板”，suffix“面板”遇到完整“刷新/更新”时直接返回；“刷新角色名”去掉开头的“刷新”后调用单角色refresh=True。删除suffix“面板更新”。“刷新信息”只注册一次，委托同一账号队列。旧“练度角色刷新/更新”不执行刷新，仅给新用法。所有前缀由既有nikke_commands配置统一管理。
 
@@ -970,7 +970,7 @@ notify_state.py保存全群初始策略和按bot/self_id/group的覆盖。后台
 
 ## 1.1.12 按排名查刀与成员快照
 
-parse_request仅在详情路径将ASCII正整数解析为排名，普通出刀Day1/Day2规则不变。全程只加载发送者本人凭据；target_rank只在已核验本人联盟的完整快照中选成员，不加载目标账号Cookie或访问目标私有面板。排序与速查rows一致（伤害降序、刀数降序、昵称、成员ID），同伤害稳定排序，零刀也可定位。无数字保留本人路径；越界给出现有榜单人数和有效范围。
+parse_request仅在详情路径将ASCII正整数解析为排名，普通出刀Day1/Day2规则不变。全程只加载发送者本人凭据；target_ra#bla只在已核验本人联盟的完整快照中选成员，不加载目标账号Cookie或访问目标私有面板。排序与速查rows一致（伤害降序、刀数降序、昵称、成员ID），同伤害稳定排序，零刀也可定位。无数字保留本人路径；越界给出现有榜单人数和有效范围。
 
 持久成员库沿用UnionHistory的工会/产品/区服/赛季JSON快照，members保存完整名单，attacks保存所有成员阵容、伤害及外观；不另建重复账号库。内存_guild_cache共享同工会当前快照，_cache只是本人身份租期；进行中同时检查原数据_cached_at，晚到成员不能顺延180秒。已有账号在租期内可读取同工会更新的快照。休赛期已结算数据仍通过现有finalized路径长期复用，本人联盟/当前成员确认保留短TTL；赛季阶段改变、换工会、刷新及凭据变化均触发原有核验。数据源没有任何记录时继续显示真实未知，不把空响应捏造成零刀。
 
@@ -979,7 +979,7 @@ raid_active取官方赛季时间，构建器统一产生status/status_color，�
 
 ## 1.1.13 总览别名修复
 
-nk出刀与nk查刀在同一个on_command四项元组注册到nikke_union_cmd(bot, ev)，默认view=quick，不再通过另一个已装饰函数传入detail_alias关键字。本人/按排名阵容使用nk出刀详情[数字]；别名后参数沿用出刀解析器，查刀1为Day1，不再是伤害第1名。180秒共享数据、休赛期持久快照、阶段配色及双列逻辑未变。
+#bla出刀与#bla查刀在同一个on_command四项元组注册到nikke_union_cmd(bot, ev)，默认view=quick，不再通过另一个已装饰函数传入detail_alias关键字。本人/按排名阵容使用#bla出刀详情[数字]；别名后参数沿用出刀解析器，查刀1为Day1，不再是伤害第1名。180秒共享数据、休赛期持久快照、阶段配色及双列逻辑未变。
 
 根因：Core SV._on返回wrapper(bot,msg)，旧nikke_union_lookup向这个wrapper传detail_alias=True，触发TypeError；旧边界测试把装饰器模拟为原函数，漏掉了这一差异。本版边界测试执行冻结Core真实_on与Trigger，复现旧失败并验证出刀/查刀、详情、刷新、权限和单次路由。
 

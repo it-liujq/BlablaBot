@@ -41,7 +41,7 @@ async def owned_account(client, bind):
         raise SoloUnavailable('本人绑定或服务器已变化，请重新查询。')
     role = await client.get_saved_role_info()
     if str(role.get('area_id', '')) != str(actual[2]):
-        raise SoloUnavailable('blablalink当前角色服务器与BlablaBot绑定不一致，请先在官网核对。')
+        raise SoloUnavailable('blablali#bla当前角色服务器与BlablaBot绑定不一致，请先在官网核对。')
     data = await client._request('POST', '/api/ugc/proxy/standalonesite/User/GetUserInfoNew', {})
     full = str(((data.get('data') or {}).get('info') or {}).get('intl_openid') or '')
     match = re.fullmatch(r'(29080|29157)-(\d{9,30})', full)
@@ -85,7 +85,7 @@ async def capture_page(page, account):
     profiles = await page.evaluate(PROFILES)
     matches = [p for p in profiles if p.get('openid') == account.share_openid and p.get('area') == account.area and p.get('count', 0) > 0]
     if len(matches) != 1:
-        raise SoloUnavailable('账号同步未完成或目标区服未导入。请确认blablalink个人档案和妮姬列表公开，或直接访问DILDORO导入本人数据。')
+        raise SoloUnavailable('账号同步未完成或目标区服未导入。请确认blablali#bla个人档案和妮姬列表公开，或直接访问DILDORO导入本人数据。')
     # Navigate using the site's own tab, retaining this request's private storage.
     await page.locator('[data-tab="deck"]').click()
     await page.locator('#profile-pick').select_option(matches[0]['id'])

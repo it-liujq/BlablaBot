@@ -5,19 +5,19 @@
 ## 文件与注册
 
 - [store.py](<store.py>)：stdlib SQLite 独立存储、本地分享解析与摘要；不导入登录模型或游戏客户端。
-- [commands.py](<commands.py>)：`SV("妮姬UID登记", pm=6, priority=3)`。提供 `nk绑定UID`、`nk我的UID`、`nk解绑UID`，注册均为 `block=True`。旧账号解绑目前使用 `on_fullmatch`，因此不会匹配UID解绑，不依赖SV优先级。真实Trigger回归会组合当前旧命令与UID命令验证这一点。所有归属均只取 `ev.user_id + ev.bot_id`，不读取提及对象作为owner。
+- [commands.py](<commands.py>)：`SV("妮姬UID登记", pm=6, priority=3)`。提供 `#bla绑定UID`、`#bla我的UID`、`#bla解绑UID`，注册均为 `block=True`。旧账号解绑目前使用 `on_fullmatch`，因此不会匹配UID解绑，不依赖SV优先级。真实Trigger回归会组合当前旧命令与UID命令验证这一点。所有归属均只取 `ev.user_id + ev.bot_id`，不读取提及对象作为owner。
 - [模块入口](<__init__.py>)：导出纯存储接口，不自动注册命令。由插件根初始化显式导入 `nikke_uid.commands`；根初始化、帮助和旧账号命令衔接由主代理负责。
 - [离线测试](<../../../tests/test_uid.py>)：禁用网络连接，验证精度、namespace并发合并、事务失败回滚、跨owner隔离、恶意URL、命令权限和无Cookie占位。
 
 ## 命令契约
 
 ```text
-nk绑定UID
-nk绑定UID 社区 <1至30位半角数字字符串>
-nk绑定UID 游戏 日服 <1至30位半角数字字符串>
-nk绑定UID 分享 <官网分享URL或Base64完整标识>
-nk我的UID
-nk解绑UID
+#bla绑定UID
+#bla绑定UID 社区 <1至30位半角数字字符串>
+#bla绑定UID 游戏 日服 <1至30位半角数字字符串>
+#bla绑定UID 分享 <官网分享URL或Base64完整标识>
+#bla我的UID
+#bla解绑UID
 ```
 
 - 无参显示三个类型的用法；禁止按位数猜测社区或游戏UID。数字字符串长度边界只用于输入限制，不代表上游已接受该ID。
@@ -64,8 +64,8 @@ removed = store.clear(ev.user_id, ev.bot_id)  # bool
 
 ## 与旧账号命令的衔接边界
 
-- `nk我的账号` 可读取 `get()` 并追加 `format_summary()`，但不得因UID记录存在就显示“已登录”，也不得替代原加密凭据加载逻辑。
-- `nk解绑UID` 仅清UID登记。主代理如使旧 `nk解绑` 同时清理登记，应在原登录解绑成功后再调用 `clear()`，并确保失败反馈不会声称未完成的部分已成功；本模块不修改旧命令行为。
+- `#bla我的账号` 可读取 `get()` 并追加 `format_summary()`，但不得因UID记录存在就显示“已登录”，也不得替代原加密凭据加载逻辑。
+- `#bla解绑UID` 仅清UID登记。主代理如使旧 `#bla解绑` 同时清理登记，应在原登录解绑成功后再调用 `clear()`，并确保失败反馈不会声称未完成的部分已成功；本模块不修改旧命令行为。
 - 不把UID记录加入社区定时任务名单，不从分享标识推断本人，不能自动使用Bot主/群友Cookie代查。
 - 展示、导出或网页参数中的长ID不得经JavaScript Number、浮点或数字型JSON中转；使用字符串保持精度和前导零。
 

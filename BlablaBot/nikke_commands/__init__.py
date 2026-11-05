@@ -8,7 +8,7 @@ ENABLED_KEY = 'AliceUID_CustomPrefixEnabled'
 PREFIX_KEY = 'AliceUID_CustomPrefix'
 DISABLE_KEY = 'AliceUID_DisableDefaultPrefix'
 PREFIX_KEYS = {ENABLED_KEY, PREFIX_KEY, DISABLE_KEY}
-_active = ('nk',)
+_active = ('#bla',)
 
 
 def valid_prefix(value):
@@ -20,8 +20,8 @@ def resolve_prefixes(enabled=False, custom='alice', disable=False):
     if type(enabled) is not bool or type(disable) is not bool or not valid_prefix(custom):
         raise ValueError('旧唤醒指令配置无效，请检查配置文件')
     if not enabled:
-        return ('nk',)
-    return (custom,) if disable else tuple(dict.fromkeys(('nk', custom)))
+        return ('#bla',)
+    return (custom,) if disable else tuple(dict.fromkeys(('#bla', custom)))
 
 
 def configure(plugin, config_path):

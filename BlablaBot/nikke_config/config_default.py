@@ -108,7 +108,7 @@ CONFIG_DEFAULT: Dict[str, GSC] = {
         "卡片字体", "读取插件formts目录；新字体放入后刷新本页。字体不可读自动用黑体，列表保留显式兜底项。", factory_default(), options=font_options(),
     ),
     "AliceUID_GlassStrength": GsIntConfig(
-        "竖版卡片毛玻璃强度（%）", "仅对竖版/窄版毛玻璃卡片生效；新版横版nk信息和横版角色练度不受影响。0～100%，默认20%，只调整背景模糊，保留已有自定义值。", 20, 100,
+        "竖版卡片毛玻璃强度（%）", "仅对竖版/窄版毛玻璃卡片生效；新版横版#bla信息和横版角色练度不受影响。0～100%，默认20%，只调整背景模糊，保留已有自定义值。", 20, 100,
     ),
     "AliceUID_RenderDpi": GsIntConfig(
         "渲染分辨率 DPI",

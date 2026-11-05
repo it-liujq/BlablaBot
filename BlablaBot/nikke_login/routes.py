@@ -574,7 +574,7 @@ async def nikke_api_cookie(payload: CookiePayload):
         except CookieInputError as exc:
             return JSONResponse({"ok":False,"msg":str(exc)})
         if cred is None:
-            return JSONResponse({"ok":False,"msg":"未找到可用于Blablalink的game_openid / game_token，请重新导出当前站点。"})
+            return JSONResponse({"ok":False,"msg":"未找到可用于Blablali#bla的game_openid / game_token，请重新导出当前站点。"})
         session.cancel()
         session.mode = 'cookie'
         session.status = 'logging_in'

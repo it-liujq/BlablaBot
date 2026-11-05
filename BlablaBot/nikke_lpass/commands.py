@@ -16,6 +16,8 @@ from gsuid_core.models import Event
 from gsuid_core.sv import SV
 
 from ..nikke_commands import command_prefix
+from ..nikke_login.commands import get_base_url
+from ..nikke_login.session import sessions
 from .api import LPassAPI, LPassAuthError, LPassCookie, LPassError, ladder_progress, parse_cookie
 from .auth import LoginError, login_with_password, verify
 from .report import render, render_auto_status, render_bind, render_status
@@ -41,6 +43,7 @@ def _lock(user_id: str, bot_id: str) -> asyncio.Lock:
 
 HELP = (
     "LEVEL INFINITE PASS 奖励中心\n"
+    "Lpass绑定 —— 发一个网页登录链接（推荐，账号密码只在浏览器输入）\n"
     "Lpass绑定 cookie内容 —— 粘贴浏览器里 pass.levelinfinite.com 的 Cookie\n"
     "Lpass绑定 邮箱 密码 —— 由 Bot 打开网页登录并保存登录态\n"
     "Lpass日常 —— 签到 + 常规任务 + 一次性任务\n"
@@ -72,7 +75,20 @@ async def _load_api(user_id: str, bot_id: str) -> tuple[Optional[LPassBind], Opt
 async def lpass_bind(bot: Bot, ev: Event):
     text = (ev.text or "").strip()
     if not text:
-        await bot.send(HELP, at_sender=True)
+        # 与 #bla登录 一致：给一个网页登录链接，账号密码只在浏览器里输入
+        active = sessions.active(ev.user_id, ev.bot_id)
+        if active is not None and active.mode == "lpass":
+            session = active
+        else:
+            session = sessions.create(ev.user_id, ev.bot_id, ev.group_id, area_id=0, ttl=900)
+            session.mode = "lpass"
+        url = f"{get_base_url()}/nikke/lpass/{session.token}"
+        await bot.send(
+            "请在浏览器打开下面的链接登录 LEVEL INFINITE PASS（15 分钟内有效）：\n"
+            f"{url}\n\n"
+            "登录成功后 Bot 会自动保存登录态；也可以用私聊发 "
+            "「Lpass绑定 Cookie内容」或「Lpass绑定 邮箱 密码」。",
+            at_sender=True)
         return
     # Cookie 与密码都是登录态，只允许私聊提交，避免在群里泄露。
     if getattr(ev, "group_id", None) and _looks_like_cookie(text):
