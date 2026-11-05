@@ -35,7 +35,7 @@ hr{border:0;border-top:1px solid #302a49;margin:26px 0}
 .foot{margin-top:24px;color:#6f688c;font-size:12px}
 </style></head><body><div class="wrap">
 <h1>LEVEL INFINITE PASS 绑定</h1>
-<p class="tip">登录 pass.levelinfinite.com 后，Bot 会保存登录态用于每日任务。账号密码只发给本机 Core，不写入日志。</p>
+<p class="tip">登录 pass.levelinfinite.com 后，Bot 会保存登录态用于每日任务。账号密码只发给本机 Core，不写入日志。<br><b>此链接 10 分钟内有效</b>，过期请重新发送「Lpass绑定」。</p>
 <form id="f">
 <label>邮箱地址</label><input id="email" type="email" autocomplete="username" required>
 <label>密码</label><input id="password" type="password" autocomplete="current-password" required>
