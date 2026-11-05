@@ -1,6 +1,6 @@
 <p align="center">
-  <a href="https://github.com/dddada123/BlablaBot">
-    <img src="https://raw.githubusercontent.com/dddada123/BlablaBot/main/ICON.png" width="256" alt="BlablaBot">
+  <a href="https://github.com/dddada123/AliceUID">
+    <img src="https://raw.githubusercontent.com/dddada123/AliceUID/main/ICON.png" width="256" alt="BlablaBot">
   </a>
 </p>
 
@@ -8,17 +8,17 @@
 
 <p align="center">
   <a href="https://github.com/Genshin-bots/gsuid_core"><img src="https://img.shields.io/badge/Framework-GsCore-8A2BE2?style=flat-square" alt="Framework: GsCore"></a>
-  <a href="https://github.com/dddada123/BlablaBot/blob/main/LICENSE"><img src="https://img.shields.io/badge/License-MIT-green?style=flat-square" alt="License: MIT"></a>
+  <a href="https://github.com/dddada123/AliceUID/blob/main/LICENSE"><img src="https://img.shields.io/badge/License-MIT-green?style=flat-square" alt="License: MIT"></a>
   <a href="CHANGELOG.md"><img src="https://img.shields.io/badge/Version-1.1.23-ff69b4?style=flat-square" alt="Version: 1.1.23"></a>
   <a href="pyproject.toml"><img src="https://img.shields.io/badge/Python-%E2%89%A53.10-3776AB?style=flat-square&amp;logo=python&amp;logoColor=white" alt="Python: ≥3.10"></a>
-  <a href="https://github.com/dddada123/BlablaBot/stargazers"><img src="https://img.shields.io/github/stars/dddada123/BlablaBot?style=flat-square" alt="GitHub Stars"></a>
+  <a href="https://github.com/dddada123/AliceUID/stargazers"><img src="https://img.shields.io/github/stars/dddada123/AliceUID?style=flat-square" alt="GitHub Stars"></a>
 </p>
 
 适用于 GsCore 的《胜利女神：NIKKE》插件，支持本人账号绑定、名片与角色练度、皮肤图鉴、会战出刀、资源与收菜提醒、社区签到、兑换码查询与兑换，以及 **DILDORO** 个人突袭编队推荐。
 
 当前版本 **1.1.23**。默认指令前缀为 `nk`，可在Core插件管理中调整。
 
-[亮点功能](#亮点功能) · [功能说明](#功能说明) · [效果预览](#效果预览) · [版本记录](CHANGELOG.md) · [开发文档与接口映射](DEVELOPMENT.md) · [问题反馈](https://github.com/dddada123/BlablaBot/issues)
+[亮点功能](#亮点功能) · [功能说明](#功能说明) · [效果预览](#效果预览) · [版本记录](CHANGELOG.md) · [开发文档与接口映射](DEVELOPMENT.md) · [问题反馈](https://github.com/dddada123/AliceUID/issues)
 
 <p align="center">
   <img src="https://count.getloli.com/@BlablaBot?theme=nixietube-1&amp;padding=7&amp;offset=0&amp;align=top&amp;scale=1&amp;pixelated=1&amp;darkmode=auto" alt="BlablaBot 访问计数">
@@ -305,18 +305,18 @@ Bot主在WebUI调整配置，普通用户只显示有权使用的指令。修改
 
 ## 反馈与贡献
 
-遇到问题或有功能建议，欢迎提交 [Issue](https://github.com/dddada123/BlablaBot/issues)。请附插件版本、GsCore版本、复现步骤，以及脱敏后的日志或截图；不要上传 Cookie、Token、密码或验证码。
+遇到问题或有功能建议，欢迎提交 [Issue](https://github.com/dddada123/AliceUID/issues)。请附插件版本、GsCore版本、复现步骤，以及脱敏后的日志或截图；不要上传 Cookie、Token、密码或验证码。
 
-想参与开发可先阅读 [开发文档](DEVELOPMENT.md)，也欢迎通过 [Pull Request](https://github.com/dddada123/BlablaBot/pulls) 改进代码和文档。如果觉得插件有帮助，点一颗 Star 也是很好的支持 ⭐
+想参与开发可先阅读 [开发文档](DEVELOPMENT.md)，也欢迎通过 [Pull Request](https://github.com/dddada123/AliceUID/pulls) 改进代码和文档。如果觉得插件有帮助，点一颗 Star 也是很好的支持 ⭐
 
 ## Star History
 
 <p align="center">
   <a href="https://www.star-history.com/?repos=dddada123%2FBlablaBot&amp;type=date&amp;legend=top-left">
     <picture>
-      <source media="(prefers-color-scheme: dark)" srcset="https://api.star-history.com/chart?repos=dddada123/BlablaBot&amp;type=date&amp;theme=dark&amp;legend=top-left">
-      <source media="(prefers-color-scheme: light)" srcset="https://api.star-history.com/chart?repos=dddada123/BlablaBot&amp;type=date&amp;legend=top-left">
-      <img src="https://api.star-history.com/chart?repos=dddada123/BlablaBot&amp;type=date&amp;legend=top-left" width="800" alt="BlablaBot Star History Chart">
+      <source media="(prefers-color-scheme: dark)" srcset="https://api.star-history.com/chart?repos=dddada123/AliceUID&amp;type=date&amp;theme=dark&amp;legend=top-left">
+      <source media="(prefers-color-scheme: light)" srcset="https://api.star-history.com/chart?repos=dddada123/AliceUID&amp;type=date&amp;legend=top-left">
+      <img src="https://api.star-history.com/chart?repos=dddada123/AliceUID&amp;type=date&amp;legend=top-left" width="800" alt="BlablaBot Star History Chart">
     </picture>
   </a>
 </p>
