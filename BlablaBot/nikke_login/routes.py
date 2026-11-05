@@ -35,7 +35,16 @@ from ..nikke_permissions.runtime import get_policy
 from .email_flow import cooldown, valid_email, email_login_available, EMAIL_LOGIN_NOTICE
 
 
-@app.middleware("http")
+def _optional_middleware(func):
+    """应用已启动时 Starlette 拒绝再加中间件，此时降级为只记一条告警。"""
+    try:
+        return app.middleware("http")(func)
+    except RuntimeError:
+        logger.warning("登录路由中间件未注册（应用已启动），重启 Core 后生效")
+        return func
+
+
+@_optional_middleware
 async def login_transport_policy(request: Request, call_next):
     login_path = request.url.path.startswith(("/nikke/i/", "/nikke/api/"))
     if login_path and require_https() and request.scope.get("scheme") != "https":
@@ -181,7 +190,7 @@ async def nikke_api_login(payload: LoginPayload):
     if session and not _owner_allowed(session):
         return _denied()
     if AliceUIDConfig.get_config("AliceUID_LoginMode").data == "cookie":
-        return JSONResponse({"ok": False, "msg": f"当前仅允许 Cookie 导入；请在此页面切换到导入Cookie"}, status_code=403)
+        return JSONResponse({"ok": False, "msg": "当前仅允许 Cookie 导入；请在此页面切换到导入Cookie"}, status_code=403)
     if not session:
         return JSONResponse({"ok": False, "msg": "登录会话已失效"}, status_code=410)
     if session.area_id not in REGIONS:

@@ -68,6 +68,16 @@ def _preflight(path):
     return present
 
 
+def _config_registry() -> dict:
+    """Core 的 StringConfig 缓存表（all_config_list），用于接管热重载遗留实例。"""
+    from gsuid_core.utils.plugins_config import gs_config as _gs_config
+
+    registry = _gs_config.__dict__.get("all_config_list")
+    if not isinstance(registry, dict):
+        raise GroupPolicyError("Core 配置缓存不可用，请更新 Core 后重试")
+    return registry
+
+
 def ValidatedStringConfig(config_name, CONFIG_PATH, config_list, *, legacy_path=None):
     """Return an actual StringConfig subclass instance; same three Core arguments.
 
@@ -118,7 +128,7 @@ def ValidatedStringConfig(config_name, CONFIG_PATH, config_list, *, legacy_path=
                 with _CONFIG_LOCK:
                     from ..nikke_commands import PREFIX_KEYS
                     from ..nikke_community.pacing import RANGE_KEYS, parse_range
-                    from ..nikke_community.notify_policy import ENABLED, WHITE, BLACK, valid_groups
+                    from ..nikke_community.notify_policy import ENABLED, WHITE, BLACK
                     if key == ENABLED and type(value) is not bool:
                         return False
                     if key in (WHITE,BLACK):
@@ -226,6 +236,13 @@ def ValidatedStringConfig(config_name, CONFIG_PATH, config_list, *, legacy_path=
             if not backup.exists():
                 backup.write_text(json.dumps(original,ensure_ascii=False,indent=2),'utf-8')
         NotificationPolicy(path.with_name('community.sqlite3'),enabled,white,black)
+    existing = _config_registry().get(config_name)
+    if existing is not None and not isinstance(existing, _VALIDATED_TYPE):
+        # 热重载会重建 _ValidatedStringConfig 类，Core 缓存里仍留上一代实例；
+        # 直接接管（换类并重新初始化），避免被判为“原生StringConfig已初始化”。
+        existing.__class__ = _VALIDATED_TYPE
+        existing.__init__(config_name, CONFIG_PATH, defaults)
+        return existing
     instance = _VALIDATED_TYPE(config_name, CONFIG_PATH, defaults)
     if not isinstance(instance, _VALIDATED_TYPE):
         raise GroupPolicyError("此配置已由原生StringConfig初始化；必须先使用ValidatedStringConfig")
