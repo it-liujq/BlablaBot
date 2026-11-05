@@ -1,27 +1,27 @@
 <p align="center">
-  <a href="https://github.com/dddada123/AliceUID">
-    <img src="https://raw.githubusercontent.com/dddada123/AliceUID/main/ICON.png" width="256" alt="AliceUID">
+  <a href="https://github.com/dddada123/BlablaBot">
+    <img src="https://raw.githubusercontent.com/dddada123/BlablaBot/main/ICON.png" width="256" alt="BlablaBot">
   </a>
 </p>
 
-<h1 align="center">AliceUID</h1>
+<h1 align="center">BlablaBot</h1>
 
 <p align="center">
   <a href="https://github.com/Genshin-bots/gsuid_core"><img src="https://img.shields.io/badge/Framework-GsCore-8A2BE2?style=flat-square" alt="Framework: GsCore"></a>
-  <a href="https://github.com/dddada123/AliceUID/blob/main/LICENSE"><img src="https://img.shields.io/badge/License-MIT-green?style=flat-square" alt="License: MIT"></a>
+  <a href="https://github.com/dddada123/BlablaBot/blob/main/LICENSE"><img src="https://img.shields.io/badge/License-MIT-green?style=flat-square" alt="License: MIT"></a>
   <a href="CHANGELOG.md"><img src="https://img.shields.io/badge/Version-1.1.23-ff69b4?style=flat-square" alt="Version: 1.1.23"></a>
   <a href="pyproject.toml"><img src="https://img.shields.io/badge/Python-%E2%89%A53.10-3776AB?style=flat-square&amp;logo=python&amp;logoColor=white" alt="Python: ≥3.10"></a>
-  <a href="https://github.com/dddada123/AliceUID/stargazers"><img src="https://img.shields.io/github/stars/dddada123/AliceUID?style=flat-square" alt="GitHub Stars"></a>
+  <a href="https://github.com/dddada123/BlablaBot/stargazers"><img src="https://img.shields.io/github/stars/dddada123/BlablaBot?style=flat-square" alt="GitHub Stars"></a>
 </p>
 
 适用于 GsCore 的《胜利女神：NIKKE》插件，支持本人账号绑定、名片与角色练度、皮肤图鉴、会战出刀、资源与收菜提醒、社区签到、兑换码查询与兑换，以及 **DILDORO** 个人突袭编队推荐。
 
 当前版本 **1.1.23**。默认指令前缀为 `nk`，可在Core插件管理中调整。
 
-[亮点功能](#亮点功能) · [功能说明](#功能说明) · [效果预览](#效果预览) · [版本记录](CHANGELOG.md) · [开发文档与接口映射](DEVELOPMENT.md) · [问题反馈](https://github.com/dddada123/AliceUID/issues)
+[亮点功能](#亮点功能) · [功能说明](#功能说明) · [效果预览](#效果预览) · [版本记录](CHANGELOG.md) · [开发文档与接口映射](DEVELOPMENT.md) · [问题反馈](https://github.com/dddada123/BlablaBot/issues)
 
 <p align="center">
-  <img src="https://count.getloli.com/@AliceUID?theme=nixietube-1&amp;padding=7&amp;offset=0&amp;align=top&amp;scale=1&amp;pixelated=1&amp;darkmode=auto" alt="AliceUID 访问计数">
+  <img src="https://count.getloli.com/@BlablaBot?theme=nixietube-1&amp;padding=7&amp;offset=0&amp;align=top&amp;scale=1&amp;pixelated=1&amp;darkmode=auto" alt="BlablaBot 访问计数">
 </p>
 
 ## 亮点功能
@@ -59,6 +59,12 @@
 
 手动和自动兑换均需Bot主开启「允许本人CDK兑换」；自动兑换还需系统与个人开关允许。个人用 `nk自动兑换码` / `nk关闭自动兑换码` 调整，Bot主可批量设置，见[管理与配置](#管理与配置)。
 
+### LI PASS 奖励中心（LPass）
+
+`Lpass绑定` 绑定 pass.levelinfinite.com 的登录态：粘贴含 `lip_openid`/`lip_token` 的 Cookie，或用 `Lpass绑定 邮箱 密码` 由 Bot 打开网页登录。它与 `nk登录` 的 blablalink 游戏账号互相独立，Cookie 分开加密存储。
+
+`Lpass日常` 依次处理七日金币激励签到、已达标任务的领取、每周分享链接、一次性任务与昵称修改；`Lpass日常 演练` 只读不提交。好友类任务（发送好友请求、分享交友链接、添加好友）在 `sg.intlgame.com` 且需要页面 SDK 签名，游玩游戏由服务端判定，这四项会标记为需人工并给出好友页地址。`Lpass自动任务 开启 08:30` 可让 Bot 每天定时执行并私聊推送结果（`关闭` / `状态` 同理）。`Lpass状态` 查看金币与登录态剩余天数，`Lpass解绑` 清除本地凭据。好友请求会在页面内自动点推荐好友的「+」，打开好友抽屉同时完成「分享交友链接」任务（`Lpass日常` 默认先跑，失败降级为人工）；`Lpass好友` 可单独重试。
+
 ### 社区任务与日历
 
 `nk签到` 执行本人签到，`nk开启全量签到` 授权签到、浏览和点赞。自动社区任务默认关闭，授权后默认每天北京时间08:33执行，可在后台调整。`nk自动社区 状态` 查看状态，`nk自动社区 关闭` 停止任务。
@@ -75,23 +81,23 @@
 
 ## 安装与升级
 
-AliceUID依赖GsCore，不能独立运行；需要Python ≥3.10。
+BlablaBot依赖GsCore，不能独立运行；需要Python ≥3.10。
 
 1. 备份原插件及运行数据，将**完整安装ZIP**解压到GsCore的 `plugins/` 父目录，覆盖同名文件。图片、背景和字体已包含，无需另下素材包。
 2. 使用GsCore实际运行的Python安装依赖：
 
 ```bash
-python -m pip install -r plugins/AliceUID/requirements.txt
+python -m pip install -r plugins/BlablaBot/requirements.txt
 python -m playwright install chromium
 ```
 
 3. 在WebUI配置用户可访问的登录地址、名单和主题，完整重启Core，再发送 `nk帮助`。首次启动会自动更新角色列表。
 
-保留 `plugins/AliceUID/AliceUID/` 的嵌套结构，不要只复制内层包。升级保留 `data/AliceUID`、绑定和配置，尤其是保存领取回执的 `cdk.sqlite3`；不要同时启用多份插件。
+保留 `plugins/BlablaBot/BlablaBot/` 的嵌套结构，不要只复制内层包。升级保留 `data/BlablaBot`、绑定和配置，尤其是保存领取回执的 `cdk.sqlite3`；不要同时启用多份插件。
 
 网页登录、会战攻略长截图、官网日历和DILDORO需要Playwright浏览器。升级Playwright后需重装匹配的Chromium；Docker环境须在运行容器内安装，缺少系统依赖时可用 `python -m playwright install --with-deps chromium`。Cookie导入登录本身无需启动服务端浏览器。
 
-从旧NikkeUID迁移时，仅复用公开素材，用户需在AliceUID重新登录。
+从旧NikkeUID迁移时，仅复用公开素材，用户需在BlablaBot重新登录。
 
 ## 快速开始
 
@@ -149,16 +155,16 @@ Bot主在WebUI调整配置，普通用户只显示有权使用的指令。修改
 
 | 设置 | 必要说明 |
 |---|---|
-| 登录地址 | `AliceUID_LoginUrl` 填写用户可访问的地址；反代需转发 `/nikke/` 路由 |
-| 登录方式 | `AliceUID_LoginMode` 可选网页账号密码或Cookie导入，也可设置仅Cookie导入 |
+| 登录地址 | `BlablaBot_LoginUrl` 填写用户可访问的地址；反代需转发 `/nikke/` 路由 |
+| 登录方式 | `BlablaBot_LoginMode` 可选网页账号密码或Cookie导入，也可设置仅Cookie导入 |
 | HTTPS | 使用HTTPS反代时，确认Core正确识别外部协议后再开启插件HTTPS要求 |
 | 卡片外观 | 全局主题、语言、字体可调；角色面板和个人突袭推荐有独立主题设置 |
-| 转发图片 | `AliceUID_ForwardReencode` 默认关闭；`AliceUID_ForwardJpegQuality` 默认95 |
-| 转发等待 | `AliceUID_ForwardReceiptSeconds` 默认30秒，保存后下次发送生效 |
-| 兑换写操作 | `AliceUID_EnableWriteOps` 默认关闭，手动和自动兑换均需Bot主开启 |
-| 自动兑换 | `AliceUID_AutoCDKEnabled` 默认开启，停用不会修改个人开关 |
+| 转发图片 | `BlablaBot_ForwardReencode` 默认关闭；`BlablaBot_ForwardJpegQuality` 默认95 |
+| 转发等待 | `BlablaBot_ForwardReceiptSeconds` 默认30秒，保存后下次发送生效 |
+| 兑换写操作 | `BlablaBot_EnableWriteOps` 默认关闭，手动和自动兑换均需Bot主开启 |
+| 自动兑换 | `BlablaBot_AutoCDKEnabled` 默认开启，停用不会修改个人开关 |
 | 社区任务 | 需本人授权，默认08:33执行；点赞可独立关闭 |
-| AI查询 | `AliceUID_AIQueryEnabled` 默认关闭，需配合Core AI使用 |
+| AI查询 | `BlablaBot_AIQueryEnabled` 默认关闭，需配合Core AI使用 |
 
 角色资料支持启动、日历和周检自动更新；Bot主可用 `nk数据库更新` 手动更新，`nk数据库更新 状态` 查看进度。
 
@@ -178,7 +184,7 @@ Bot主在WebUI调整配置，普通用户只显示有权使用的指令。修改
 
 养成、资源与兑换操作使用发命令者本人的绑定账号；会战详情可按本联盟伤害排名查看成员阵容。查询、自动任务与通知均受Core权限及插件名单控制。
 
-请备份 `data/AliceUID`，不要公开Cookie、Token、密码和验证码。实现与历史细节见 [开发文档](DEVELOPMENT.md)、[版本记录](CHANGELOG.md)。
+请备份 `data/BlablaBot`，不要公开Cookie、Token、密码和验证码。实现与历史细节见 [开发文档](DEVELOPMENT.md)、[版本记录](CHANGELOG.md)。
 
 ## 排查入口
 
@@ -291,26 +297,26 @@ Bot主在WebUI调整配置，普通用户只显示有权使用的指令。修改
 
 ## 鸣谢
 
-感谢 [dildoro.com 妮姬伤害计算器·DILDORO](https://dildoro.com/) 提供妮姬伤害模拟、排行编队推荐及本功能采用的网站截图内容。AliceUID不将这些推荐与截图内容声明为独立原创，结果卡片同时标注来源与联合署名：
+感谢 [dildoro.com 妮姬伤害计算器·DILDORO](https://dildoro.com/) 提供妮姬伤害模拟、排行编队推荐及本功能采用的网站截图内容。BlablaBot不将这些推荐与截图内容声明为独立原创，结果卡片同时标注来源与联合署名：
 
-`Powered By GsCore & Created By AliceUID & dildoro`
+`Powered By GsCore & Created By BlablaBot & dildoro`
 
 感谢 GsCore 提供插件运行、消息处理与卡片渲染基础。NIKKE角色、图片与游戏资料的权利归各权利人所有。
 
 ## 反馈与贡献
 
-遇到问题或有功能建议，欢迎提交 [Issue](https://github.com/dddada123/AliceUID/issues)。请附插件版本、GsCore版本、复现步骤，以及脱敏后的日志或截图；不要上传 Cookie、Token、密码或验证码。
+遇到问题或有功能建议，欢迎提交 [Issue](https://github.com/dddada123/BlablaBot/issues)。请附插件版本、GsCore版本、复现步骤，以及脱敏后的日志或截图；不要上传 Cookie、Token、密码或验证码。
 
-想参与开发可先阅读 [开发文档](DEVELOPMENT.md)，也欢迎通过 [Pull Request](https://github.com/dddada123/AliceUID/pulls) 改进代码和文档。如果觉得插件有帮助，点一颗 Star 也是很好的支持 ⭐
+想参与开发可先阅读 [开发文档](DEVELOPMENT.md)，也欢迎通过 [Pull Request](https://github.com/dddada123/BlablaBot/pulls) 改进代码和文档。如果觉得插件有帮助，点一颗 Star 也是很好的支持 ⭐
 
 ## Star History
 
 <p align="center">
-  <a href="https://www.star-history.com/?repos=dddada123%2FAliceUID&amp;type=date&amp;legend=top-left">
+  <a href="https://www.star-history.com/?repos=dddada123%2FBlablaBot&amp;type=date&amp;legend=top-left">
     <picture>
-      <source media="(prefers-color-scheme: dark)" srcset="https://api.star-history.com/chart?repos=dddada123/AliceUID&amp;type=date&amp;theme=dark&amp;legend=top-left">
-      <source media="(prefers-color-scheme: light)" srcset="https://api.star-history.com/chart?repos=dddada123/AliceUID&amp;type=date&amp;legend=top-left">
-      <img src="https://api.star-history.com/chart?repos=dddada123/AliceUID&amp;type=date&amp;legend=top-left" width="800" alt="AliceUID Star History Chart">
+      <source media="(prefers-color-scheme: dark)" srcset="https://api.star-history.com/chart?repos=dddada123/BlablaBot&amp;type=date&amp;theme=dark&amp;legend=top-left">
+      <source media="(prefers-color-scheme: light)" srcset="https://api.star-history.com/chart?repos=dddada123/BlablaBot&amp;type=date&amp;legend=top-left">
+      <img src="https://api.star-history.com/chart?repos=dddada123/BlablaBot&amp;type=date&amp;legend=top-left" width="800" alt="BlablaBot Star History Chart">
     </picture>
   </a>
 </p>
@@ -319,7 +325,7 @@ Bot主在WebUI调整配置，普通用户只显示有权使用的指令。修改
 
 本插件及其核心逻辑**完全免费、永久开源**。
 
-如果 AliceUID 帮你更方便地查询妮姬资料、查看联盟会战或完成社区日常，欢迎随缘打赏，就当请作者喝杯咖啡或者买个甜甜圈啦～ ❤️
+如果 BlablaBot 帮你更方便地查询妮姬资料、查看联盟会战或完成社区日常，欢迎随缘打赏，就当请作者喝杯咖啡或者买个甜甜圈啦～ ❤️
 
 赞助完全自愿，不影响任何现有功能的使用。感谢每一位使用、反馈和支持插件的指挥官！
 

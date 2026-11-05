@@ -5,7 +5,7 @@
 - 删除自动兑换每60秒库存扫描及旧注册。库存00/08/16点定时更新、手动或其他入口实际更新后触发检查；成员贡献即时派发。恢复已有待处理记录依靠启动和后续合法插件交互，不轮询。
 - 新绑定经过持久保存及回读核验后建立单用户持久任务，立即核对当前有效码。重新登录不触发。仅在绑定群或私聊本人通知，不扩散其他群；开关、权限、绑定revision、账号锁和未知结果回执继续生效。无连接时保留待处理，绑定变化取消旧任务。
 - 升级基线从既有库存和成员记录补全，保留旧待处理公开发现；防止升级将已有码重复全员派发。全员派发去重与每账号领取回执独立，新用户仍可补领已知码。
-- README保留简介，说明统一CHANGELOG；dist单个完整安装ZIP包含源码与图片字体。保留data/AliceUID/cdk.sqlite3，完整重启Core；未部署或发送真实消息。
+- README保留简介，说明统一CHANGELOG；dist单个完整安装ZIP包含源码与图片字体。保留data/BlablaBot/cdk.sqlite3，完整重启Core；未部署或发送真实消息。
 
 # 1.1.22 当前实现
 
@@ -13,17 +13,17 @@
 - 休赛期首次查询或缓存损坏时，分页浏览固定作者公开帖子，按发布时间选最近一篇含「組隊示例」图片的完整会战攻略；不按当前自然月过滤，11月也能拉取10月攻略。已有完整缓存长期保留。
 - 本期战斗期间只查本期攻略，缓存3天；新赛季编号出现清除旧缓存，未发布时提示等待，不回退上期。帖子日期结合发布时间和赛季范围匹配，允许延迟发布Hard攻略与跨日、跨月，不再强制标题日期等于开战日。
 - 转发保持三条：原标题、作者昵称和原帖链接放第一条（休赛标明最近一期）；第二条仅阵容图，第三条为完整正文长截图，JPG质量沿用设置默认95。旧缓存缺署名字段时按固定作者身份补全。
-- README仅保留简介；发布说明统一CHANGELOG；dist继续提供包含源码、图片、背景、字体的单个完整安装ZIP。解压到plugins父目录，保留data/AliceUID并完整重启Core。
+- README仅保留简介；发布说明统一CHANGELOG；dist继续提供包含源码、图片、背景、字体的单个完整安装ZIP。解压到plugins父目录，保留data/BlablaBot并完整重启Core。
 
 # 1.1.21 当前开发说明
 
-安装与升级：dist只提供一个完整安装ZIP，内含源码、模板、静态表、图片、背景和字体，首层为 `AliceUID/`。首次安装或升级均解压到GsCore的 `plugins/` 父目录，覆盖同名插件文件；保留 `data/AliceUID`、绑定、Cookie、配置与兑换回执，完成后完整重启Core。无需另下素材包。版本发布及安装说明统一在本CHANGELOG维护，不再生成RELEASE_版本号.md。开发侧媒体继续共享AliceUID_Pic，历史版本仍只归源码7z。
+安装与升级：dist只提供一个完整安装ZIP，内含源码、模板、静态表、图片、背景和字体，首层为 `BlablaBot/`。首次安装或升级均解压到GsCore的 `plugins/` 父目录，覆盖同名插件文件；保留 `data/BlablaBot`、绑定、Cookie、配置与兑换回执，完成后完整重启Core。无需另下素材包。版本发布及安装说明统一在本CHANGELOG维护，不再生成RELEASE_版本号.md。开发侧媒体继续共享BlablaBot_Pic，历史版本仍只归源码7z。
 
-新增 `nk工会战阵容`（别名 `nk公会战阵容`），无需绑定，匿名读取固定作者的公开帖子。默认合并转发严格依次三条：原标题、`組隊示例`下第一张阵容原图、帖子正文完整长截图（含标题及作者，不含评论）。长截图按 `AliceUID_ForwardJpegQuality` 编码为JPG，默认95；阵容原图沿用现有转发图片设置。
+新增 `nk工会战阵容`（别名 `nk公会战阵容`），无需绑定，匿名读取固定作者的公开帖子。默认合并转发严格依次三条：原标题、`組隊示例`下第一张阵容原图、帖子正文完整长截图（含标题及作者，不含评论）。长截图按 `BlablaBot_ForwardJpegQuality` 编码为JPG，默认95；阵容原图沿用现有转发图片设置。
 
 每次命令先读取官方会战赛季表：战斗期完整攻略缓存3天，休赛/结算期同赛季长期保留；新赛季编号出现即清除旧图与旧标题，再查本期帖子。跨月使用赛季开始月，同月多期结合标题日期和发布时间隔离。新帖未发布或缺组队图不回退旧期，失败至少冷却5分钟。没有后台主动发群任务，检测发生在命令查询时；日程读取失败不会猜测当前赛季。
 
-公开作者：https://www.blablalink.com/user?openid=MjkwODAtNjM1NTUzNDAyOTcyMTg0NDQzOA== 。读取接口 GetUserPostList 匿名POST仅查询，分页有界；帖子截图使用全新匿名浏览器 `.post-letter-paper` 正文，确认标题和组队图、等待全部图片加载后截图。超长/超大或部分加载失败不发送残缺攻略。缓存为 `data/AliceUID/cache/raid_guide`，不读取账号Cookie。发送前再次校验群与用户权限，复用Core转发和回执/普通发送回退。
+公开作者：https://www.blablalink.com/user?openid=MjkwODAtNjM1NTUzNDAyOTcyMTg0NDQzOA== 。读取接口 GetUserPostList 匿名POST仅查询，分页有界；帖子截图使用全新匿名浏览器 `.post-letter-paper` 正文，确认标题和组队图、等待全部图片加载后截图。超长/超大或部分加载失败不发送残缺攻略。缓存为 `data/BlablaBot/cache/raid_guide`，不读取账号Cookie。发送前再次校验群与用户权限，复用Core转发和回执/普通发送回退。
 
 # 1.1.20 当前开发说明
 
@@ -39,21 +39,21 @@ receipts保留逐码结果；redemption_audits按账号/产品/区服/角色记�
 
 新增nikke_cdk/automatic.py，个人设置及连接观察存cdk.sqlite3；系统总开关保存在Core配置。AutoStore默认缺省开启，批量修改事务提交。复用Redemptions的账号租约、绑定revision、角色核验及回执；auto队列串行，只处理新增成员库存，不补跑。后台请求与发送再次校验Core及插件名单/开关。
 
-媒体路径由nikke_resource/media.py解析；开发从workspace_paths.media_root读取，生产保留标准AliceUID/assets、card_bg、formts路径。源码ZIP不带媒体，Release另带素材ZIP，两个包覆盖到同一plugins父目录。
+媒体路径由nikke_resource/media.py解析；开发从workspace_paths.media_root读取，生产保留标准BlablaBot/assets、card_bg、formts路径。源码ZIP不带媒体，Release另带素材ZIP，两个包覆盖到同一plugins父目录。
 
-# AliceUID 开发文档
+# BlablaBot 开发文档
 
 适用版本：**1.1.18**。本文依据本目录实际源码编写，涵盖插件生命周期、模块与命令、客户端及HTTP接口、字段和资源映射、缓存与权限，以及测试发布流程。社区端点是当前适配代码使用的协议，不代表上游提供永久稳定的接口承诺。
 
 ### 1.1.18 首次启动角色列表与权限反馈
 
-共享scheduler新增aliceuid-database-startup-catalog，interval=60秒、首次立即运行、max_instances=1/coalesce/replace_existing；导入不联网，也不使用安装期同步下载。DatabaseService.refresh_startup_catalog只通过公开匿名GET更新nikke_list_zh-TW_v2.json，force跳过正常24小时缓存但不绕过失败冷却，不运行图库补全。与手动/周检/日历共用维护锁、PublicHTTP限源/去凭据/字节预算/节奏。首次安装或本版本升级完成后须完整重启Core。
+共享scheduler新增blablabot-database-startup-catalog，interval=60秒、首次立即运行、max_instances=1/coalesce/replace_existing；导入不联网，也不使用安装期同步下载。DatabaseService.refresh_startup_catalog只通过公开匿名GET更新nikke_list_zh-TW_v2.json，force跳过正常24小时缓存但不绕过失败冷却，不运行图库补全。与手动/周检/日历共用维护锁、PublicHTTP限源/去凭据/字节预算/节奏。首次安装或本版本升级完成后须完整重启Core。
 
-成功状态持久保存在data/AliceUID/database/startup_catalog.json，签名含本发布修订号和内置角色表SHA256；必须实际取得校验通过的新表才能标ready。原子替换static缓存后保存成功；后续重启仅查本地成功标记，缓存被删除或发布修订改变时重新获取。网络/HTTP/表格式或截断异常保留旧表，默认至少3600秒后重试；403/429等阻断同时进入共享维护冷却。此初始化不依赖masters，也不受DatabaseCalendarUpdate/DatabaseWeeklyUpdate关闭影响；不宣称离线安装可以必然获得最新上游资料。
+成功状态持久保存在data/BlablaBot/database/startup_catalog.json，签名含本发布修订号和内置角色表SHA256；必须实际取得校验通过的新表才能标ready。原子替换static缓存后保存成功；后续重启仅查本地成功标记，缓存被删除或发布修订改变时重新获取。网络/HTTP/表格式或截断异常保留旧表，默认至少3600秒后重试；403/429等阻断同时进入共享维护冷却。此初始化不依赖masters，也不受DatabaseCalendarUpdate/DatabaseWeeklyUpdate关闭影响；不宣称离线安装可以必然获得最新上游资料。
 
 RosterService.prepare发现本人name_code未被非空旧表收录时，调用现有ResourceService.update_tables补查（沿用24小时成功缓存、1小时失败冷却及静态锁），重载后再生成；若仍缺失则明确提示联系Bot主，而不是渲染空白映射。
 
-数据库命令入口SV路由权限为6，兼容Core加载已持久化的旧pm=0时在本入口运行期调整路由门槛；执行仍严格要求Core认证的ev.user_pm为整数0，不能由AliceUID_MasterQQ代替。保留原SV启用状态、范围、黑白名单及插件用户访问守卫；普通用户仅收到masters配置提示，不读取维护状态、不启动更新。其他管理命令权限不变。旧全目录冻结/交付报告不重写。
+数据库命令入口SV路由权限为6，兼容Core加载已持久化的旧pm=0时在本入口运行期调整路由门槛；执行仍严格要求Core认证的ev.user_pm为整数0，不能由BlablaBot_MasterQQ代替。保留原SV启用状态、范围、黑白名单及插件用户访问守卫；普通用户仅收到masters配置提示，不读取维护状态、不启动更新。其他管理命令权限不变。旧全目录冻结/交付报告不重写。
 
 ### 1.1.17 Cookie网页登录与传输
 
@@ -107,7 +107,7 @@ glass_finish.css和profile.html署名text-shadow全部为none，20种卡片/主�
 
 ### 1.1.07 署名、日期与圆圈装饰
 
-brand_credit.html统一Powered By GsCore & Created By AliceUID；solo.html附加dildoro保留、双空格移除。共享glass_finish.css及独立profile模板为其他卡片使用1px/3px白色text-shadow；练度卡.frame>.brand-credit及日期片段明确text-shadow:none。宽版署名以右侧信息面板中心x=862px对齐，位于卡片底778px到图片底810px的间隔中心y=794px；窄版以右侧面板中心x=496px对齐，位于932px到982px间隔中心y=957px。采用独立底部容器flex居中，margin清零，避免共享署名margin使位置偏上。
+brand_credit.html统一Powered By GsCore & Created By BlablaBot；solo.html附加dildoro保留、双空格移除。共享glass_finish.css及独立profile模板为其他卡片使用1px/3px白色text-shadow；练度卡.frame>.brand-credit及日期片段明确text-shadow:none。宽版署名以右侧信息面板中心x=862px对齐，位于卡片底778px到图片底810px的间隔中心y=794px；窄版以右侧面板中心x=496px对齐，位于932px到982px间隔中心y=957px。采用独立底部容器flex居中，margin清零，避免共享署名margin使位置偏上。
 
 生成时间按北京时间格式化为YYYY-MM-DD·HH:MM，通过credit_timestamp附加到署名末尾；明确时区输入先转UTC+8，缺少时区沿用既有北京时间语义，异常输入回退当前北京时间。宽窄版时间均作为brand-credit内的credit-timestamp行内片段，整行居右侧卡片下方居中；署名与日期整行统一theme.muted：day #35475D、night #BDCCE0；日期片段color:inherit。不再有循环室下方、工具面板下方或旧footer日期DOM。角色缓存版本alice-v1107-footer-rings-5。宽版wide-tool-value改为透明背景、1px技能圆圈同色边线、theme.muted标签同色文本；line-height17px加上下边框保持总高19px、宽80px，不改变行布局。
 
@@ -127,7 +127,7 @@ WEBUI配置在CONFIG_DEFAULT中按功能重排，LoginUrl首项；Core reconcile
 
 ### 1.1.05 练度卡主题与数据来源
 
-`AliceUID_CharacterCardStyle` 为 compact_light/compact_dark/wide_light/wide_dark，默认wide_light；旧compact/classic等不在新选项时回退默认，其他卡片全局主题不受影响。`AliceUID_CharacterRandomTheme` 为off/wide/compact/all，默认off。成品图片键包含固定模式、随机策略、模板/字体/DPI/素材依赖；命中先返回PNG，仅未命中时解析一次具体布局和亮暗色。
+`BlablaBot_CharacterCardStyle` 为 compact_light/compact_dark/wide_light/wide_dark，默认wide_light；旧compact/classic等不在新选项时回退默认，其他卡片全局主题不受影响。`BlablaBot_CharacterRandomTheme` 为off/wide/compact/all，默认off。成品图片键包含固定模式、随机策略、模板/字体/DPI/素材依赖；命中先返回PNG，仅未命中时解析一次具体布局和亮暗色。
 
 窄版头部使用独立compact_header宏，左列标题/核心突破/类型、右列战斗力/指挥官，普通flex文档流各自纵向居中；块间gap=10CSS像素，避免绝对定位导致间隔不均。宽版1228×810 CSS，窄版660×982 CSS；实际像素随原有RenderDpi，默认144（1.5倍）。生产render.py保持父版字节不变：image_format=png，原字体及外置/原生回退保留。开发preview脚本先以144DPI在内存渲染，再仅将缩小、高压缩JPG保存到handoff；这些参数不进入生产渲染。
 
@@ -167,7 +167,7 @@ snapshot schema=1兼容，新增可选row_checked_at、full_refresh_pending；pr
 
 账号列表权限仍为Core Bot主或插件主账号。按(user_id,bot_id)统计绑定账号，群来源字段按下划线拆分并在相同适配器内去重；私聊/来源未知绑定计入账号总数。统计为绑定来源记录覆盖，非Bot实际加入群数；保留既有get_all_binds查询范围。群内数字QQ长度>4时显示前2位+****+后2位，其余标识完全掩码；昵称中的长数字也脱敏以免绕过。列表稳定排序、每页20账号、每批最多40页，跨页/批连续编号，超过9999自然扩展；第一节点总览，不列任何群明细。私聊保留完整QQ。
 
-AliceUID_AccountListForward默认True，沿用标准转发与既有回执/回退策略；_AccountListDelivery逐次核验管理员权限，普通回退逐页发送同一份预处理文本。账号凭据不参与列表数据。
+BlablaBot_AccountListForward默认True，沿用标准转发与既有回执/回退策略；_AccountListDelivery逐次核验管理员权限，普通回退逐页发送同一份预处理文本。账号凭据不参与列表数据。
 
 ### 1.1.01 持有状态核实
 
@@ -243,13 +243,13 @@ contribute_recent在单个SQLite事务读取当前identity(account/game/area/UID
 
 共享即时停用仅限1302003/1302015（无效/不存在）和原1302009（确认过期或不在时间窗口）。envelope保留网络异常标记；带超时/连接信息的矛盾业务回包视为uncertain。HTTP非200、无响应、连接中断、超时、5xx和限流不会归为码失效；账号/区服/次数/重复领取不共享停用。未知结果可只读核验，不重提、不新入池。
 
-AliceUID_CDKForward继续保存查询详情原设置、默认True；新增AliceUID_CDKResultForward默认False。后者仅对带成功报酬或超过600字符/12行的结果生效，简短结果仍直发。两者复用原首文本节点、发送前核验、回执等待和失败回退，无Core改动或新增依赖。帮助仅更新补录说明与缓存版本，布局不变。
+BlablaBot_CDKForward继续保存查询详情原设置、默认True；新增BlablaBot_CDKResultForward默认False。后者仅对带成功报酬或超过600字符/12行的结果生效，简短结果仍直发。两者复用原首文本节点、发送前核验、回执等待和失败回退，无Core改动或新增依赖。帮助仅更新补录说明与缓存版本，布局不变。
 
 ### 1.0.22 兑换码详情转发
 
 Commands通过注入forward/profile接入共享send_with_forward和AliceBind.get_bind。query与无参redeem的公开列表进入send_detail；profile只读本地绑定，不调用load_client，速查始终绕过profile。结果带成功报酬、超过600字符或12行时进入同一链路，否则保留result_text直发及原@行为。
 
-AliceUID_CDKForward默认True。首文本节点说明查询/结果并列出指挥官、区服与UID；所有节点为纯文本，无QQ昵称或@段。未绑定显示未绑定，未知昵称/UID明确标注。_DeliveryBot代理在实际转发及每个普通回退页前检查allowed/current；回退将字符串列表按1800字符分页并保留身份。使用原30秒回执等待（5～300可配）、60秒暂停及一次回退，不新增兑换提交或重试。
+BlablaBot_CDKForward默认True。首文本节点说明查询/结果并列出指挥官、区服与UID；所有节点为纯文本，无QQ昵称或@段。未绑定显示未绑定，未知昵称/UID明确标注。_DeliveryBot代理在实际转发及每个普通回退页前检查allowed/current；回退将字符串列表按1800字符分页并保留身份。使用原30秒回执等待（5～300可配）、60秒暂停及一次回退，不新增兑换提交或重试。
 
 ### 1.0.21 成员兑换码与只读速查
 
@@ -269,22 +269,22 @@ HTTP服务错误判断收窄为500<=code<600，避免1302xxx业务码都被算�
 
 ### 1.0.19 CDK 增量说明
 
-实现位于 `AliceUID/nikke_cdk/`：parser处理GameWith DOM与板块/期限；api负责匿名来源与官方CDK局部请求头；catalog负责单飞刷新和8小时/4小时/每日首刷；store保存 `MAIN_PATH/cdk.sqlite3`；service只为经本人核验的角色串行兑换；commands/runtime接入原生Core注册与调度。只读命令为 `查询兑换码`；`兑换码` 内部按正文有无区分汇总/单码，避免前缀竞争。
+实现位于 `BlablaBot/nikke_cdk/`：parser处理GameWith DOM与板块/期限；api负责匿名来源与官方CDK局部请求头；catalog负责单飞刷新和8小时/4小时/每日首刷；store保存 `MAIN_PATH/cdk.sqlite3`；service只为经本人核验的角色串行兑换；commands/runtime接入原生Core注册与调度。只读命令为 `查询兑换码`；`兑换码` 内部按正文有无区分汇总/单码，避免前缀竞争。
 
 官方端点：POST `/api/game/direct/Game/GetCdkRedemption`（公共列表）、`/api/game/proxy/Game/GetCdkRedemption`（本人列表）、`RecordCdkRedemption`（正文仅cdkey）、`GetCdkRedemptionHistory`（page_num/page_size）。CDK公共参数局部覆盖为game_id=16、area_id=global、intl_game_id=29080，保持旧客户端其他接口请求头不变。官网保存角色必须与绑定game_id/area_id/role_id一致。
 
 目录、来源快照、共享停用、本人回执及租约共用一个SQLite。领取以真实账号/产品/区服/角色的哈希键识别，不存Cookie；成功与已领取跨命令保留。提交前落盘submitting，成功后先记success再回消息；崩溃/超时留下的submitting/uncertain只查官方近期历史，无法确认就不重发。没有官方幂等键，不能声称服务端严格exactly-once。1302009为不在时间窗口，只有明确过期证据才记expired，其余共享暂停；地区/次数/认证错误不记全局过期。
 
-公开目录仅含当前支持的29080产品，港澳台仍未开放登录。每次展示和提交前按当前时间过滤截止期限。来源失败保留24小时内最后成功快照，失败不推进完整汇总时间；后台与Bot主刷新不触发兑换。lxml为显式运行依赖。维护与测试细节见 `AliceUID/nikke_cdk/MAINTENANCE.md`。
+公开目录仅含当前支持的29080产品，港澳台仍未开放登录。每次展示和提交前按当前时间过滤截止期限。来源失败保留24小时内最后成功快照，失败不推进完整汇总时间；后台与Bot主刷新不触发兑换。lxml为显式运行依赖。维护与测试细节见 `BlablaBot/nikke_cdk/MAINTENANCE.md`。
 
-用户使用说明见 [README.md](README.md)，版本变化见 [CHANGELOG.md](CHANGELOG.md)。路径以本文件所在的插件外壳为基准；`AliceUID/nikke_api/client.py` 指外壳下的内层代码。
+用户使用说明见 [README.md](README.md)，版本变化见 [CHANGELOG.md](CHANGELOG.md)。路径以本文件所在的插件外壳为基准；`BlablaBot/nikke_api/client.py` 指外壳下的内层代码。
 
 ## 1. 系统与目录
 
 ```text
-AliceUID/                       ← 可安装外壳
+BlablaBot/                       ← 可安装外壳
 ├─ __init__.py / __nest__.py     ← Core嵌套插件发现入口
-├─ AliceUID/                    ← 内层代码
+├─ BlablaBot/                    ← 内层代码
 │  ├─ __init__.py               ← Plugins、SV、Web路由、调度与权限注册
 │  ├─ nikke_*/                  ← 业务模块
 │  ├─ templates/                ← Jinja HTML/CSS
@@ -300,16 +300,16 @@ AliceUID/                       ← 可安装外壳
 
 ### 注册顺序
 
-[内层入口](AliceUID/__init__.py) 在正常模式下执行：
+[内层入口](BlablaBot/__init__.py) 在正常模式下执行：
 
-1. 注册 `Plugins(name="AliceUID", force_prefix=["nk"], allow_empty_prefix=False)`。
+1. 注册 `Plugins(name="BlablaBot", force_prefix=["nk"], allow_empty_prefix=False)`。
 2. 在任何SV与StringConfig初始化前，通过Core PluginConfigStore完成旧前缀的一次性迁移，通过Plugins.set同步内存前缀，再调用Core的get_plugin_available_prefix读取帮助文案快照；随后建立插件配置与四名单策略。
 3. 导入 `AliceBind` 模型并尝试挂载Core后台管理；不兼容的管理界面不会阻止普通登录。
 4. 导入各模块命令和登录Web路由；部分模块在 `setup()` 中注册。
 5. 启用日历、数据库命令及周检、社区调度、图鉴命令，绑定会战发送前核验。
 6. 调用 `guard_plugin_triggers()` 保留普通命令的统一用户权限检查。前缀完全由Core原生SV注册生成，不替换触发器，不手动刷新候选索引。AI入口在to_ai注册前已加专用查询检查。
 
-`ALICEUID_STANDALONE=1` 只供测试/离线渲染，跳过上述Core注册；生产不能设置它。
+`BLABLABOT_STANDALONE=1` 只供测试/离线渲染，跳过上述Core注册；生产不能设置它。
 
 ```mermaid
 flowchart TD
@@ -405,9 +405,9 @@ flowchart TD
 
 ### 角色与皮肤映射
 
-[StaticData](AliceUID/nikke_api/parser.py) 加载静态表。角色查询先按官方名称、简繁归一/别名等规则解析；歧义返回候选，不根据持有角色偷偷猜选。之后检查该name_code确实存在于本人characters，再请求/读取对应详情。
+[StaticData](BlablaBot/nikke_api/parser.py) 加载静态表。角色查询先按官方名称、简繁归一/别名等规则解析；歧义返回候选，不根据持有角色偷偷猜选。之后检查该name_code确实存在于本人characters，再请求/读取对应详情。
 
-[resolve_skin](AliceUID/nikke_resource/skins.py) 优先读取角色列表 `costume_id`；仅在缺失时考虑匹配角色详情的 `costume_tid`。基础皮肤0为显式报告；未知、映射不到或重复映射降级为基础图并保留notice。双方报告冲突时列表优先；详情name_code不匹配时拒绝借用其皮肤。
+[resolve_skin](BlablaBot/nikke_resource/skins.py) 优先读取角色列表 `costume_id`；仅在缺失时考虑匹配角色详情的 `costume_tid`。基础皮肤0为显式报告；未知、映射不到或重复映射降级为基础图并保留notice。双方报告冲突时列表优先；详情name_code不匹配时拒绝借用其皮肤。
 
 ```python
 # 静态映射示例；owned_row应来自发命令者本人接口。
@@ -421,7 +421,7 @@ url = character_resource_url("portraits", rid, selection.skin_index)
 
 ## 4. 私人社区客户端接口
 
-代码：[nikke_api/client.py](AliceUID/nikke_api/client.py)。基地址为 `https://api.blablalink.com`，数据读取默认语言 `zh-TW`。调用方使用 `load_client(ev.user_id, ev.bot_id)` 从本人绑定加载，结束后关闭client。
+代码：[nikke_api/client.py](BlablaBot/nikke_api/client.py)。基地址为 `https://api.blablalink.com`，数据读取默认语言 `zh-TW`。调用方使用 `load_client(ev.user_id, ev.bot_id)` 从本人绑定加载，结束后关闭client。
 
 `_request` 串行访问该客户端实例、禁止跳转；HTTP401与业务401/300001归入NikkeLoginRequired，403/429按拒绝/限流报错，业务code=0解包，其他code为NikkeApiError。它不会通用自动重试；业务服务另行管理节流、缓存和允许的一次性补读。
 
@@ -442,7 +442,7 @@ url = character_resource_url("portraits", rid, selection.skin_index)
 
 ### 会战服务的额外端点
 
-[UnionService](AliceUID/nikke_union/service.py) 直接通过client._request调用以下POST端点，不能只用上表两个raid方法取代它的身份/赛季逻辑。
+[UnionService](BlablaBot/nikke_union/service.py) 直接通过client._request调用以下POST端点，不能只用上表两个raid方法取代它的身份/赛季逻辑。
 
 | G后的端点 | 参数 | 处理 |
 |---|---|---|
@@ -455,7 +455,7 @@ url = character_resource_url("portraits", rid, selection.skin_index)
 
 ### 社区任务端点
 
-代码：[api.py](AliceUID/nikke_community/api.py)、[service.py](AliceUID/nikke_community/service.py)。调用必须经过CommunityService的本人授权、绑定revision、账本与请求预算，不能直接重放写请求。
+代码：[api.py](BlablaBot/nikke_community/api.py)、[service.py](BlablaBot/nikke_community/service.py)。调用必须经过CommunityService的本人授权、绑定revision、账本与请求预算，不能直接重放写请求。
 
 | HTTP/路径后缀 | 请求关键字段 | 用途 |
 |---|---|---|
@@ -474,7 +474,7 @@ url = character_resource_url("portraits", rid, selection.skin_index)
 
 ## 5. 登录Web与后台接口
 
-代码：[routes.py](AliceUID/nikke_login/routes.py)。所有会话型API只面向Bot生成的当前登录会话；token是一次性能力标识，不是匿名查询任意账号的入口。每次检查会话、所属用户访问权限及旧绑定状态。
+代码：[routes.py](BlablaBot/nikke_login/routes.py)。所有会话型API只面向Bot生成的当前登录会话；token是一次性能力标识，不是匿名查询任意账号的入口。每次检查会话、所属用户访问权限及旧绑定状态。
 
 | 方法/路由 | 输入字段 | 功能 |
 |---|---|---|
@@ -491,9 +491,9 @@ url = character_resource_url("portraits", rid, selection.skin_index)
 
 具体错误JSON及状态字段以路由函数为准，不依赖人类提示文字判断成功。前端须跟踪generation与challenge_id，过期挑战不能提交给新会话。
 
-[SessionStore](AliceUID/nikke_login/session.py) 只在内存持有会话。创建默认TTL600秒；进行中的登录/验证码流程有独立360秒上限；成功结果保留300秒供状态读取。取消会递增generation、唤醒等待、取消任务并清理验证码/挑战内容。重启不恢复旧登录链接。
+[SessionStore](BlablaBot/nikke_login/session.py) 只在内存持有会话。创建默认TTL600秒；进行中的登录/验证码流程有独立360秒上限；成功结果保留300秒供状态读取。取消会递增generation、唤醒等待、取消任务并清理验证码/挑战内容。重启不恢复旧登录链接。
 
-保存绑定经过 [save_login](AliceUID/nikke_user/service.py)：先持有本人绑定锁，核验已有绑定、revision和账号/区服；Cookie加密后落库，再重新读取确认提交结果。重新登录使用比较并交换更新，不通过删行重建账号，也不静默换人换服。
+保存绑定经过 [save_login](BlablaBot/nikke_user/service.py)：先持有本人绑定锁，核验已有绑定、revision和账号/区服；Cookie加密后落库，再重新读取确认提交结果。重新登录使用比较并交换更新，不通过删行重建账号，也不静默换人换服。
 
 ### 登录链接消息发送
 
@@ -509,13 +509,13 @@ OneBot私聊与Core非「允许」策略直接普通发送。共享边界依连�
 
 当前candidate3以保存的1.0.07 fix1 ZIP为消息结构基线，恢复默认标准转发，无需安装NapCat配套。send_with_forward构造纯MessageSegment.node，首节点标题文字，下一节点完整原图；帮助附注并入标题。过滤输入中的at/at_all，不传at_sender=True给转发；Core默认False，普通回退仍可at。保留wait_recall，它是回执观察参数，不改变适配器最终send_msg节点内容。
 
-prepare_forward_content新增读取AliceUID_ForwardReencode，默认False，先校验完整图格式/像素和大小，再snapshot落盘读回，原图字节不变；PNG不再默认转JPG。显式True才进入现有encode_forward_pages编码器，ForwardJpegQuality默认95/0–100继续保留。格式为PNG/JPEG/WEBP、单帧、6400万像素及完整输出8MiB保护限制不放宽；不获取URL或借用他人图片。诊断默认strategy=classic_original，发送日志strategy=classic_node，可选转换为jpeg_optional。
+prepare_forward_content新增读取BlablaBot_ForwardReencode，默认False，先校验完整图格式/像素和大小，再snapshot落盘读回，原图字节不变；PNG不再默认转JPG。显式True才进入现有encode_forward_pages编码器，ForwardJpegQuality默认95/0–100继续保留。格式为PNG/JPEG/WEBP、单帧、6400万像素及完整输出8MiB保护限制不放宽；不获取URL或借用他人图片。诊断默认strategy=classic_original，发送日志strategy=classic_node，可选转换为jpeg_optional。
 
 test_v108_classic.py直接从冻结fix1 ZIP载入原send_with_forward，旧/新实现分别经过固定Core和实际TS适配器，比较最终send_msg action及params完全一致；覆盖PNG/JPEG/WEBP原字节、真实长图尺寸、失败原图回退及转发无at。此验证不模拟QQ已成功。以下candidate2原生路线仅为可选实验，非当前安装前提；已安装者应禁用配套后对照标准路径。
 
 candidate2在保留完整单图的基础上增加两段准备流程。`nikke_message.outbox.snapshot(data,root)`先原子保存成品图并重新读取验证SHA256，`prepare_forward_content`仅使用校验后字节构造image段。路径为CACHE_PATH/forward_outbox，64MiB/32份，15分钟有效，在后续写入时清理；仅处理本模块命名的文件。登录二维码与链接排除，缓存失败在任何转发入队前整体普通回退；不形成自动重放队列。
 
-NapCat配套位于integrations/napcat-plugin-aliceuid-native-forward。它通过公开actions.get('send_msg')取得当前实例，包装该实例base_handle，按固定AliceUID标题及一张inline图片识别帮助/图鉴/出刀。其余消息调用原实现。被识别的单次调用使用Object.create(this)建立专用接收对象，分别提供原生节点准备函数；不更改全局packetStatus，不替换其它实例或适配器源码。原base_handle继续负责目标解析、最终短消息ID映射及返回格式，原OneBot action入口校验不变。
+NapCat配套位于integrations/napcat-plugin-blablabot-native-forward。它通过公开actions.get('send_msg')取得当前实例，包装该实例base_handle，按固定BlablaBot标题及一张inline图片识别帮助/图鉴/出刀。其余消息调用原实现。被识别的单次调用使用Object.create(this)建立专用接收对象，分别提供原生节点准备函数；不更改全局packetStatus，不替换其它实例或适配器源码。原base_handle继续负责目标解析、最终短消息ID映射及返回格式，原OneBot action入口校验不变。
 
 原生准备通过obContext.apis.MsgApi.createSendElements将段准备到NapCat本地，再用sendMsgWithOb11UniqueId发到自身会话并取得raw msgId。每个节点都成功才调用core.apis.MsgApi.multiForwardMsg合并到原群；部分失败不发送仅标题转发。使用新peer对象避免SDK写guildId造成跨调用污染，总预算8秒、单实例一项在途；失败脱敏并交Core一次回退，不重试Packet。最终群发送已发起时不可强制取消，迟到可能与回退重复。卸载只在包装仍属于自身时恢复原方法；后装的其它包装不被覆盖。
 
@@ -531,9 +531,9 @@ XWUID参考固定提交4c1727580c613ef3034a391dc3156a1570cd5260，登录转发�
 
 用户实际链路是[napcat-plugin-gscore-adapter @ df1859b](https://github.com/xiowo/napcat-plugin-gscore-adapter/blob/df1859b396ffbd73bd2b72ce4a35147667281472/src/services/gscore-service.ts)。handleGsCoreMessage调用send_msg，并在自身catch错误；Core的bot.send默认只确认WS入队，无法感知这次错误。适配器在MessageSend.echo存在时，无论成功/失败都会回传recall_message_id，成功带消息ID，失败为null。
 
-对bot_id=onebot且WS_BOT_ID为napcat或napcat-*，共享边界检查底层_Bot的_recall_waiters字典与_supports_recall。旧Core缺少能力、HTTP任务或能力已锁定False时直接普通；其余通过受权限包装bot.send(node,wait_recall=True)，由Core按echo匹配回执。取得非空消息ID列表则返回，未确认回退原内容一次并暂停该连接转发60秒，后续查询普通发送。连接暂停表仅存元数据，最多64项。参考Core原等待上限10秒且finally清理Future；1.0.11 fix1的receipt.py为本次AliceUID转发提供默认30秒的实际等待覆盖，取消不回退，不修改Core全局等待常量；回执丢失、失败和仍在上传都可能返回空列表，迟到成功可能造成一次重复，普通回退不触发递归转发。
+对bot_id=onebot且WS_BOT_ID为napcat或napcat-*，共享边界检查底层_Bot的_recall_waiters字典与_supports_recall。旧Core缺少能力、HTTP任务或能力已锁定False时直接普通；其余通过受权限包装bot.send(node,wait_recall=True)，由Core按echo匹配回执。取得非空消息ID列表则返回，未确认回退原内容一次并暂停该连接转发60秒，后续查询普通发送。连接暂停表仅存元数据，最多64项。参考Core原等待上限10秒且finally清理Future；1.0.11 fix1的receipt.py为本次BlablaBot转发提供默认30秒的实际等待覆盖，取消不回退，不修改Core全局等待常量；回执丢失、失败和仍在上传都可能返回空列表，迟到成功可能造成一次重复，普通回退不触发递归转发。
 
-`nikke_message.images.encode_forward_pages(data,quality=95)`保留兼容入口，但现在只返回包含一张完整图片的列表，不再分页。`prepare_forward_content(content)`只处理inline base64图，读取AliceUID_ForwardJpegQuality，下次发送生效；将文本合并到首节点，保留非文本段顺序。配置保存接受严格整数0–100，非法磁盘值编码时安全回到95。现有JPEG验证后字节直通；不透明图使用指定质量的RGB JPEG、4:4:4、非渐进编码，真正透明图保留无损RGBA PNG。保留DPI、ICC和全部原始尺寸。输入32MiB/6400万像素、完整输出8MiB上限，JPEG尺寸每边上限65500；超出即整体普通发送原图，不降质量、缩放或截断。8MiB是插件保护上限，不能冒称QQ官方限制。不读取文件引用或拉取URL，编码在线程内串行限并发；源渲染器、缓存和LoginForward二维码不改。
+`nikke_message.images.encode_forward_pages(data,quality=95)`保留兼容入口，但现在只返回包含一张完整图片的列表，不再分页。`prepare_forward_content(content)`只处理inline base64图，读取BlablaBot_ForwardJpegQuality，下次发送生效；将文本合并到首节点，保留非文本段顺序。配置保存接受严格整数0–100，非法磁盘值编码时安全回到95。现有JPEG验证后字节直通；不透明图使用指定质量的RGB JPEG、4:4:4、非渐进编码，真正透明图保留无损RGBA PNG。保留DPI、ICC和全部原始尺寸。输入32MiB/6400万像素、完整输出8MiB上限，JPEG尺寸每边上限65500；超出即整体普通发送原图，不降质量、缩放或截断。8MiB是插件保护上限，不能冒称QQ官方限制。不读取文件引用或拉取URL，编码在线程内串行限并发；源渲染器、缓存和LoginForward二维码不改。
 
 历史实机日志出现NapCat Highway上传服务器8080连接超时及HTTP回退超时，最新一次只有Core未确认日志，不能据此认定每次都是同一原因。日志现在记录strategy=roster_single、输入/输出实际格式、尺寸、体积、kind、节点/图片数、回执耗时与确认状态；不输出图片Base64、标题、昵称、QQ号、登录链接或原异常内容。透明图实际输出PNG会如实记录，不能统称所有转发图片已变成JPG。完整单图路线仍需实机检验，不能保证修复上传网络。
 
@@ -541,9 +541,9 @@ test_v107_forward.py使用Node24原生TypeScript类型擦除，执行固定适�
 
 ### Core后台绑定管理
 
-[admin.py](AliceUID/nikke_user/admin.py) 在Core提供兼容管理接口时注册AliceBind摘要；`/api/database/table/<table>` 读取/导出做脱敏，通用新增/编辑/导入/删除被拒绝。
+[admin.py](BlablaBot/nikke_user/admin.py) 在Core提供兼容管理接口时注册AliceBind摘要；`/api/database/table/<table>` 读取/导出做脱敏，通用新增/编辑/导入/删除被拒绝。
 
-专用 `POST /api/aliceuid/bindings/{record_id}/unbind` 依赖Core管理员认证，body包含 `user_id`、`bot_id`、`binding_version`。它核验当前记录版本，执行原解绑生命周期并清除旧会话与缓存。不要通过通用数据库写接口更新凭据。
+专用 `POST /api/blablabot/bindings/{record_id}/unbind` 依赖Core管理员认证，body包含 `user_id`、`bot_id`、`binding_version`。它核验当前记录版本，执行原解绑生命周期并清除旧会话与缓存。不要通过通用数据库写接口更新凭据。
 
 ## 6. 字段与展示映射
 
@@ -571,11 +571,11 @@ test_v107_forward.py使用Node24原生TypeScript类型擦除，执行固定适�
 
 ## 7. 公共素材与CDN映射
 
-代码：[resource.py](AliceUID/nikke_api/resource.py)、[ResourceService](AliceUID/nikke_resource/service.py)、[ImageCache](AliceUID/nikke_resource/cache.py)。公开下载与私人客户端分开，不携带Cookie/Authorization。
+代码：[resource.py](BlablaBot/nikke_api/resource.py)、[ResourceService](BlablaBot/nikke_resource/service.py)、[ImageCache](BlablaBot/nikke_resource/cache.py)。公开下载与私人客户端分开，不携带Cookie/Authorization。
 
 ### 角色资源类型
 
-| kind | 逻辑路径 | data/AliceUID/resource下目录 | 嵌入尺寸上限 |
+| kind | 逻辑路径 | data/BlablaBot/resource下目录 | 嵌入尺寸上限 |
 |---|---|---|---|
 | icons | `/character/si/si_c{rid:03}_{skin:02}_s.png` | characters/icons | 256×256 |
 | portraits | `/character/mi/mi_c{rid:03}_{skin:02}_s.png` | characters/portraits | 600×900 |
@@ -648,10 +648,10 @@ flowchart TD
 
 ## 9. 存储、权限与绑定生命周期
 
-生产根目录由 `get_res_path() / "AliceUID"` 生成，代码不硬编码开发机D盘。
+生产根目录由 `get_res_path() / "BlablaBot"` 生成，代码不硬编码开发机D盘。
 
 ```text
-Core资源根/AliceUID/
+Core资源根/BlablaBot/
 ├─ config.json / group_policy.json     # 当前配置及旧策略兼容文件
 ├─ secret.key                         # Cookie加密密钥
 ├─ character_aliases.json             # 自定义角色别名
@@ -677,11 +677,11 @@ CookieCipher使用独立secret.key进行加密。备份运行环境时保留密�
 
 重新登录使用同账号同区服的比较并交换，更新后撤销旧社区授权并使相关缓存失效；失败保留旧绑定。解绑要走AliceBind.delete_bind及现有清理生命周期，不手工删数据库文件。后台受控解绑会同时清除旧会话。
 
-开发时 `nikke_resource.workspace.nikke_data(ROOT)` 读取版本工作区workspace_paths.json，将数据定位到共享data根下的AliceUID；生产不读取这个开发映射。旧工作区路径仅用于参考/恢复，不应写进可安装代码。
+开发时 `nikke_resource.workspace.nikke_data(ROOT)` 读取版本工作区workspace_paths.json，将数据定位到共享data根下的BlablaBot；生产不读取这个开发映射。旧工作区路径仅用于参考/恢复，不应写进可安装代码。
 
 ## 10. 渲染接口
 
-[render_html](AliceUID/nikke_render/render.py) 输入HTML与root_width、可选dpi；默认DPI144，对应1.5倍像素。外置服务启用时发送 `POST JSON {"html": "..."}`，可附Bearer Token，期望HTTP200及有效PNG字节；失败转Core原生 `render_html_to_bytes`。
+[render_html](BlablaBot/nikke_render/render.py) 输入HTML与root_width、可选dpi；默认DPI144，对应1.5倍像素。外置服务启用时发送 `POST JSON {"html": "..."}`，可附Bearer Token，期望HTTP200及有效PNG字节；失败转Core原生 `render_html_to_bytes`。
 
 原生渲染用Core当前原生接口，不应在文档中写成“必定Playwright回退”。Playwright也用于登录、日历及离线浏览器对照，属于不同用途。
 
@@ -715,43 +715,43 @@ CookieCipher使用独立secret.key进行加密。备份运行环境时保留密�
 
 | 配置键 | 类型 | 默认值 | 用途标题 |
 |---|---|---|---|
-| `AliceUID_GlassStrength` | GsIntConfig | `20` | 全局毛玻璃强度（%） |
-| `AliceUID_ResourceCacheSeconds` | GsIntConfig | `300` | 资源查询刷新间隔（固定300秒） |
-| `AliceUID_UnionCacheSeconds` | GsIntConfig | `180` | 联盟查询缓存秒数 |
-| `AliceUID_CardLanguage` | GsStrConfig | `zh-CN` | 卡片文字语言 |
-| `AliceUID_CardFont` | GsStrConfig | `factory_default()` | 卡片字体 |
-| `AliceUID_GroupWhitelist` | GsListStrConfig | `[]` | 群白名单 |
-| `AliceUID_GroupBlacklist` | GsListStrConfig | `[]` | 群黑名单 |
-| `AliceUID_UserWhitelist` | GsListStrConfig | `[]` | 用户白名单 |
-| `AliceUID_UserBlacklist` | GsListStrConfig | `[]` | 用户黑名单 |
-| `AliceUID_MasterQQ` | GsListStrConfig | `[]` | Bot 主 QQ |
-| `AliceUID_LoginUrl` | GsStrConfig | `` | 登录页外网地址 |
-| `AliceUID_LoginQRCode` | GsBoolConfig | `false` | 登录链接转二维码 |
-| `AliceUID_LoginForward` | GsBoolConfig | `true` | 登录/重新登录链接用转发消息，保留已有配置 |
-| `AliceUID_HelpForward` | GsBoolConfig | `true` | 帮助图片用转发消息 |
-| `AliceUID_RosterForward` | GsBoolConfig | `true` | 完整卡片用转发消息 |
-| `AliceUID_UnionForward` | GsBoolConfig | `true` | 出刀图片用转发消息 |
-| `AliceUID_ForwardJpegQuality` | GsIntConfig | `95` | 新编码转发图片JPG质量，严格整数0–100，100非无损 |
-| `AliceUID_DefaultArea` | GsIntConfig | `81` | 默认区服（旧版兼容） |
-| `AliceUID_LoginMode` | GsStrConfig | `browser` | 登录方式 |
-| `AliceUID_BrowserChannel` | GsStrConfig | `auto` | 浏览器通道 |
-| `AliceUID_Headless` | GsBoolConfig | `true` | 无头浏览器 |
-| `AliceUID_Proxy` | GsStrConfig | `` | 浏览器代理 |
-| `AliceUID_LoginTTL` | GsIntConfig | `600` | 登录链接有效期（秒） |
-| `AliceUID_CacheTTL` | GsIntConfig | `600` | 兼容旧配置；信息/图鉴/持久角色快照不使用该TTL过期 |
-| `AliceUID_RemoteRenderEnable` | GsBoolConfig | `false` | 外置渲染开关 |
-| `AliceUID_RemoteRenderUrl` | GsStrConfig | `http://127.0.0.1:3000/render` | 外置渲染地址 |
-| `AliceUID_RemoteRenderToken` | GsStrConfig | `` | 外置渲染 Token |
-| `AliceUID_CardTheme` | GsStrConfig | `random` | 全局卡片主题，已有自定义保留 |
-| `AliceUID_CharacterCardStyle` | GsStrConfig | `compact` | 角色练度卡布局 |
-| `AliceUID_AIQueryEnabled` | GsBoolConfig | `false` | 允许Core AI只读查询；关闭后立即拒绝，普通命令不受影响 |
-| `AliceUID_RenderDpi` | GsIntConfig | `144` | 渲染分辨率 DPI |
-| `AliceUID_RenderTimeout` | GsIntConfig | `60` | 外置渲染超时（秒） |
-| `AliceUID_CommunitySignTime` | GsStrConfig | `08:33` | 每日签到时间（北京时间HH:MM，保存即重排） |
-| `AliceUID_CommunityPaused` | GsBoolConfig | `false` | 暂停所有社区任务 |
-| `AliceUID_CommunityRequestRange` | GsStrConfig | `5-15` | 请求随机间隔秒数范围，重启生效 |
-| `AliceUID_CommunityAccountRange` | GsStrConfig | `10-120` | 换账号随机等待范围，重启生效 |
-| `AliceUID_CommunityDailyRequests` | GsIntConfig | `30` | 社区每日请求上限 |
+| `BlablaBot_GlassStrength` | GsIntConfig | `20` | 全局毛玻璃强度（%） |
+| `BlablaBot_ResourceCacheSeconds` | GsIntConfig | `300` | 资源查询刷新间隔（固定300秒） |
+| `BlablaBot_UnionCacheSeconds` | GsIntConfig | `180` | 联盟查询缓存秒数 |
+| `BlablaBot_CardLanguage` | GsStrConfig | `zh-CN` | 卡片文字语言 |
+| `BlablaBot_CardFont` | GsStrConfig | `factory_default()` | 卡片字体 |
+| `BlablaBot_GroupWhitelist` | GsListStrConfig | `[]` | 群白名单 |
+| `BlablaBot_GroupBlacklist` | GsListStrConfig | `[]` | 群黑名单 |
+| `BlablaBot_UserWhitelist` | GsListStrConfig | `[]` | 用户白名单 |
+| `BlablaBot_UserBlacklist` | GsListStrConfig | `[]` | 用户黑名单 |
+| `BlablaBot_MasterQQ` | GsListStrConfig | `[]` | Bot 主 QQ |
+| `BlablaBot_LoginUrl` | GsStrConfig | `` | 登录页外网地址 |
+| `BlablaBot_LoginQRCode` | GsBoolConfig | `false` | 登录链接转二维码 |
+| `BlablaBot_LoginForward` | GsBoolConfig | `true` | 登录/重新登录链接用转发消息，保留已有配置 |
+| `BlablaBot_HelpForward` | GsBoolConfig | `true` | 帮助图片用转发消息 |
+| `BlablaBot_RosterForward` | GsBoolConfig | `true` | 完整卡片用转发消息 |
+| `BlablaBot_UnionForward` | GsBoolConfig | `true` | 出刀图片用转发消息 |
+| `BlablaBot_ForwardJpegQuality` | GsIntConfig | `95` | 新编码转发图片JPG质量，严格整数0–100，100非无损 |
+| `BlablaBot_DefaultArea` | GsIntConfig | `81` | 默认区服（旧版兼容） |
+| `BlablaBot_LoginMode` | GsStrConfig | `browser` | 登录方式 |
+| `BlablaBot_BrowserChannel` | GsStrConfig | `auto` | 浏览器通道 |
+| `BlablaBot_Headless` | GsBoolConfig | `true` | 无头浏览器 |
+| `BlablaBot_Proxy` | GsStrConfig | `` | 浏览器代理 |
+| `BlablaBot_LoginTTL` | GsIntConfig | `600` | 登录链接有效期（秒） |
+| `BlablaBot_CacheTTL` | GsIntConfig | `600` | 兼容旧配置；信息/图鉴/持久角色快照不使用该TTL过期 |
+| `BlablaBot_RemoteRenderEnable` | GsBoolConfig | `false` | 外置渲染开关 |
+| `BlablaBot_RemoteRenderUrl` | GsStrConfig | `http://127.0.0.1:3000/render` | 外置渲染地址 |
+| `BlablaBot_RemoteRenderToken` | GsStrConfig | `` | 外置渲染 Token |
+| `BlablaBot_CardTheme` | GsStrConfig | `random` | 全局卡片主题，已有自定义保留 |
+| `BlablaBot_CharacterCardStyle` | GsStrConfig | `compact` | 角色练度卡布局 |
+| `BlablaBot_AIQueryEnabled` | GsBoolConfig | `false` | 允许Core AI只读查询；关闭后立即拒绝，普通命令不受影响 |
+| `BlablaBot_RenderDpi` | GsIntConfig | `144` | 渲染分辨率 DPI |
+| `BlablaBot_RenderTimeout` | GsIntConfig | `60` | 外置渲染超时（秒） |
+| `BlablaBot_CommunitySignTime` | GsStrConfig | `08:33` | 每日签到时间（北京时间HH:MM，保存即重排） |
+| `BlablaBot_CommunityPaused` | GsBoolConfig | `false` | 暂停所有社区任务 |
+| `BlablaBot_CommunityRequestRange` | GsStrConfig | `5-15` | 请求随机间隔秒数范围，重启生效 |
+| `BlablaBot_CommunityAccountRange` | GsStrConfig | `10-120` | 换账号随机等待范围，重启生效 |
+| `BlablaBot_CommunityDailyRequests` | GsIntConfig | `30` | 社区每日请求上限 |
 | `DatabaseWeeklyUpdate` | GsBoolConfig | `true` | 每周自动更新公开数据库 |
 | `DatabaseCalendarUpdate` | GsBoolConfig | `true` | 按招募日历静默更新公开数据库 |
 | `DatabaseIncludeSkins` | GsBoolConfig | `true` | 数据库包含公开皮肤变体 |
@@ -761,7 +761,7 @@ CookieCipher使用独立secret.key进行加密。备份运行环境时保留密�
 | `DatabaseRequestInterval` | GsIntConfig | `2` | 数据库请求间隔秒 |
 | `DatabaseFailureCooldown` | GsIntConfig | `3600` | 数据库失败冷却秒 |
 | `DatabaseMaxRunMinutes` | GsIntConfig | `30` | 数据库单次后台运行分钟上限 |
-| `AliceUID_EnableWriteOps` | GsBoolConfig | `false` | 其他写操作（兼容预留） |
+| `BlablaBot_EnableWriteOps` | GsBoolConfig | `false` | 其他写操作（兼容预留） |
 
 ## 13. 测试与开发工具
 
@@ -784,7 +784,7 @@ CookieCipher使用独立secret.key进行加密。备份运行环境时保留密�
 
 ```bash
 python -m pytest tests_alice -q
-python tools_alice/check_plugin.py AliceUID
+python tools_alice/check_plugin.py BlablaBot
 python tools_alice/build_release.py --plugin-only --build-tag docs
 ```
 
@@ -812,55 +812,55 @@ python tools_alice/build_release.py --plugin-only --build-tag docs
 
 | 模块文件 | 处理函数 | 注册类型 | 命令/匹配表达式 |
 |---|---|---|---|
-| [AliceUID/nikke_calendar/commands.py](AliceUID/nikke_calendar/commands.py) | `calendar_command` | on_command | `日历` |
-| [AliceUID/nikke_character/alias_commands.py](AliceUID/nikke_character/alias_commands.py) | `add_alias` | on_regex | `^(?P<character>.+?)(?:新增\|注册)别名(?P<alias>.+)$` |
-| [AliceUID/nikke_character/alias_commands.py](AliceUID/nikke_character/alias_commands.py) | `alias_query_suffix` | on_suffix | `别名查询` |
-| [AliceUID/nikke_character/alias_commands.py](AliceUID/nikke_character/alias_commands.py) | `alias_query_command` | on_command | `角色别名查询` |
-| [AliceUID/nikke_character/commands.py](AliceUID/nikke_character/commands.py) | `nikke_character_cmd` | on_command | `练度` |
-| [AliceUID/nikke_character/commands.py](AliceUID/nikke_character/commands.py) | `nikke_character_suffix_cmd` | on_suffix | `练度` |
-| [AliceUID/nikke_character/commands.py](AliceUID/nikke_character/commands.py) | `nikke_character_panel_cmd` | on_command | `面板` |
-| [AliceUID/nikke_character/commands.py](AliceUID/nikke_character/commands.py) | `nikke_character_panel_suffix_cmd` | on_suffix | `面板` |
-| [AliceUID/nikke_community/commands.py](AliceUID/nikke_community/commands.py) | `community_command` | on_command | `自动社区` |
-| [AliceUID/nikke_community/commands.py](AliceUID/nikke_community/commands.py) | `immediate_signin` | on_fullmatch | `签到` |
-| [AliceUID/nikke_community/commands.py](AliceUID/nikke_community/commands.py) | `enable_full_signin` | on_command | `开启全量签到` |
-| [AliceUID/nikke_community/commands.py](AliceUID/nikke_community/commands.py) | `signin_query` | on_command | `签到查询` |
-| [AliceUID/nikke_database/commands.py](AliceUID/nikke_database/commands.py) | `database_update` | on_command | `数据库更新` |
-| [AliceUID/nikke_help/commands.py](AliceUID/nikke_help/commands.py) | `nikke_help` | on_command | `帮助` |
-| [AliceUID/nikke_login/commands.py](AliceUID/nikke_login/commands.py) | `nikke_login_cmd` | on_command | `["登录", "登陆", "绑定账号"]` |
-| [AliceUID/nikke_login/commands.py](AliceUID/nikke_login/commands.py) | `nikke_relogin_cmd` | on_fullmatch | `["重新登录", "重新登陆"]` |
-| [AliceUID/nikke_login/commands.py](AliceUID/nikke_login/commands.py) | `nikke_unbind_cmd` | on_fullmatch | `["解绑", "删除绑定"]` |
-| [AliceUID/nikke_login/commands.py](AliceUID/nikke_login/commands.py) | `nikke_account_cmd` | on_fullmatch | `["我的账号", "账号信息"]` |
-| [AliceUID/nikke_login/commands.py](AliceUID/nikke_login/commands.py) | `nikke_cookie_cmd` | on_command | `["导入cookie", "导入Cookie", "绑定cookie"]` |
-| [AliceUID/nikke_login/commands.py](AliceUID/nikke_login/commands.py) | `nikke_public_cmd` | on_fullmatch | `["公开", "公开账号"]` |
-| [AliceUID/nikke_login/commands.py](AliceUID/nikke_login/commands.py) | `nikke_private_cmd` | on_fullmatch | `["隐藏", "隐藏账号"]` |
-| [AliceUID/nikke_login/commands.py](AliceUID/nikke_login/commands.py) | `nikke_list_cmd` | on_fullmatch | `["账号列表", "绑定列表"]` |
-| [AliceUID/nikke_permissions/commands.py](AliceUID/nikke_permissions/commands.py) | `group_query` | on_command | `群查询` |
-| [AliceUID/nikke_permissions/commands.py](AliceUID/nikke_permissions/commands.py) | `group_mode` | on_command | `群策略` |
-| [AliceUID/nikke_profile/commands.py](AliceUID/nikke_profile/commands.py) | `nikke_profile_cmd` | on_fullmatch | `["信息", "名片", "个人资料"]` |
-| [AliceUID/nikke_profile/commands.py](AliceUID/nikke_profile/commands.py) | `nikke_profile_refresh_cmd` | on_fullmatch | `["刷新信息"]` |
-| [AliceUID/nikke_resource/commands.py](AliceUID/nikke_resource/commands.py) | `update_resources` | on_fullmatch | `更新资源` |
-| [AliceUID/nikke_roster/commands.py](AliceUID/nikke_roster/commands.py) | `card` | on_fullmatch | `["卡片", "阵容卡片", "妮姬卡片"]` |
-| [AliceUID/nikke_roster/commands.py](AliceUID/nikke_roster/commands.py) | `refresh` | on_fullmatch | `["刷新面板"]` |
-| [AliceUID/nikke_status/commands.py](AliceUID/nikke_status/commands.py) | `nikke_boss_health_cmd` | on_command | `会战血量` |
-| [AliceUID/nikke_status/commands.py](AliceUID/nikke_status/commands.py) | `nikke_resource_status_cmd` | on_command | `资源查询` |
-| [AliceUID/nikke_uid/commands.py](AliceUID/nikke_uid/commands.py) | `nikke_bind_uid_cmd` | on_command | `["绑定UID", "绑定uid"]` |
-| [AliceUID/nikke_uid/commands.py](AliceUID/nikke_uid/commands.py) | `nikke_my_uid_cmd` | on_command | `["我的UID", "我的uid"]` |
-| [AliceUID/nikke_uid/commands.py](AliceUID/nikke_uid/commands.py) | `nikke_clear_uid_cmd` | on_command | `["解绑UID", "解绑uid"]` |
-| [AliceUID/nikke_union/commands.py](AliceUID/nikke_union/commands.py) | `nikke_union_cmd` | on_command | `["出刀", "查刀", "联盟突袭", "突袭"]` |
+| [BlablaBot/nikke_calendar/commands.py](BlablaBot/nikke_calendar/commands.py) | `calendar_command` | on_command | `日历` |
+| [BlablaBot/nikke_character/alias_commands.py](BlablaBot/nikke_character/alias_commands.py) | `add_alias` | on_regex | `^(?P<character>.+?)(?:新增\|注册)别名(?P<alias>.+)$` |
+| [BlablaBot/nikke_character/alias_commands.py](BlablaBot/nikke_character/alias_commands.py) | `alias_query_suffix` | on_suffix | `别名查询` |
+| [BlablaBot/nikke_character/alias_commands.py](BlablaBot/nikke_character/alias_commands.py) | `alias_query_command` | on_command | `角色别名查询` |
+| [BlablaBot/nikke_character/commands.py](BlablaBot/nikke_character/commands.py) | `nikke_character_cmd` | on_command | `练度` |
+| [BlablaBot/nikke_character/commands.py](BlablaBot/nikke_character/commands.py) | `nikke_character_suffix_cmd` | on_suffix | `练度` |
+| [BlablaBot/nikke_character/commands.py](BlablaBot/nikke_character/commands.py) | `nikke_character_panel_cmd` | on_command | `面板` |
+| [BlablaBot/nikke_character/commands.py](BlablaBot/nikke_character/commands.py) | `nikke_character_panel_suffix_cmd` | on_suffix | `面板` |
+| [BlablaBot/nikke_community/commands.py](BlablaBot/nikke_community/commands.py) | `community_command` | on_command | `自动社区` |
+| [BlablaBot/nikke_community/commands.py](BlablaBot/nikke_community/commands.py) | `immediate_signin` | on_fullmatch | `签到` |
+| [BlablaBot/nikke_community/commands.py](BlablaBot/nikke_community/commands.py) | `enable_full_signin` | on_command | `开启全量签到` |
+| [BlablaBot/nikke_community/commands.py](BlablaBot/nikke_community/commands.py) | `signin_query` | on_command | `签到查询` |
+| [BlablaBot/nikke_database/commands.py](BlablaBot/nikke_database/commands.py) | `database_update` | on_command | `数据库更新` |
+| [BlablaBot/nikke_help/commands.py](BlablaBot/nikke_help/commands.py) | `nikke_help` | on_command | `帮助` |
+| [BlablaBot/nikke_login/commands.py](BlablaBot/nikke_login/commands.py) | `nikke_login_cmd` | on_command | `["登录", "登陆", "绑定账号"]` |
+| [BlablaBot/nikke_login/commands.py](BlablaBot/nikke_login/commands.py) | `nikke_relogin_cmd` | on_fullmatch | `["重新登录", "重新登陆"]` |
+| [BlablaBot/nikke_login/commands.py](BlablaBot/nikke_login/commands.py) | `nikke_unbind_cmd` | on_fullmatch | `["解绑", "删除绑定"]` |
+| [BlablaBot/nikke_login/commands.py](BlablaBot/nikke_login/commands.py) | `nikke_account_cmd` | on_fullmatch | `["我的账号", "账号信息"]` |
+| [BlablaBot/nikke_login/commands.py](BlablaBot/nikke_login/commands.py) | `nikke_cookie_cmd` | on_command | `["导入cookie", "导入Cookie", "绑定cookie"]` |
+| [BlablaBot/nikke_login/commands.py](BlablaBot/nikke_login/commands.py) | `nikke_public_cmd` | on_fullmatch | `["公开", "公开账号"]` |
+| [BlablaBot/nikke_login/commands.py](BlablaBot/nikke_login/commands.py) | `nikke_private_cmd` | on_fullmatch | `["隐藏", "隐藏账号"]` |
+| [BlablaBot/nikke_login/commands.py](BlablaBot/nikke_login/commands.py) | `nikke_list_cmd` | on_fullmatch | `["账号列表", "绑定列表"]` |
+| [BlablaBot/nikke_permissions/commands.py](BlablaBot/nikke_permissions/commands.py) | `group_query` | on_command | `群查询` |
+| [BlablaBot/nikke_permissions/commands.py](BlablaBot/nikke_permissions/commands.py) | `group_mode` | on_command | `群策略` |
+| [BlablaBot/nikke_profile/commands.py](BlablaBot/nikke_profile/commands.py) | `nikke_profile_cmd` | on_fullmatch | `["信息", "名片", "个人资料"]` |
+| [BlablaBot/nikke_profile/commands.py](BlablaBot/nikke_profile/commands.py) | `nikke_profile_refresh_cmd` | on_fullmatch | `["刷新信息"]` |
+| [BlablaBot/nikke_resource/commands.py](BlablaBot/nikke_resource/commands.py) | `update_resources` | on_fullmatch | `更新资源` |
+| [BlablaBot/nikke_roster/commands.py](BlablaBot/nikke_roster/commands.py) | `card` | on_fullmatch | `["卡片", "阵容卡片", "妮姬卡片"]` |
+| [BlablaBot/nikke_roster/commands.py](BlablaBot/nikke_roster/commands.py) | `refresh` | on_fullmatch | `["刷新面板"]` |
+| [BlablaBot/nikke_status/commands.py](BlablaBot/nikke_status/commands.py) | `nikke_boss_health_cmd` | on_command | `会战血量` |
+| [BlablaBot/nikke_status/commands.py](BlablaBot/nikke_status/commands.py) | `nikke_resource_status_cmd` | on_command | `资源查询` |
+| [BlablaBot/nikke_uid/commands.py](BlablaBot/nikke_uid/commands.py) | `nikke_bind_uid_cmd` | on_command | `["绑定UID", "绑定uid"]` |
+| [BlablaBot/nikke_uid/commands.py](BlablaBot/nikke_uid/commands.py) | `nikke_my_uid_cmd` | on_command | `["我的UID", "我的uid"]` |
+| [BlablaBot/nikke_uid/commands.py](BlablaBot/nikke_uid/commands.py) | `nikke_clear_uid_cmd` | on_command | `["解绑UID", "解绑uid"]` |
+| [BlablaBot/nikke_union/commands.py](BlablaBot/nikke_union/commands.py) | `nikke_union_cmd` | on_command | `["出刀", "查刀", "联盟突袭", "突袭"]` |
 
 与真实Core端点或社区响应发生变化时，优先补充构造回归和明确的字段校验，再更新映射；不要用旧图片、静态图库或猜测值填补缺失的私人数据。
 
 ## 16. 1.0.04新增接口与运行约定
 
-- community/schedule.py：valid_time只接受24小时制HH:MM；默认08:33。ValidatedStringConfig在成功保存后调用runtime.apply_sign_schedule，更新原aliceuid-community任务，不新增重复job；修改时间不清空账本。
+- community/schedule.py：valid_time只接受24小时制HH:MM；默认08:33。ValidatedStringConfig在成功保存后调用runtime.apply_sign_schedule，更新原blablabot-community任务，不新增重复job；修改时间不清空账本。
 - community/cycle.py：周期起点08:00；自动执行时刻与周期边界分开。每天cron按Asia/Shanghai，长批次跨周期终止。在途响应跨界（成功/异常）通过carry_boundary_guard保守记录新周期请求与写入约束，不直接生成签到确认。
 - community/store.py：新增signin_confirmations（account/day/owner/确认时间/来源）和group_seen（群摘要/聊天用户ID/最近观察时间）。last_day仅表示整轮处理；群查询只有独立确认记录才显示已签到。
 - 旧23:00周期迁移没有逐请求时间戳，因此将可能重叠的旧预算与动作保守带入第一个08:00周期，标记legacy，不制造签到确认。服务可做任务状态检查，但不重复结果不确定的写入。
 - community/report.py与runtime.report_group：Core Bot主在当前群查询，按bot_id与群作用域筛选AliceBind和近期观察记录，40条分页；不调用社区、不过问成员Cookie。没有Core统一实时群名单时明示范围，不能把绑定群记录称为全群实时成员。
 - nikke_user/auth_state.py：known_invalid/mark_invalid/unavailable_message统一失效状态。load_client在解密与缓存命中前检查明确过期或已知无效；客户端只对401/300001写失效标记，403/429不写。标记按owner与cookie_enc摘要隔离，重登新revision不继承。
-- 新配置键AliceUID_CommunitySignTime；新聊天命令nk签到查询[页码]。原nk签到改为精确匹配，避免与新查询命令重叠。
+- 新配置键BlablaBot_CommunitySignTime；新聊天命令nk签到查询[页码]。原nk签到改为精确匹配，避免与新查询命令重叠。
 - 当前源码工作区的Python解释器、45个依赖包和环境验证入口位于CodexZone/DevelopmentEnvironment。读取environment.json中的相对路径与-I -B参数，具体说明见该目录README；不再依赖GptZone或宿主site-packages。
-- 共享数据根现在只有AliceUID主树，新增3个公开元数据JSON；1207张PNG和27项固定装饰图标已核验。旧NikkeUID/private_preview仅归档，用workspace_paths中的legacy_private_preview_root继续做发布隐私检查，不合并到运行账号数据。
+- 共享数据根现在只有BlablaBot主树，新增3个公开元数据JSON；1207张PNG和27项固定装饰图标已核验。旧NikkeUID/private_preview仅归档，用workspace_paths中的legacy_private_preview_root继续做发布隐私检查，不合并到运行账号数据。
 
 1.0.03的1188通过数字是历史功能基线；1.0.04的测试和资源迁移是上一版基线；当前1.0.05以本轮handoff验证记录为准。
 
@@ -881,14 +881,14 @@ python tools_alice/build_release.py --plugin-only --build-tag docs
 
 调度按账号运行一次，每个账号结束后检查已知群；同群目标仍在途/未执行时不发完成通知。成功依据signin_confirmations，不依据last_day或completed标签；无法确认的结果另列未确认。每群只汇总自己的绑定/近30天命令观察成员，不把未记录成员归入未开启。跨08:00或全局社区暂停停止本轮通知。
 
-`notify_policy.py`的3个配置键仅由签到通知发送路径读取。默认全局开启、两表空；白名单非空即限定范围并覆盖重叠黑名单；白名单为空才按黑名单排除。群号只接受ASCII数字字符串，名单重叠有效；原业务四名单的冲突拒绝规则不变。通知仍检查Core插件/SV开启、群范围和名单，以及AliceUID既有群策略。全局关通知不撤销账号签到授权、不改scheduler、不影响查询。
+`notify_policy.py`的3个配置键仅由签到通知发送路径读取。默认全局开启、两表空；白名单非空即限定范围并覆盖重叠黑名单；白名单为空才按黑名单排除。群号只接受ASCII数字字符串，名单重叠有效；原业务四名单的冲突拒绝规则不变。通知仍检查Core插件/SV开启、群范围和名单，以及BlablaBot既有群策略。全局关通知不撤销账号签到授权、不改scheduler、不影响查询。
 
 待实机：网址同步对每个实际区服的响应、网站更新/限流条件、真实推荐完成时长、用户环境的Playwright与QQ通知回执。没有实现自动修改公开设置或自动JSON备用导入。
 
 
 ### candidate2独立主题
 
-个人突袭卡片使用独立的AliceUID_SoloCardTheme（dark默认、light、random），不读取AliceUID_CardTheme。命令可携带亮色/暗色/随机参数，仅覆盖本次渲染；未指定时读取独立配置。色板仍来自nikke_render.theme，随机只选择一次。apply_theme继续捕获全局GlassStrength并生成预模糊场景；hero、notes、shot-panel使用container_glass及共用glass_finish，网站截图在960px内容宽度和原DPI下保持原色，四角遮罩不变。卡片外宽1072px，为截图外增加15px毛玻璃衬边。
+个人突袭卡片使用独立的BlablaBot_SoloCardTheme（dark默认、light、random），不读取BlablaBot_CardTheme。命令可携带亮色/暗色/随机参数，仅覆盖本次渲染；未指定时读取独立配置。色板仍来自nikke_render.theme，随机只选择一次。apply_theme继续捕获全局GlassStrength并生成预模糊场景；hero、notes、shot-panel使用container_glass及共用glass_finish，网站截图在960px内容宽度和原DPI下保持原色，四角遮罩不变。卡片外宽1072px，为截图外增加15px毛玻璃衬边。
 
 
 ### 1.0.09 candidate3：截图裁切与本地缓存
@@ -927,9 +927,9 @@ nikke_solo.cache保存本人账号/区服/Bot/凭据修订隔离的PNG和原子�
 
 ## 1.0.11 fix1：可配置的实际回执等待
 
-新增`AliceUID_ForwardReceiptSeconds`，默认30，整数5～300；Web配置写入验证，运行时坏值回落30。转发前读取一次，当次等待不受之后配置变化干扰。
+新增`BlablaBot_ForwardReceiptSeconds`，默认30，整数5～300；Web配置写入验证，运行时坏值回落30。转发前读取一次，当次等待不受之后配置变化干扰。
 
-`nikke_message.receipt`在当前连接的已知Python `target_send`上安装一次包装。常规调用直接执行原函数；AliceUID转发通过ContextVar携带(transport, seconds)，只有同连接且wait_recall=True的本次调用才用FunctionType浅拷贝globals后的原始代码，替换其RECALL_WAIT_TIMEOUT数值。echo序号、Future字典、队列、回执能力探测和finally清理全部沿用Core实现；不改Core文件或全局常量，不绕过原Bot.send及_LiveAccessBot。ContextVar在finally复位，并发其他插件仍使用原等待值。未知Core方法结构无法覆盖时明确记录日志并沿用实际Core等待值，不假称配置生效。
+`nikke_message.receipt`在当前连接的已知Python `target_send`上安装一次包装。常规调用直接执行原函数；BlablaBot转发通过ContextVar携带(transport, seconds)，只有同连接且wait_recall=True的本次调用才用FunctionType浅拷贝globals后的原始代码，替换其RECALL_WAIT_TIMEOUT数值。echo序号、Future字典、队列、回执能力探测和finally清理全部沿用Core实现；不改Core文件或全局常量，不绕过原Bot.send及_LiveAccessBot。ContextVar在finally复位，并发其他插件仍使用原等待值。未知Core方法结构无法覆盖时明确记录日志并沿用实际Core等待值，不假称配置生效。
 
 连接暂停固定60秒，继续一次普通回退。如果本次发送将原非False的_supports_recall锁为False，只为该连接保留可重试标记；暂停到期且仍是同一transport时恢复None及计数器，允许下一次正常转发探测。调用前已不支持回执的连接不自动改动。暂停表上限64，随条目淘汰清理重试引用。
 
@@ -937,9 +937,9 @@ nikke_solo.cache保存本人账号/区服/Bot/凭据修订隔离的PNG和原子�
 
 ## 22. AI只读查询（1.0.12）
 
-四个原生to_ai入口：nikke_help、nikke_profile_cmd、nikke_character_cmd、alias_query_command。每个入口提供to_ai描述、covers和aliases；不重复注册ai_tools，不修改Core代码。默认AliceUID_AIQueryEnabled关闭，to_ai描述为空，不注册AI工具。须同时开启插件开关与Core AI并重启完成注册；插件开关可即时关闭调用。普通命令不加载AI引擎；插件仅在Core已创建MockBot时进入AI适配分支。
+四个原生to_ai入口：nikke_help、nikke_profile_cmd、nikke_character_cmd、alias_query_command。每个入口提供to_ai描述、covers和aliases；不重复注册ai_tools，不修改Core代码。默认BlablaBot_AIQueryEnabled关闭，to_ai描述为空，不注册AI工具。须同时开启插件开关与Core AI并重启完成注册；插件开关可即时关闭调用。普通命令不加载AI引擎；插件仅在Core已创建MockBot时进入AI适配分支。
 
-装饰顺序为 `@sv.on_*(..., to_ai=...)` 在外、`@ai_query(sv)` 在内，确保Core捕获的是已检查权限的函数。原来的启动后Trigger.func包装不能覆盖AI保存的函数引用。AI适配补齐Core命令路径的插件/SV名单、范围、权限以及全局黑名单，再检查AliceUID四名单；每次返回结果时复查。Core权限规则与固定源码handler._sv_authorized做离线等价验证。
+装饰顺序为 `@sv.on_*(..., to_ai=...)` 在外、`@ai_query(sv)` 在内，确保Core捕获的是已检查权限的函数。原来的启动后Trigger.func包装不能覆盖AI保存的函数引用。AI适配补齐Core命令路径的插件/SV名单、范围、权限以及全局黑名单，再检查BlablaBot四名单；每次返回结果时复查。Core权限规则与固定源码handler._sv_authorized做离线等价验证。
 
 资料/练度/别名仅选取显示字段产生摘要，不输出Cookie、Token、openid、原始响应或图片Base64。摘要暂存于当前调用ContextVar，在业务完成绑定核验并提交图片到MockBot时才调用Core ai_return；渲染失败、解绑/换绑定或撤权时不返回暂存摘要。帮助走纯文字指南，避免AI调用转发或等待真实回执。图片由Core资源管理器登记后返回资源ID，最终是否发送由Core AI决定；本插件不绕过Core发送机制。
 
@@ -949,7 +949,7 @@ DILDORO、刷新、登录、解绑、签到等没有to_ai注册。DILDORO代码�
 
 ## 23. 本地Core完整注册链路核对（1.0.13）
 
-依据用户本地仓库提交 `131f64af45c53db879d7f10b6300959a06ac1831`。原始文件及SHA256保存在开发.references/gscore_v113，不修改Core仓库。与前版只分别检查迁移和触发器的方式不同，本版使用原始GsServer.load_plugin/cached_import加载临时plugins/AliceUID，并使用原始PluginConfigStore、Plugins、SV、Event、Trigger和TriggerIndex；这些模块不经AST删改或替身重写。只隔离日志、Bot发送、插件数据库/业务接口和调度等外部边界。
+依据用户本地仓库提交 `131f64af45c53db879d7f10b6300959a06ac1831`。原始文件及SHA256保存在开发.references/gscore_v113，不修改Core仓库。与前版只分别检查迁移和触发器的方式不同，本版使用原始GsServer.load_plugin/cached_import加载临时plugins/BlablaBot，并使用原始PluginConfigStore、Plugins、SV、Event、Trigger和TriggerIndex；这些模块不经AST删改或替身重写。只隔离日志、Bot发送、插件数据库/业务接口和调度等外部边界。
 
 反馈中的“同名Plugins返回对象后不再运行__init__”未在该源码中复现；Python调用现有实例时仍运行其__init__，原始1.0.12两种冷启动已能注册自定义前缀。但1.0.12的configure返回时，帮助快照已更新、对象前缀尚未同步，需要依赖随后SV补载。1.0.13在首次SV之前明确同步这两者。对照测试保留原版真实表现，不把没有复现的冷启动故障写成已证实原因。
 
@@ -959,20 +959,20 @@ DILDORO、刷新、登录、解绑、签到等没有to_ai注册。DILDORO代码�
 
 ### 1.0.13 fix1：与XWUID共用Core的显示前缀接口
 
-XWUID在SV配置加载后调用get_plugin_available_prefix；AliceUID保留迁移兼容和首个SV前同步，在同步完成后调用同一Core接口。仅在启动时取值，避免WebUI保存字段后尚未重建触发器时帮助文案提前切换。用户无需配置新的插件前缀选项，仍在Core插件管理中设置。
+XWUID在SV配置加载后调用get_plugin_available_prefix；BlablaBot保留迁移兼容和首个SV前同步，在同步完成后调用同一Core接口。仅在启动时取值，避免WebUI保存字段后尚未重建触发器时帮助文案提前切换。用户无需配置新的插件前缀选项，仍在Core插件管理中设置。
 
 已固定XWUID main提交bf74531c9caadbc576613d18bd1cd367bfc93183的相关源码于开发.references/xw_prefix_bf74531。对照测试不执行XWUID数据库、后台循环或迁移操作。新增契约检查验证getter调用时对象已同步，并验证帮助结果确实来自Core接口。
 
 
 ## 1.0.14 收菜提醒
 
-`nikke_harvest`分为planner、store、service、runtime、commands。账号共享进度与会话订阅分离，SQLite位于MAIN_PATH/harvest.sqlite3；从Core共享scheduler注册aliceuid-harvest（30秒本地扫描，max_instances=1/coalesce），只有到期且已授权的账号请求上游。账号锁、持久化租约及原AccountReads共同限制重复请求。
+`nikke_harvest`分为planner、store、service、runtime、commands。账号共享进度与会话订阅分离，SQLite位于MAIN_PATH/harvest.sqlite3；从Core共享scheduler注册blablabot-harvest（30秒本地扫描，max_instances=1/coalesce），只有到期且已授权的账号请求上游。账号锁、持久化租约及原AccountReads共同限制重复请求。
 
 `ResourceStatusService.query(fresh=True)`提供提醒专用新鲜数据入口；默认参数与资源卡300秒图片复用行为不变。资源上下文新增fetched_at_epoch。开启命令单独使用原draw_status渲染同类资源卡，后台fetch不调用渲染器。手动查询通过prepare_image的on_snapshot回调，在数据读取成功、渲染之前更新已开启的共享预测及待执行时间；渲染失败也不丢失已获得的新数据。缓存图片命中不触发回调；旧时间戳被拒绝，提醒模块异常隔离，不影响原资源卡。等待MAX时仅重排那一次检查，手动已查到MAX则取消多余后台查询，不自动授权或恢复停用账号。
 
 nightly表按账号/北京时间日期唯一，23:00～24:00为当晚分批采样窗口；原始100%才算MAX，相邻两个有效夜晚触发AUTO_STOPPED，不能用旧缓存、失败或午夜后的样本补填。关闭账号取消各群/私聊的业务待发消息，一次性停用说明用独立事件收据。重开只恢复命令所在会话。
 
-通知按每会话/轮次唯一，发送前重新验证订阅代次、账号绑定、Core插件/SV权限、全局黑名单、AliceUID四名单、路由和免打扰。群消息是文字与原生at段，私聊无群@；按群最多5人分批，跨群同账号共用一次查询。发送结果不明不自动再次@。收菜免打扰不接管任何全局发送入口。
+通知按每会话/轮次唯一，发送前重新验证订阅代次、账号绑定、Core插件/SV权限、全局黑名单、BlablaBot四名单、路由和免打扰。群消息是文字与原生at段，私聊无群@；按群最多5人分批，跨群同账号共用一次查询。发送结果不明不自动再次@。收菜免打扰不接管任何全局发送入口。
 
 离线回归：tests_alice/test_v114_harvest.py与test_v114_harvest_integration.py；涵盖状态机、Core真实注册、命令开启卡片、群/私聊路由、去重、午夜、连续两晚停查与关闭竞态。实机范围记录于handoff。
 
@@ -1059,7 +1059,7 @@ nk出刀与nk查刀在同一个on_command四项元组注册到nikke_union_cmd(bo
 
 calendar_update.py匿名POST固定GetCalendarDetail（请求体{}），仅解析data.character_gacha.items的start_time/end_time/characters.name_code/resource_id。无Cookie/Token，不调用订阅写接口；不运行时下载JS。日历截图路径保持。日历状态保存database/calendar_update.json，事件身份由起止时间和角色集合摘要确定。首次启动忽略已结束事件，当前缺资料角色立即补查；后续新公告、起止边界与改期重排。
 
-Core共享scheduler新增aliceuid-database-calendar，60秒本地检查、启动即检查，max_instances=1/coalesce/replace_existing。无活跃任务时6小时取日历；到边界强制刷新，活跃窗口每小时取日历/资料。所有到期事件合并进同一持久周期，不建立每群/每角色网络任务。与manual/weekly共用DatabaseService所有者锁，busy不算完成或无新增。
+Core共享scheduler新增blablabot-database-calendar，60秒本地检查、启动即检查，max_instances=1/coalesce/replace_existing。无活跃任务时6小时取日历；到边界强制刷新，活跃窗口每小时取日历/资料。所有到期事件合并进同一持久周期，不建立每群/每角色网络任务。与manual/weekly共用DatabaseService所有者锁，busy不算完成或无新增。
 
 等待发现窗口24小时，不因普通资料变化续长。name_code目标全部有角色行、匹配ID映射及技能图标才进入observing；不存在明确目标的旧池结束事件等待新角色编码。获取资料后一小时再次检查规范化角色/ID/技能/头像表摘要，稳定即结束；有变化再观察一小时，截止附近的新资料保留一次后续确认。空响应、网络/格式错误或冷却不作为稳定。源错误持续到截止记录source_unavailable；正常检查但未齐记录timeout。处理过的事件保留去重，完成后重新取日历排期，重启不重复小时检查。
 

@@ -1,15 +1,15 @@
-# AliceUID 1.0.08 维护与接手说明
+# BlablaBot 1.0.08 维护与接手说明
 
 ## 1.0.08 当前规则
 
 - candidate3已由用户实机验收：nk卡片、nk帮助、nk出刀均成功。正式1.0.08保留完全相同的发送代码、默认值和节点结构，仅更新文档与发布包。下方“待实机”是历史阶段记录；不要为复测而重新改变已通过的发送链路。
 
-- 最新candidate3取代candidate2安装主线：只更新Core的AliceUID，默认fix1标准标题文字＋完整原图节点，不附外层at，过滤节点内at/at_all。用户再次确认该两节点方式曾实机成功，不能删去标题或否定这份成功证据。
+- 最新candidate3取代candidate2安装主线：只更新Core的BlablaBot，默认fix1标准标题文字＋完整原图节点，不附外层at，过滤节点内at/at_all。用户再次确认该两节点方式曾实机成功，不能删去标题或否定这份成功证据。
 - ForwardReencode新增默认False；默认图像原字节缓存后直通，原尺寸/DPI/格式不变。True才启用既有JPG转换，保留质量95/0–100和旧设置。保留回执与一次普通回退/300秒暂停。额外NapCat配套不作为要求，已安装者要测试标准路线需先禁用并重启NapCat。
 - 下面candidate2与编码规则为历史说明，只有显式可选路径才适用。现有标准路线不能保证修复Highway网络超时，须实机验收。
 
 - 最新candidate2：成品图先由outbox.py原子保存并读回校验，再交给Core。64MiB/32份、15分钟有效，后续写入清理过期。缓存只传图，不缓存登录/二维码，不绕过权限或自动重放。
-- 原生转发需要单独安装NapCat配套，识别AliceUID帮助/图鉴/出刀标题及单图结构；先准备自身会话的全部节点，才合并发群，不改全局Packet。节点缺失不发仅标题转发，不重试Packet，8秒总预算、单项在途。禁用配套并重启可恢复；普通回退仍一次，迟到合并可能重复。
+- 原生转发需要单独安装NapCat配套，识别BlablaBot帮助/图鉴/出刀标题及单图结构；先准备自身会话的全部节点，才合并发群，不改全局Packet。节点缺失不发仅标题转发，不重试Packet，8秒总预算、单项在途。禁用配套并重启可恢复；普通回退仍一次，迟到合并可能重复。
 - candidate1卡片也已实机未通过，不能再以旧卡片成功为当前通路正常的证据。候选包分开保存，进一步验收见handoff；以下完整单图/缓存/权限基础仍适用。
 - 用户要求优先复用曾成功的卡片写法：完整单图，不再按高度或体积分页；帮助标题/附注合并为一个文字节点，随后一张完整图。真正透明图保留完整PNG，合规现有JPG字节直通，其他不透明图转指定质量JPG。
 - JPG默认95、严格整数0–100，保留完整尺寸、DPI与ICC；完整输出8MiB上限，超出即普通发送原图，不降质量/缩放或丢弃尾部。原渲染器、二维码及普通发送不改。
@@ -23,7 +23,7 @@
 - 正式封包状态：四类转发均为实验性功能，后台标识并说明自动回退。用户fix2实测帮助仍未转发成功，300秒暂停正常；不把回退成功冒充转发稳定。进一步发送修复移至独立1.0.08，1.0.07冻结。
 - 本节为1.0.07同目录fix2当前规则。按用户最新授权，Help/Roster/Union/Login四转发开关默认True，已有设置保留；不自动部署或推送。
 - 移除ForwardUseBotIdentity、身份控制段与NoneBot适配，头像昵称沿用实际NapCat适配器；不修改Core或第三方适配器源码。旧NoneBot实现与测试已可恢复归档。
-- 帮助首节点AliceUID帮助；图鉴首节点AliceUID·绑定游戏昵称·图鉴展示；出刀首节点AliceUID·查询公会名-出刀统计。普通消息/错误不附标题。
+- 帮助首节点BlablaBot帮助；图鉴首节点BlablaBot·绑定游戏昵称·图鉴展示；出刀首节点BlablaBot·查询公会名-出刀统计。普通消息/错误不附标题。
 - 识别WS_BOT_ID=napcat或napcat-*的OneBot通道，要求Core有_recall_waiters且_supports_recall非False，发送时wait_recall=True。成功消息ID列表才算确认；缺失/空回执回退普通内容一次，最长等待由Core控制（参考版本10秒）。旧Core/已锁定不支持直接普通，取消仍传播。
 - Core入队不代表平台投递。缺失回执可能是失败、丢失或仍在上传，有限回退可能重复；未确认后暂停该连接转发300秒，后续查询直接普通。其它适配器None/空列表仍不自动重发，不绕过权限/绑定锁、不重新取数或重绘。
 - 转发inline图片通过images.py有界处理，不透明图JPG质量默认95，后台整数0–100实时生效，4:4:4；完整按行分页，不缩放。符合限制的现有JPG直通，透明PNG保留，登录二维码和普通回退保留原消息。100仍非无损；源码注释与后台提示不可称其无损或文件压缩比例。
@@ -81,7 +81,7 @@
 - badges.py固定4个已审核URL，期望SHA256，按路径合并并发，复用匿名public_stream和2秒公共节流。磁盘路径仍rolemeta/breakthrough与rolemeta/power。成功origin=community_download；失败origin=reviewed_official_bundled_fallback并持久retry_after。带哈希文件名长期复用，无哈希core固定URL每7天条件校验；旧审核内置元数据及原始字节一致时直接复用并起算本地TTL，不立即重复下载；临时下载失败的fallback在冷却后可恢复下载。
 - base_icons资源补全含23个基础图标与4个徽章，数据库断点/剩余数/预算覆盖全部27项。PublicHTTP只扩展4个精确URL，禁止API、附加查询串和片段；无玩家凭据。同步static_badge_source仅返回内置数据URI，不写盘或覆盖来源。
 - 帮助图.region使用内容高度、flex横纵居中，.regions整组居中，主题背景alpha=.50；普通用户/Bot主亮暗双引擎验证。
-- 插件版本为1.0.02，安装名AliceUID、data/AliceUID和AliceBind不变；不要自动部署。固定哈希地址失效需更新受控清单，运行时不抓JS猜地址。
+- 插件版本为1.0.02，安装名BlablaBot、data/BlablaBot和AliceBind不变；不要自动部署。固定哈希地址失效需更新受控清单，运行时不抓JS猜地址。
 
 ## 继承1.0.01行为
 
@@ -89,7 +89,7 @@
 
 - 修复休赛期丢弃已取得完整名单的问题：优先赛季快照，没有时使用当前名单对照历史出刀并标来源，保留退出成员的真实记录；0刀本人和未完成名单红字恢复。members_reference随快照保存，不能重启后伪装成赛季名单。
 - 当前官方赛季表在每次查询时参与选择（公开表60秒缓存）；当期数据仍按可配置短TTL。仅超过结算期且历史接口成功取到出刀/血量的非空快照可标finalized长期复用；重查本人联盟/名单后复用，跨赛季/区服/联盟不得读旧组；刷新可重取。新赛季空数据不补造0刀。
-- glass_settings统一配置AliceUID_GlassStrength，整数0～100、默认10，映射0～80 CSS px背景模糊。通用卡片apply_theme、compact底图都使用同一参数，子模块不再次叠加模糊；前景不滤镜。角色/图鉴/状态缓存包含设置指纹，底图LRU包含强度；在途请求保持起始快照，后续新请求独立键。
+- glass_settings统一配置BlablaBot_GlassStrength，整数0～100、默认10，映射0～80 CSS px背景模糊。通用卡片apply_theme、compact底图都使用同一参数，子模块不再次叠加模糊；前景不滤镜。角色/图鉴/状态缓存包含设置指纹，底图LRU包含强度；在途请求保持起始快照，后续新请求独立键。
 - 资源按用户/bot/账号/区服/凭据版本缓存成功图片300秒，成功窗口内含刷新指令均复用图；1.0.03开始失败不再启动5分钟窗口。请求basic→outpost→daily；仅日常1302127允许一次有间隔补查，其含义未由官方资料确认，不无限重试。其他鉴权/限流失败不重试。
 - 资源PNG保存在私有cache/resource_images，以owner和快照/风格指纹复用，内存LRU淘汰不强迫重绘。凭据撤销清理图片，在途旧渲染不能再次写回。发送仍检查绑定版本与权限。
 - 保管箱按快照容量和24小时周期估算北京时间90%/100%，>70%橙、>90%红、100%MAX；未知不推算。时间是快照估计，不自动领取或操作游戏。
@@ -109,7 +109,7 @@
 
 ## 0.6.0 基线
 
-0.6.0为独立更名迭代：保留NikkeUID稳定版，使用新的AliceUID数据目录和AliceBind绑定表，测试用户重新登录，不迁移旧Cookie。新增资源/保管箱、会战血量与爱心好感度；维护细节见 [新状态卡模块](AliceUID/nikke_status/MAINTENANCE.md)。工作区回归入口为 tests_alice/ 和 tools_alice/；旧 tests/ 和 tools/ 保留验证冻结稳定版。
+0.6.0为独立更名迭代：保留NikkeUID稳定版，使用新的BlablaBot数据目录和AliceBind绑定表，测试用户重新登录，不迁移旧Cookie。新增资源/保管箱、会战血量与爱心好感度；维护细节见 [新状态卡模块](BlablaBot/nikke_status/MAINTENANCE.md)。工作区回归入口为 tests_alice/ 和 tools_alice/；旧 tests/ 和 tools/ 保留验证冻结稳定版。
 
 > 先看[用户说明](<README.md>)。源码与开发记录有持续更新，最终发布的测试数、资源数量、压缩包哈希以交付manifest及总体报告为准。未在用户NAS/Docker操作，未发真实邮件/社区互动，未作线上提交。
 
@@ -125,7 +125,7 @@
 
 ## 不可破坏的约束
 
-- 保留外壳、`__nest__.py`及内层同名包。资源由 `get_res_path()/AliceUID` 派生，不能硬编码NAS或开发者D盘路径。
+- 保留外壳、`__nest__.py`及内层同名包。资源由 `get_res_path()/BlablaBot` 派生，不能硬编码NAS或开发者D盘路径。
 - 账号始终 `user_id + bot_id` 归属。用户输入的UID、@对象不决定凭据；不借Bot主Cookie代查。
 - 既有绑定不覆盖。保存、公开状态必须核对底层返回码和提交后新查询；解绑显式SQL DELETE，不能恢复使用固定Core存在问题的临时实例 `delete_data()`。
 - Cookie只加密落库，密钥与核心数据库须安全备份；密码/邮件码不写文件/日志。异常只记阶段/类型/错误码，不回显数据库参数、HTML、Cookie或SDK正文。
@@ -153,12 +153,12 @@
 
 详细维护资料：
 
-- [邮箱认证状态机](<AliceUID/nikke_login/EMAIL_MAINTENANCE.md>)
-- [访问控制与真实Core保存链](<AliceUID/nikke_permissions/MAINTENANCE.md>)
-- [数据库队列、预算与接线](<AliceUID/nikke_database/MAINTENANCE.md>)
-- [社区授权/持久限频](<AliceUID/nikke_community/MAINTENANCE.md>)
-- [UID登记边界](<AliceUID/nikke_uid/MAINTENANCE.md>)
-- [联盟数据口径](<AliceUID/nikke_union/MODULE_MAINTENANCE.md>)
+- [邮箱认证状态机](<BlablaBot/nikke_login/EMAIL_MAINTENANCE.md>)
+- [访问控制与真实Core保存链](<BlablaBot/nikke_permissions/MAINTENANCE.md>)
+- [数据库队列、预算与接线](<BlablaBot/nikke_database/MAINTENANCE.md>)
+- [社区授权/持久限频](<BlablaBot/nikke_community/MAINTENANCE.md>)
+- [UID登记边界](<BlablaBot/nikke_uid/MAINTENANCE.md>)
+- [联盟数据口径](<BlablaBot/nikke_union/MODULE_MAINTENANCE.md>)
 
 ## 关键修复与复盘
 
@@ -178,7 +178,7 @@
 
 ```text
 python -m pytest tests_alice -q
-python tools_alice/check_plugin.py AliceUID
+python tools_alice/check_plugin.py BlablaBot
 python tools_alice/audit_resources.py
 python tools_alice/verify_database_live.py --tasks 3
 python tools_alice/complete_public_gallery.py
