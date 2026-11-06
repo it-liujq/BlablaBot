@@ -1,7 +1,12 @@
-"""LPass 绑定网页：/nikke/lpass/{token} 输入邮箱密码，服务端用 Playwright 登录 pass 站点。"""
+"""LPass 绑定网页：/nikke/lpass/{token}
+
+布局与 #bla登录 一致：账号密码 / 粘贴 Cookie 用 tab 切换，
+背景与卡片样式复用同一套素材，交互（tab、状态框、按钮禁用）保持同样手感。
+"""
 from __future__ import annotations
 
 import html
+import time
 
 from fastapi.responses import HTMLResponse, JSONResponse
 from gsuid_core.logger import logger
@@ -13,106 +18,214 @@ from .api import LPassAuthError, LPassError, parse_cookie
 from .auth import LoginError, login_with_password, verify
 from .store import LPassBind, encrypt_cookie
 
-_HEAD = """<!doctype html>
-<html lang="zh-CN"><head><meta charset="utf-8">
-<meta name="viewport" content="width=device-width,initial-scale=1">
-<title>LEVEL INFINITE PASS 绑定</title>
+PAGE = """<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<meta name="referrer" content="no-referrer">
+<title>LI PASS 账号绑定</title>
 <style>
-body{margin:0;background:#12101c;color:#e8e6f0;font:15px/1.6 system-ui,-apple-system,"Segoe UI",sans-serif}
-.wrap{max-width:430px;margin:0 auto;padding:28px 18px 48px}
-h1{font-size:19px;margin:0 0 6px}
-p.tip{color:#9a94b8;margin:0 0 18px}
-label{display:block;margin:14px 0 6px;color:#b9b3d4;font-size:13px}
-input,textarea{width:100%;box-sizing:border-box;padding:11px 12px;border-radius:10px;
-border:1px solid #3a3355;background:#1b1729;color:#fff;font-size:15px}
-textarea{font:13px/1.5 ui-monospace,monospace;resize:vertical}
-button{width:100%;margin-top:18px;padding:12px;border:0;border-radius:10px;background:#7c4dff;
-color:#fff;font-size:16px;font-weight:600}
-button[disabled]{opacity:.6}
-.msg{margin-top:14px;font-size:14px;white-space:pre-wrap;min-height:20px}
-.ok{color:#63d68a}.err{color:#ff7b7b}
-hr{border:0;border-top:1px solid #302a49;margin:26px 0}
-.foot{margin-top:24px;color:#6f688c;font-size:12px}
-</style></head><body><div class="wrap">
-<h1>LEVEL INFINITE PASS 绑定</h1>
-<p class="tip">登录 pass.levelinfinite.com 后，Bot 会保存登录态用于每日任务。账号密码只发给本机 Core，不写入日志。<br><b>此链接 10 分钟内有效</b>，过期请重新发送「#LPass绑定」。</p>
-<form id="f">
-<label>邮箱地址</label><input id="email" type="email" autocomplete="username" required>
-<label>密码</label><input id="password" type="password" autocomplete="current-password" required>
-<button id="btn" type="submit">登录并绑定</button>
-</form>
-<div id="msg" class="msg"></div>
+  :root{
+    --ink:#1f2430;--muted:rgba(255,255,255,.62);
+    --pink:#7c4dff;--pink-dark:#6a3ff0;
+    --ok:#2f9e73;--err:#cf4b45;
+  }
+  *{box-sizing:border-box}
+  html,body{min-height:100%}
+  body{
+    margin:0;color:#fff;
+    font-family:-apple-system,BlinkMacSystemFont,"Segoe UI","PingFang SC","Microsoft YaHei",sans-serif;
+    background:#0b0d16 url('/nikke/assets/ALICEUID_Login_liberalio_.jpg') center/cover no-repeat fixed;
+    display:flex;align-items:center;justify-content:flex-end;
+    padding:32px 7vw;
+  }
+  body::before{
+    content:"";position:fixed;inset:0;pointer-events:none;
+    background:linear-gradient(90deg,rgba(8,9,15,.10) 0%,rgba(8,9,15,.32) 42%,rgba(8,9,15,.78) 100%);
+  }
+  .card{
+    position:relative;z-index:1;width:min(400px,100%);
+    background:rgba(12,14,24,.80);
+    border:1px solid rgba(255,255,255,.22);
+    border-radius:20px;
+    box-shadow:0 24px 70px rgba(0,0,0,.55);
+    backdrop-filter:blur(18px) saturate(120%);
+    -webkit-backdrop-filter:blur(18px) saturate(120%);
+    padding:28px 28px 24px;
+    animation:fadeUp .55s cubic-bezier(.2,.8,.2,1);
+  }
+  @keyframes fadeUp{from{opacity:0;transform:translateY(14px)}to{opacity:1;transform:none}}
+  .brand{display:flex;align-items:center;gap:14px;margin-bottom:20px}
+  .brand img{
+    width:56px;height:56px;border-radius:14px;object-fit:cover;
+    border:1px solid rgba(255,255,255,.35);
+    box-shadow:0 6px 18px rgba(0,0,0,.35);
+  }
+  .brand h1{margin:0;font-size:19px;font-weight:600;letter-spacing:.01em}
+  .brand p{margin:5px 0 0;font-size:12px;color:var(--muted)}
+  label{display:block;font-size:12px;color:#fff;font-weight:500;margin:14px 0 7px}
+  input[type=email],input[type=password]{
+    width:100%;height:46px;border:1px solid rgba(255,255,255,.25);
+    border-radius:10px;padding:0 12px;font-size:15px;color:var(--ink);
+    background:rgba(255,255,255,.92);outline:none;transition:.18s;
+  }
+  input[type=email]:focus,input[type=password]:focus{
+    border-color:rgba(124,77,255,.85);
+    box-shadow:0 0 0 3px rgba(124,77,255,.18);
+    background:#fff;
+  }
+  textarea{
+    width:100%;height:120px;resize:vertical;padding:12px;
+    border:1px solid rgba(255,255,255,.25);border-radius:10px;
+    font:13px/1.6 ui-monospace,SFMono-Regular,Menlo,monospace;
+    color:var(--ink);background:rgba(255,255,255,.92);outline:none;
+  }
+  textarea:focus{border-color:rgba(124,77,255,.85);box-shadow:0 0 0 3px rgba(124,77,255,.18)}
+  .btn{
+    width:100%;height:46px;border:0;border-radius:10px;margin-top:20px;
+    background:var(--pink);color:#fff;font-size:15px;font-weight:600;
+    cursor:pointer;transition:.18s;
+  }
+  .btn:hover{background:var(--pink-dark);transform:translateY(-1px)}
+  .btn:disabled{opacity:.55;cursor:not-allowed;transform:none}
+  .btn.ghost{background:rgba(255,255,255,.08);border:1px solid rgba(255,255,255,.28);color:#fff}
+  .btn.ghost:hover{background:rgba(255,255,255,.14)}
+  .modes{display:flex;gap:8px;margin-top:12px}
+  .modes button{margin-top:0;font-size:13px}
+  .modes [aria-selected=true]{background:var(--pink)}
+  [hidden]{display:none!important}
+  .hint{font-size:11.5px;color:rgba(255,255,255,.66);line-height:1.7;margin-top:14px}
+  .status{display:none;margin-top:16px;padding:11px 13px;border-radius:10px;
+          font-size:12.5px;line-height:1.6;white-space:pre-wrap}
+  .status.show{display:block}
+  .status.info{background:rgba(255,255,255,.09);border:1px solid rgba(255,255,255,.14);color:#e9ebf4}
+  .status.err{background:rgba(207,75,69,.18);border:1px solid rgba(207,75,69,.38);color:#ffb8b2}
+  .status.ok{background:rgba(47,158,115,.18);border:1px solid rgba(47,158,115,.38);color:#a8e6cb}
+  .modes .btn.suggest{
+    border-color:rgba(124,77,255,.9);background:rgba(124,77,255,.18);
+    box-shadow:0 0 0 2px rgba(124,77,255,.22);animation:pulse 1.6s infinite;
+  }
+  @keyframes pulse{0%,100%{opacity:1}50%{opacity:.72}}
+  .foot{margin-top:18px;font-size:11px;color:rgba(255,255,255,.45);line-height:1.7}
+</style>
+</head>
+<body>
+<div class="card">
+  <div class="brand">
+    <img src="/nikke/assets/ICON.png?v=1.0.0" alt="LI PASS">
+    <div>
+      <h1>LI PASS 账号绑定</h1>
+      <p>pass.levelinfinite.com 奖励中心</p>
+    </div>
+  </div>
 
-<hr>
-<h1 style="font-size:16px">方式二：粘贴 Cookie</h1>
-<p class="tip">已登录 pass.levelinfinite.com 时，从开发者工具复制含 lip_openid / lip_token 的整段 Cookie。</p>
-<textarea id="cookie" rows="4" placeholder="lip_openid=...; lip_token=...; lip_uid=..."></textarea>
-<button id="btn2" type="button" style="background:#4a3f6b">用 Cookie 绑定</button>
-<div id="msg2" class="msg"></div>
-<p class="foot">若提示人机验证，请优先用方式二粘贴 Cookie。</p>
+  <form id="form">
+    <p class="hint">此链接 <b>{{TTL}} 分钟内有效</b>。绑定后 Bot 会保存登录态用于每日任务，账号密码只发给本机 Core，不写入日志。</p>
+    <div class="modes" role="tablist" aria-label="登录方式">
+      <button class="btn ghost" id="mode-password" type="button" role="tab" aria-selected="true">账号密码</button>
+      <button class="btn ghost" id="mode-cookie" type="button" role="tab" aria-selected="false">粘贴 Cookie</button>
+    </div>
+
+    <div id="password-fields">
+      <label for="email">邮箱地址</label>
+      <input id="email" type="email" autocomplete="username" placeholder="you@example.com">
+      <label for="password">密码</label>
+      <input id="password" type="password" autocomplete="current-password" placeholder="LI PASS 密码">
+      <p class="hint">若提交后弹出人机验证，请改用「粘贴 Cookie」。</p>
+    </div>
+
+    <div id="cookie-fields" hidden>
+      <label for="cookie-input">粘贴 Cookie</label>
+      <textarea id="cookie-input" placeholder="lip_openid=...; lip_token=...; lip_uid=..." autocomplete="off" spellcheck="false" disabled></textarea>
+      <p class="hint">已登录 pass.levelinfinite.com 时，从开发者工具复制整段 Cookie；至少包含 lip_openid 与 lip_token。</p>
+    </div>
+
+    <button class="btn" id="submit" type="submit">登录并绑定</button>
+  </form>
+
+  <div class="status" id="status"></div>
+  <p class="foot">绑定成功后可直接在群里发送 #LPass日常。</p>
 </div>
+
 <script>
-const token = "__TOKEN__";
+const TOKEN = "{{TOKEN}}";
+const $ = (id) => document.getElementById(id);
+const statusBox = $("status");
+let authMode = "password";
 
-function show(el, text, ok) {
-  el.className = ok ? 'msg ok' : 'msg err';
-  el.textContent = text;
+function setStatus(text, kind) {
+  statusBox.className = "status show " + (kind || "info");
+  statusBox.textContent = text;
 }
+function showMode(mode) {
+  authMode = mode;
+  $("password-fields").hidden = mode !== "password";
+  $("cookie-fields").hidden = mode !== "cookie";
+  $("email").disabled = $("password").disabled = mode !== "password";
+  $("cookie-input").disabled = mode !== "cookie";
+  $("mode-password").setAttribute("aria-selected", String(mode === "password"));
+  $("mode-cookie").setAttribute("aria-selected", String(mode === "cookie"));
+  $("submit").textContent = mode === "cookie" ? "校验 Cookie 并绑定" : "登录并绑定";
+  statusBox.className = "status";
+}
+$("mode-password").addEventListener("click", () => showMode("password"));
+$("mode-cookie").addEventListener("click", () => showMode("cookie"));
 
-document.getElementById('f').addEventListener('submit', async (e) => {
+$("form").addEventListener("submit", async (e) => {
   e.preventDefault();
-  const msg = document.getElementById('msg');
-  const btn = document.getElementById('btn');
-  btn.disabled = true;
-  show(msg, '正在打开网页登录，约需 30~90 秒，请勿关闭页面', true);
+  const submit = $("submit");
+  submit.disabled = true;
+  const url = authMode === "cookie"
+    ? "/nikke/lpass/api/" + TOKEN + "/cookie"
+    : "/nikke/lpass/api/" + TOKEN + "/login";
+  const body = authMode === "cookie"
+    ? { cookie: $("cookie-input").value }
+    : { email: $("email").value.trim(), password: $("password").value };
+  setStatus(authMode === "cookie" ? "正在校验 Cookie…" : "正在打开网页登录，约需 30~90 秒，请勿关闭页面", "info");
   try {
-    const r = await fetch('/nikke/lpass/api/' + token + '/login', {
-      method: 'POST',
-      headers: {'Content-Type': 'application/json'},
-      body: JSON.stringify({
-        email: document.getElementById('email').value.trim(),
-        password: document.getElementById('password').value
-      })
+    const resp = await fetch(url, {
+      method: "POST",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify(body)
     });
-    const data = await r.json();
+    const data = await resp.json();
     if (data.ok) {
-      show(msg, '绑定成功，账号：' + (data.nickname || 'LIP 账号') + '，金币：' + data.points, true);
-      btn.textContent = '已完成';
+      setStatus(data.message || ("绑定成功，账号：" + (data.nickname || "LI PASS 账号")), "ok");
+      submit.textContent = "已完成";
+      $("mode-password").disabled = $("mode-cookie").disabled = true;
     } else {
-      show(msg, data.msg || '登录失败', false);
-      btn.disabled = false;
+      setStatus(data.msg || "绑定失败", "err");
+      submit.disabled = false;
+      if (authMode === "password") {
+        $("mode-cookie").classList.add("suggest");
+      }
     }
   } catch (err) {
-    show(msg, '请求失败：' + err, false);
-    btn.disabled = false;
+    setStatus("请求失败：" + err, "err");
+    submit.disabled = false;
   }
 });
+</script>
+</body>
+</html>"""
 
-document.getElementById('btn2').addEventListener('click', async () => {
-  const box = document.getElementById('msg2');
-  const btn2 = document.getElementById('btn2');
-  btn2.disabled = true;
-  show(box, '正在校验 Cookie', true);
-  try {
-    const r = await fetch('/nikke/lpass/api/' + token + '/cookie', {
-      method: 'POST',
-      headers: {'Content-Type': 'application/json'},
-      body: JSON.stringify({ cookie: document.getElementById('cookie').value })
-    });
-    const data = await r.json();
-    if (data.ok) {
-      show(box, '绑定成功，账号：' + (data.nickname || 'LIP 账号') + '，金币：' + data.points, true);
-      btn2.textContent = '已完成';
-    } else {
-      show(box, data.msg || '绑定失败', false);
-      btn2.disabled = false;
-    }
-  } catch (err) {
-    show(box, '请求失败：' + err, false);
-    btn2.disabled = false;
-  }
-});
-</script></body></html>"""
+
+def _success_payload(nickname: str, summary: dict, cookie) -> JSONResponse:
+    """与 #bla登录 一致：明确告知已绑定，并给出账号、金币与剩余天数。"""
+    points = int(summary.get("points") or 0)
+    days = cookie.days_left
+    lines = ["绑定成功", f"账号：{nickname or 'LI PASS 账号'}", f"金币：{points}"]
+    lines.append(f"登录态剩余约 {days} 天" if days else "登录态有效期未知，失效后需重新绑定")
+    lines.append("已在群内发送 #LPass日常 开始每日任务")
+    return JSONResponse({
+        "ok": True,
+        "nickname": nickname,
+        "points": points,
+        "days": days,
+        "masked": (cookie.openid[:4] + "*" * 8 + cookie.openid[-4:]) if cookie.openid else "",
+        "message": "\n".join(lines),
+    })
 
 
 class LoginBody(BaseModel):
@@ -136,7 +249,9 @@ async def lpass_login_page(token: str):
     session = sessions.get(token)
     if session is None or session.mode != "lpass":
         return _bad("链接已失效，请在聊天里重新发送「#LPass绑定」。")
-    return HTMLResponse(_HEAD.replace("__TOKEN__", html.escape(token)))
+    ttl = max(1, int((session.created_at + session.ttl - time.time()) // 60))
+    return HTMLResponse(PAGE.replace("{{TOKEN}}", html.escape(token))
+                        .replace("{{TTL}}", str(ttl)))
 
 
 @app.post("/nikke/lpass/api/{token}/login")
@@ -157,7 +272,9 @@ async def lpass_login_submit(token: str, payload: LoginBody):
         summary = await verify(cookie)
     except LoginError as exc:
         session.status = "failed"
-        return JSONResponse({"ok": False, "msg": str(exc)}, status_code=400)
+        return JSONResponse({"ok": False,
+                             "msg": str(exc) + "\n可切换到「粘贴 Cookie」完成绑定。"},
+                            status_code=400)
     except LPassAuthError:
         session.status = "failed"
         return JSONResponse({"ok": False,
@@ -182,8 +299,7 @@ async def lpass_login_submit(token: str, payload: LoginBody):
     )
     session.status = "success"
     logger.info("[Lpass] 网页登录绑定成功")
-    return JSONResponse({"ok": True, "nickname": nickname,
-                         "points": int(summary.get("points") or 0)})
+    return _success_payload(nickname, summary, cookie)
 
 
 @app.post("/nikke/lpass/api/{token}/cookie")
@@ -209,5 +325,4 @@ async def lpass_login_cookie(token: str, payload: CookieBody):
         cookie_enc=encrypt_cookie(cookie), lip_openid=cookie.openid,
         nickname=nickname, expire_at=cookie.expire_at)
     session.status = "success"
-    return JSONResponse({"ok": True, "nickname": nickname,
-                         "points": int(summary.get("points") or 0)})
+    return _success_payload(nickname, summary, cookie)

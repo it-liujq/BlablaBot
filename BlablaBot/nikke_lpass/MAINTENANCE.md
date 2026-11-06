@@ -46,6 +46,17 @@
   `ClickShareAddPoint {"share_code": ...}` 是**帮别人助力**，不是完成自己的任务。
   分享奖励异步结算，代码里没有常量，只能复查 `active_points.total_points`。
 
+## 绑定页布局（与 #bla登录 一致）
+
+`/nikke/lpass/{token}` 是单个卡片，两种登录方式用 tab 切换：
+
+- 顶部 `账号密码` / `粘贴 Cookie` 两个 tab，选中态高亮，切换时只显示对应表单；
+- 提交按钮文案随 tab 变化（`登录并绑定` / `校验 Cookie 并绑定`）；
+- 失败时红框显示服务端原因，并**高亮「粘贴 Cookie」tab**，引导换方式；
+- 成功时绿框显示「绑定成功 / 账号 / 金币 / 登录态剩余天数 / 已在群内发送 #LPass日常」，
+  按钮变成「已完成」并禁用，与 #bla登录 的成功反馈一致；
+- 背景与卡片样式复用 `templates/login.html` 的素材（`ALICEUID_Login_liberalio_.jpg`）。
+
 ## 网页登录（Playwright）实测
 
 登录入口在 `pass.levelinfinite.com/rewards` 右上角头像，实测流程：
