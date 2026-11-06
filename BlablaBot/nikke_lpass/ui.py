@@ -174,6 +174,51 @@ async def _click_go(page, keyword: str = FRIEND_TASK_HINT) -> bool:
     return False
 
 
+COPY_INVITE_JS = r"""
+() => {
+  const collect = (root, out) => {
+    for (const el of root.querySelectorAll('*')) { out.push(el); if (el.shadowRoot) collect(el.shadowRoot, out); }
+    return out;
+  };
+  const all = collect(document, []);
+  const anchor = all.find(e => (e.textContent || '').includes('添加我为'));
+  if (!anchor) return null;
+  let row = anchor;
+  for (let i = 0; i < 4 && row.parentElement; i++) {
+    const r = row.getBoundingClientRect();
+    if (r.width > 220 && r.height > 30) break;
+    row = row.parentElement;
+  }
+  const r = row.getBoundingClientRect();
+  return {x: r.right - 16, y: r.y + r.height / 2};
+}
+"""
+
+
+async def _copy_invite_link(page) -> str:
+    """点分享文本右侧的复制按钮，再从剪贴板取链接。"""
+    box = None
+    try:
+        box = await page.evaluate(COPY_INVITE_JS)
+    except Exception:  # noqa: BLE001
+        box = None
+    if isinstance(box, dict):
+        try:
+            await page.mouse.click(float(box["x"]), float(box["y"]))
+            await page.wait_for_timeout(1200)
+        except Exception:  # noqa: BLE001
+            pass
+    for _ in range(4):
+        try:
+            text = await page.evaluate("navigator.clipboard.readText()")
+        except Exception:  # noqa: BLE001
+            text = ""
+        if text and "http" in text:
+            return str(text).strip()
+        await page.wait_for_timeout(800)
+    return ""
+
+
 GRAB_LINK_JS = r"""
 () => {
   const collect = (root, out) => {
@@ -287,20 +332,19 @@ async def send_friend_requests(cookie: LPassCookie, api: LPassAPI, *, count: int
             if need_share:
                 try:
                     await page.get_by_text("分享邀请链接", exact=False).first.click(
-                        force=True, timeout=4000)
-                except Exception:
+                        force=True, timeout=2500)
+                except Exception:  # noqa: BLE001
                     pass
-                await page.wait_for_timeout(2500)
-                share_url = ""
-                try:
-                    share_url = await page.evaluate(GRAB_LINK_JS)
-                except Exception:
-                    share_url = ""
+                await page.wait_for_timeout(1500)
+                share_url = await _copy_invite_link(page)
                 if not share_url:
                     try:
-                        share_url = await page.evaluate("navigator.clipboard.readText()")
+                        share_url = await page.evaluate(GRAB_LINK_JS)
                     except Exception:
                         share_url = ""
+                if not share_url:
+                    share_url = ("https://pass.levelinfinite.com?action=searchUser"
+                                 f"&searchUserName={cookie.user_name}")
                 result.share_link = str(share_url or "")[:300]
         finally:
             await browser.close()
@@ -329,8 +373,8 @@ async def _share_pending(api: LPassAPI) -> bool:
 
 
 async def open_link_anonymous(url: str, *, wait_ms: int = 12000,
-                               headless: bool = True) -> bool:
-    """用全新无 Cookie 上下文打开外链，模拟"别人点开分享链接"。"""
+                               headless: bool = True, incognito: bool = True) -> bool:
+    """用全新的无痕窗口（--incognito，无任何 Cookie）打开外链。"""
     import os
 
     if not url or not url.startswith("http"):
@@ -343,7 +387,8 @@ async def open_link_anonymous(url: str, *, wait_ms: int = 12000,
         return False
     try:
         async with async_playwright() as p:
-            browser = await p.chromium.launch(headless=headless)
+            args = ["--incognito"] if incognito else []
+            browser = await p.chromium.launch(headless=headless, args=args)
             try:
                 ctx = await browser.new_context(locale="zh-CN")
                 page = await ctx.new_page()
