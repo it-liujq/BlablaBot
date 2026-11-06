@@ -80,7 +80,7 @@ def build_help_context(permission: int = 6, *, login_mode='browser') -> dict:
             {'command': f'{command_prefix()}增加兑换码ABCDEFG', 'description': '本人核验入库后触发新增码自动兑换；疑似一次性或次数耗尽码停止并移出库存'},
             {'command': f'{command_prefix()}自动兑换码 / {command_prefix()}关闭自动兑换码', 'description': '新码跨来源去重；库存更新后处理，新绑定仅核对本人'},
         ]},
-        {'title': 'LI PASS 奖励中心', 'tag': 'LPass', 'description': 'pass.levelinfinite.com 奖励中心；独立于 blablalink 游戏登录，仅操作本人账号。', 'items': [
+        {'title': 'LI PASS 奖励中心', 'tag': 'LPass', 'columns': 2, 'description': 'pass.levelinfinite.com 奖励中心；独立于 blablalink 游戏登录，仅操作本人账号。', 'items': [
             {'command': '#LPass绑定 Cookie内容', 'description': '粘贴 pass 站点 Cookie（含 lip_openid/lip_token）完成绑定'},
             {'command': '#LPass绑定 邮箱 密码', 'description': '由 Bot 打开网页登录并保存登录态；触发人机验证时改用 Cookie'},
             {'command': '#LPass日常 / #LPass日常 演练', 'description': '签到+好友请求/分享+领取，逐项列出进度与奖励；演练只读'},
@@ -154,7 +154,7 @@ def section_bands(sections: list[dict]) -> list[list[dict]]:
         items = section['items']
         if not items:
             continue
-        wide = len(items) > 7
+        wide = len(items) > 7 or section.get('columns') == 2
         columns = 2 if wide else 1
         prepared = dict(section, wide=wide,
                         rows=[items[i:i + columns] for i in range(0, len(items), columns)])

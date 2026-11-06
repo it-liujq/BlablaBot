@@ -151,7 +151,7 @@ class DailyRunner:
         self.clock = clock
         self.sleep = sleep
 
-    async def run(self) -> DailyResult:
+    async def run(self, *, settle: bool = True) -> DailyResult:
         result = DailyResult(dry_run=self.dry_run)
         await self._read_points(result, first=True)
         tasks = await self._load_tasks(result)
@@ -163,8 +163,8 @@ class DailyRunner:
         await self._manual_tasks(tasks, result)
         await self._one_time(tasks, result)
 
-        if not self.dry_run:
-            await self._settle(result)
+        if settle and not self.dry_run:
+            await self.settle(result)
         await self._read_points(result, first=False)
         return result
 
@@ -226,7 +226,7 @@ class DailyRunner:
             out.append(item)
         return out
 
-    async def _settle(self, result: DailyResult):
+    async def settle(self, result: DailyResult):
         """部分奖励异步到账：最多 5 分钟、每 30 秒复查一次积分流水。"""
         for attempt in range(10):
             tasks = await self._load_tasks(result)

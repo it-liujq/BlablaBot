@@ -281,16 +281,30 @@ async def lpass_daily(bot: Bot, ev: Event):
             async with LPassAPI(cookie) as api:
                 friend = None
                 if not dry_run:
-                    # 好友请求要在页面里由 SDK 签名，先尽力跑一次；失败不影响后面
+                    # 好友请求/分享要在页面里由 SDK 签名，先尽力跑一次；失败不影响后面
                     try:
                         friend = await send_friend_requests(cookie, api, count=3,
-                                                            headless=True, timeout_s=120)
+                                                            headless=True, timeout_s=90)
                     except Exception as exc:  # noqa: BLE001
                         logger.warning(
                             f"[Lpass] 好友自动化跳过 error_type={type(exc).__name__}")
-                result = await DailyRunner(api, dry_run=dry_run).run()
-                if friend is not None and friend.confirmed:
-                    result.notes.append(f"好友请求：{friend.summary()}")
+                runner = DailyRunner(api, dry_run=dry_run)
+                result = await runner.run(settle=False)
+                if friend is not None and (friend.confirmed or friend.share_done):
+                    result.notes.append(f"好友/分享：{friend.summary()}")
+
+                # 先出动作结果，别让人干等
+                await _reply(bot, ev, render(result))
+
+                if not dry_run:
+                    before = result.today_earned
+                    try:
+                        await runner.settle(result)
+                    except Exception as exc:  # noqa: BLE001
+                        logger.warning(f"[Lpass] 结算复查失败 error_type={type(exc).__name__}")
+                    if result.today_earned != before:
+                        await _reply(bot, ev, render(result) + "\n\n（以上为结算后更新）",
+                                     at_sender=True)
         except LPassAuthError:
             await _reply(bot, ev, "登录态已失效，请重新发送 #LPass绑定。", at_sender=True)
             return
@@ -301,4 +315,18 @@ async def lpass_daily(bot: Bot, ev: Event):
             logger.error(f"[Lpass] 日常执行异常 error_type={type(exc).__name__}")
             await _reply(bot, ev, "日常执行出现内部异常，未确认完成，请稍后重试。", at_sender=True)
             return
-        await _reply(bot, ev, render(result), at_sender=True)
+        if dry_run:
+            return
+        # 动作已完成，异步奖励再结算；结算后如有变化补一条
+        try:
+            async with LPassAPI(cookie) as api:
+                pass
+        except Exception:  # noqa: BLE001
+            pass
+        try:
+            before_earned = result.today_earned
+            await runner.settle(result)
+            if result.today_earned != before_earned:
+                await _reply(bot, ev, render(result) + "\n\n（以上为结算后更新）", at_sender=True)
+        except Exception as exc:  # noqa: BLE001
+            logger.warning(f"[Lpass] 结算复查失败 error_type={type(exc).__name__}")
