@@ -227,22 +227,29 @@ class DailyRunner:
         return out
 
     async def settle(self, result: DailyResult):
-        """部分奖励异步到账：最多 5 分钟、每 30 秒复查一次积分流水。"""
+        """只等本轮真正新完成的任务到账；历史已完成项不参与等待。
+
+        最多 5 分钟、每 30 秒复查一次积分流水；命中即停。
+        """
+        expected = {s.label for s in result.steps
+                    if s.status == "done" and s.points > 0 and s.label}
+        if not expected:
+            # 本轮没有新完成项，刷新一次流水就返回，不等待
+            await self._refresh_points(result)
+            return
         for attempt in range(10):
-            tasks = await self._load_tasks(result)
-            if tasks:
-                result.tasks = tasks
-            expected = {task_name(t) for t in result.tasks
-                        if task_completed(t) is True and task_points(t) > 0}
-            items = await self._today_points()
-            result.today_points = items
-            result.today_earned = sum(_int(i.get("points")) for i in items)
-            names = {str(i.get("name", "")) for i in items}
-            if expected and expected <= names:
-                break
-            if not expected or attempt == 9:
-                break
+            await self._refresh_points(result)
+            names = {str(i.get("name", "")) for i in result.today_points}
+            if expected <= names:
+                return
+            if attempt == 9:
+                return
             await self.sleep(30)
+
+    async def _refresh_points(self, result: DailyResult):
+        items = await self._today_points()
+        result.today_points = items
+        result.today_earned = sum(_int(i.get("points")) for i in items)
 
     async def _load_tasks(self, result: DailyResult) -> list[dict]:
         try:

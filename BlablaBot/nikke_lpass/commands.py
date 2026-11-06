@@ -276,7 +276,8 @@ async def lpass_daily(bot: Bot, ev: Event):
             await _reply(bot, ev, "登录态已过期，请重新发送 #LPass绑定。", at_sender=True)
             return
         await _reply(bot, ev, 
-            "开始执行日常：签到 → 好友请求/分享 → 领取，约需 1~2 分钟，请稍候。", at_sender=True)
+            "开始执行日常：签到 → 好友请求/分享 → 领取。"
+            "动作完成会先回一次结果，奖励到账复查最多再等 5 分钟。", at_sender=True)
         try:
             async with LPassAPI(cookie) as api:
                 friend = None
