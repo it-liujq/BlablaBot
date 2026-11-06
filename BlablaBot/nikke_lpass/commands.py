@@ -19,9 +19,9 @@ from gsuid_core.sv import SV
 from ..nikke_commands import command_prefix
 from ..nikke_login.commands import get_base_url
 from ..nikke_login.session import sessions
-from .api import LPassAPI, LPassAuthError, LPassCookie, LPassError, ladder_progress, parse_cookie
+from .api import LPassAPI, LPassAuthError, LPassCookie, LPassError, parse_cookie
 from .auth import LoginError, login_with_password, verify
-from .report import render, render_auto_status, render_bind, render_status
+from .report import render, render_auto_status, render_bind, render_status_detail
 from .store import (
     DEFAULT_AUTO_TIME,
     LPassBind,
@@ -30,7 +30,7 @@ from .store import (
     ensure_ready,
     mask_openid,
 )
-from .tasks import DailyRunner, classify
+from .tasks import DailyRunner
 from .ui import send_friend_requests
 
 sv_lpass = SV("LI PASS 奖励中心", pm=6, priority=4)
@@ -247,61 +247,20 @@ async def lpass_status(bot: Bot, ev: Event):
         return
     try:
         async with LPassAPI(cookie) as api:
-            points = await api.points()
-            try:
-                tasks = await api.tasks()
-            except LPassError:
-                tasks = []
+            result = await DailyRunner(api, dry_run=True).build_status()
     except LPassAuthError:
         await _reply(bot, ev, "登录态已失效，请重新发送 #LPass绑定。", at_sender=True)
         return
     except LPassError as exc:
         await _reply(bot, ev, f"状态读取失败：{exc}", at_sender=True)
         return
-    ladder = next((t for t in tasks if classify(t) == "ladder_signin"), None)
-    day, total = (ladder_progress(ladder)[0:2] if ladder else (0, 0))
-    await _reply(bot, ev, 
-        render_status(bind.nickname, points.get("total", 0), points.get("earned", 0),
-                      signin_day=day, ladder_total=total,
-                      masked=mask_openid(cookie.openid), expire_days=cookie.days_left),
-        at_sender=True,
-    )
-
-
-@sv_lpass.on_command("#LPass好友", prefix=False)
-async def lpass_friend(bot: Bot, ev: Event):
-    """实验性：用无头浏览器点任务行的 GO 与推荐好友的「+」。"""
-    bind, cookie = await _load_api(ev.user_id, ev.bot_id)
-    if bind is None or cookie is None:
-        await _reply(bot, ev, "还没有绑定。发送 #LPass绑定 查看绑定方式。", at_sender=True)
-        return
-    if cookie.expired:
-        await _reply(bot, ev, "登录态已过期，请重新发送 #LPass绑定。", at_sender=True)
-        return
-    dry = (ev.text or "").strip() in ("演练", "dry", "试运行")
-    await _reply(bot, ev, 
-        "正在打开奖励中心并尝试自动点击推荐好友，约需 1~2 分钟，请勿重复发送。",
+    await _reply(
+        bot, ev,
+        render_status_detail(result, nickname=bind.nickname,
+                             points_earned=result.points_earned,
+                             masked=mask_openid(cookie.openid),
+                             expire_days=cookie.days_left),
         at_sender=True)
-    async with LPassAPI(cookie) as api:
-        try:
-            result = await send_friend_requests(cookie, api, count=3, dry_run=dry)
-        except LPassAuthError:
-            await _reply(bot, ev, "登录态已失效，请重新发送 #LPass绑定。", at_sender=True)
-            return
-        except Exception as exc:  # noqa: BLE001
-            logger.error(f"[Lpass] 好友 UI 异常 error_type={type(exc).__name__}")
-            await _reply(bot, ev, "好友面板自动化未完成，请在网页手动点击推荐好友。", at_sender=True)
-            return
-    lines = ["LEVELINFINITEPASS好友请求"]
-    if result.error:
-        lines.append(result.error)
-    else:
-        lines.append(f"推荐好友：{'、'.join(result.names[:3]) or '解析失败'}")
-        lines.append(f"点击 {result.clicked} 次，站点确认 {result.confirmed} 次")
-    if dry:
-        lines.append("演练模式：只打开面板，没有真的点「+」。")
-    lines.append("该功能为实验性，失败时请在 pass 站点手动完成后回来发 #LPass日常 领取。")
-    await _reply(bot, ev, "\n".join(lines), at_sender=True)
 
 
 @sv_lpass.on_command("#LPass日常", prefix=False)

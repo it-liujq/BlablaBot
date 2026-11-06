@@ -125,6 +125,7 @@ class DailyResult:
     tasks: list[dict] = field(default_factory=list)
     today_points: list[dict] = field(default_factory=list)
     today_earned: int = 0
+    points_earned: int = 0
     signin_day: Optional[int] = None
     ladder_total: int = 0
     dry_run: bool = False
@@ -178,10 +179,36 @@ class DailyRunner:
             result.notes.append(f"金币{'读取' if first else '结算读取'}失败：{exc}")
             return
         total = int(points.get("total", 0))
+        result.points_earned = int(points.get("earned", 0) or 0)
         if first:
             result.points_before = result.points_after = total
         else:
             result.points_after = total
+
+    async def build_status(self) -> DailyResult:
+        """只读快照：金币、今日流水、签到与各任务进度（不写任何数据）。"""
+        result = DailyResult()
+        await self._read_points(result, first=True)
+        tasks = await self._load_tasks(result)
+        result.tasks = tasks
+        result.today_points = await self._today_points()
+        result.today_earned = sum(_int(i.get("points")) for i in result.today_points)
+
+        ladder = next((x for x in tasks if classify(x) == "ladder_signin"), None)
+        if ladder is not None:
+            done, total, sign_today = ladder_progress(ladder)
+            result.ladder_total = total
+            result.signin_day = min(done + (0 if sign_today else 1), total)
+            status = "already" if (sign_today or (total and done >= total)) else "pending"
+            result.add("ladder", task_name(ladder) or "7-Day Coin Bonus", status,
+                       f"第{done}天/{total}", task_points(ladder))
+
+        daily = next((x for x in tasks if classify(x) == "signin"), None)
+        if daily is not None and task_completed(daily) is True:
+            result.add("signin", "每日签到", "already", "", task_points(daily))
+        else:
+            result.add("signin", "每日签到", "pending", "")
+        return result
 
     async def _today_points(self) -> list[dict]:
         try:

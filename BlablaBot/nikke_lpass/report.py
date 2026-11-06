@@ -213,3 +213,34 @@ def render_auto_status(*, enabled: bool, at: str, last_day: str = "",
 
 
 __all__ = ["render", "render_auto_status", "render_bind", "render_status"]
+
+
+def render_status_detail(result: DailyResult, *, nickname: str, points_earned: int = 0,
+                         masked: str = "", expire_days: int = 0) -> str:
+    """#LPass状态：金币/流水/签到/各任务进度，全只读。"""
+    lines = [
+        "LEVELINFINITEPASS状态",
+        f"账号：{nickname or 'LIP 账号'}",
+        f"金币：{result.points_after}"
+        + (f"（累计获得 {points_earned}）" if points_earned else ""),
+    ]
+    if result.today_earned:
+        lines.append(f"今日流水:+{result.today_earned}（{len(result.today_points)} 条）")
+    if masked:
+        lines.append(f"openid：{masked}")
+    lines.append(f"登录态剩余：约 {expire_days} 天" if expire_days else "登录态有效期：未知")
+
+    daily_rows, once_rows, other_rows = _rows(result)
+    lines.append("")
+    lines.append("日常:")
+    lines.extend(daily_rows or ["（无）"])
+    if result.share_link:
+        lines.append(f"分享链接：{result.share_link}")
+    lines.append("")
+    lines.append("一次性任务:")
+    lines.extend(once_rows or ["（无）"])
+    if other_rows:
+        lines.append("")
+        lines.append("其他任务:")
+        lines.extend(other_rows)
+    return "\n".join(lines)
