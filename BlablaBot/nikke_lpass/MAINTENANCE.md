@@ -46,6 +46,20 @@
   `ClickShareAddPoint {"share_code": ...}` 是**帮别人助力**，不是完成自己的任务。
   分享奖励异步结算，代码里没有常量，只能复查 `active_points.total_points`。
 
+## 网页登录（Playwright）实测
+
+登录入口在 `pass.levelinfinite.com/rewards` 右上角头像，实测流程：
+
+1. 点头像 → 弹窗默认是「邮箱 + 验证码」注册/登录（按钮文案 `注册/登录`）；
+2. 点弹窗底部 **`密码登录`** 才出现 `邮箱地址` / `密码` 两个输入框，
+   提交按钮文案变成 **`登录`**（宽 400px，需按宽度挑，避开 `邮箱登录`）；
+3. 提交后可能弹腾讯 TCaptcha，iframe 域名含 `captcha`；
+4. 成功后 `context.cookies()` 里出现 `lip_*`，轮询即可拿到。
+
+代码里 `_open_login_modal` / `_submit` 都按实测结构定位；验证码复用
+`nikke_login.browser` 的 `_find_captcha` + `_analyze` + `_human_drag`（CV 拼图）。
+拖动失败不报错，继续等登录态，超时后提示改用 Cookie 绑定。
+
 ## 改昵称：只能人工
 
 `POST /api/ugc/user/modify_info` 字段名是 `username`（小写别名会 400
