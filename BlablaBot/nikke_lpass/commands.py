@@ -316,18 +316,3 @@ async def lpass_daily(bot: Bot, ev: Event):
             logger.error(f"[Lpass] 日常执行异常 error_type={type(exc).__name__}")
             await _reply(bot, ev, "日常执行出现内部异常，未确认完成，请稍后重试。", at_sender=True)
             return
-        if dry_run:
-            return
-        # 动作已完成，异步奖励再结算；结算后如有变化补一条
-        try:
-            async with LPassAPI(cookie) as api:
-                pass
-        except Exception:  # noqa: BLE001
-            pass
-        try:
-            before_earned = result.today_earned
-            await runner.settle(result)
-            if result.today_earned != before_earned:
-                await _reply(bot, ev, render(result) + "\n\n（以上为结算后更新）", at_sender=True)
-        except Exception as exc:  # noqa: BLE001
-            logger.warning(f"[Lpass] 结算复查失败 error_type={type(exc).__name__}")
