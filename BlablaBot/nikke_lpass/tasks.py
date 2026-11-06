@@ -11,9 +11,12 @@ from __future__ import annotations
 import asyncio
 import time
 from dataclasses import dataclass, field
+from datetime import datetime
+from zoneinfo import ZoneInfo
 from typing import Optional
 
 from .api import (
+    _int,
     LPassAPI,
     LPassAuthError,
     LPassError,
@@ -74,6 +77,12 @@ ONCE_KEYS = ("nickname", "follow_social", "email")
 MANUAL_KEYS = ("recharge", "shop", "share_production", "appointment", "desktop_shortcut",
                "email", "flexible", "nikke_two_year", "lip_store_first_bind")
 
+try:
+    TZ = ZoneInfo("Asia/Shanghai")
+except Exception:  # Windows 无 tzdata 时退回固定 +08:00
+    from datetime import timedelta, timezone
+
+    TZ = timezone(timedelta(hours=8))
 FRIEND_PAGE = "https://pass.levelinfinite.com/friend"
 FRIEND_SETTLE_NOTE = "（好友请求奖励约10分钟后结算，未计入上面的差值）"
 
@@ -114,6 +123,8 @@ class DailyResult:
     notes: list[str] = field(default_factory=list)
     share_link: str = ""
     tasks: list[dict] = field(default_factory=list)
+    today_points: list[dict] = field(default_factory=list)
+    today_earned: int = 0
     signin_day: Optional[int] = None
     ladder_total: int = 0
     dry_run: bool = False
@@ -151,6 +162,8 @@ class DailyRunner:
         await self._manual_tasks(tasks, result)
         await self._one_time(tasks, result)
 
+        if not self.dry_run:
+            await self._settle(result)
         await self._read_points(result, first=False)
         return result
 
@@ -170,6 +183,40 @@ class DailyRunner:
         else:
             result.points_after = total
 
+    async def _today_points(self) -> list[dict]:
+        try:
+            items = await self.api.points_list(size=50)
+        except LPassError:
+            return []
+        today = datetime.now(TZ).strftime("%Y-%m-%d")
+        out = []
+        for item in items:
+            stamp = _int(item.get("create_time"))
+            if not stamp:
+                continue
+            if datetime.fromtimestamp(stamp, TZ).strftime("%Y-%m-%d") != today:
+                continue
+            out.append(item)
+        return out
+
+    async def _settle(self, result: DailyResult):
+        """部分奖励异步到账：最多 5 分钟、每 30 秒复查一次积分流水。"""
+        for attempt in range(10):
+            tasks = await self._load_tasks(result)
+            if tasks:
+                result.tasks = tasks
+            expected = {task_name(t) for t in result.tasks
+                        if task_completed(t) is True and task_points(t) > 0}
+            items = await self._today_points()
+            result.today_points = items
+            result.today_earned = sum(_int(i.get("points")) for i in items)
+            names = {str(i.get("name", "")) for i in items}
+            if expected and expected <= names:
+                break
+            if not expected or attempt == 9:
+                break
+            await self.sleep(30)
+
     async def _load_tasks(self, result: DailyResult) -> list[dict]:
         try:
             return await self.api.tasks()
@@ -182,52 +229,50 @@ class DailyRunner:
     # ---------- 七日金币激励 / 每日签到 ----------
 
     async def _signin(self, tasks: list[dict], result: DailyResult):
+        """每日签到与 7-Day Coin Bonus 是两个任务，分别处理与展示。"""
         daily = next((t for t in tasks if classify(t) == "signin"), None)
         ladder = next((t for t in tasks if classify(t) == "ladder_signin"), None)
 
-        done = total = 0
-        sign_today = False
         if ladder is not None:
             done, total, sign_today = ladder_progress(ladder)
             result.ladder_total = total
             result.signin_day = min(done + (0 if sign_today else 1), total)
-
-        candidates: list[dict] = []
-        if daily is not None and task_id(daily) and task_completed(daily) is False:
-            candidates.append(daily)
-        if (ladder is not None and task_id(ladder) and not sign_today
-                and (not total or done < total)):
-            candidates.append(ladder)
-            if result.signin_day is None:
-                result.signin_day = min(done + 1, total or 7)
-
-        if not candidates:
-            if ladder is not None and (sign_today or done):
-                result.add("signin", "每日签到", "already",
-                           f"七日进度 {done}/{total}，今天已签")
+            name = task_name(ladder) or "7-Day Coin Bonus"
+            if sign_today or (total and done >= total):
+                result.add("ladder", name, "already", f"第{done}天/{total}")
+            elif not task_id(ladder):
+                result.add("ladder", name, "failed", "缺少 task_id")
+            elif self.dry_run:
+                result.add("ladder", name, "skipped", "演练模式未提交", task_points(ladder))
             else:
-                finished = daily is not None and task_completed(daily) is True
-                result.add("signin", "每日签到", "already" if finished else "failed",
-                           "" if finished else "签到状态未确认")
-            return
+                try:
+                    payload = await self.api.daily_check_in(task_id(ladder))
+                except LPassError as exc:
+                    result.add("ladder", name, "failed", str(exc))
+                else:
+                    if payload.get("already"):
+                        result.add("ladder", name, "already", "站点提示今日已签")
+                    else:
+                        result.add("ladder", name, "done",
+                                   f"第{result.signin_day}天签到成功", task_points(ladder))
 
-        target = candidates[0]
-        if self.dry_run:
-            result.add("signin", "每日签到", "skipped", "演练模式未提交",
-                       task_points(target))
-            return
-        try:
-            payload = await self.api.daily_check_in(task_id(target))
-        except LPassError as exc:
-            result.add("signin", "每日签到", "failed", str(exc))
-            return
-        if payload.get("already"):
-            result.add("signin", "每日签到", "already", "站点提示今日已签到")
-            return
-        day = result.signin_day
-        result.add("signin", "每日签到", "done",
-                   f"第{day}天签到成功" if day else "签到成功",
-                   task_points(target))
+        if daily is None:
+            result.add("signin", "每日签到", "pending", "")
+        elif task_completed(daily) is True:
+            result.add("signin", "每日签到", "already", "", task_points(daily))
+        elif not task_id(daily):
+            result.add("signin", "每日签到", "failed", "缺少 task_id")
+        elif self.dry_run:
+            result.add("signin", "每日签到", "skipped", "演练模式未提交", task_points(daily))
+        else:
+            try:
+                payload = await self.api.daily_check_in(task_id(daily))
+            except LPassError as exc:
+                result.add("signin", "每日签到", "failed", str(exc))
+            else:
+                result.add("signin", "每日签到",
+                           "already" if payload.get("already") else "done", "",
+                           task_points(daily))
 
     # ---------- 常规任务：已完成次数达标即可领取 ----------
 
@@ -284,8 +329,15 @@ class DailyRunner:
         if not link:
             result.add("share_link", "分享 LI PASS", "failed", "站点未返回分享链接")
             return
+        visited = False
+        try:
+            from .ui import open_link_anonymous
+            visited = await open_link_anonymous(link, wait_ms=8000)
+        except Exception:  # noqa: BLE001
+            visited = False
         result.add("share_link", "分享 LI PASS", "manual",
-                   "链接已生成，需他人打开后才会累计", task_points(task))
+                   "链接已生成" + ("并已无痕访问，等待结算" if visited else "，需他人打开"),
+                   task_points(task))
 
     # ---------- 必须人工/签名的常规任务 ----------
 

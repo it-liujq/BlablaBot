@@ -32,6 +32,7 @@ class FriendUIResult:
     confirmed: int = 0
     names: list[str] = field(default_factory=list)
     share_done: bool = False
+    share_link: str = ""
     error: str = ""
 
     def summary(self) -> str:
@@ -173,6 +174,34 @@ async def _click_go(page, keyword: str = FRIEND_TASK_HINT) -> bool:
     return False
 
 
+GRAB_LINK_JS = r"""
+() => {
+  const collect = (root, out) => {
+    for (const el of root.querySelectorAll('*')) {
+      out.push(el);
+      if (el.shadowRoot) collect(el.shadowRoot, out);
+    }
+    return out;
+  };
+  const all = collect(document, []);
+  for (const el of all) {
+    const t = (el.textContent || '').trim();
+    if (t.length > 300 || !t.includes('pass.levelinfinite.com')) continue;
+    const m = t.match(/https?:\/\/[^\s"'<>\]]+/);
+    if (m) return m[0];
+  }
+  for (const el of all) {
+    if (el.tagName === 'TEXTAREA' || el.tagName === 'INPUT') {
+      const v = el.value || '';
+      const m = v.match(/https?:\/\/[^\s"'<>\]]+/);
+      if (m) return m[0];
+    }
+  }
+  return '';
+}
+"""
+
+
 async def _wait_drawer(page, timeout_s: float) -> bool:
     deadline = time.time() + timeout_s
     while time.time() < deadline:
@@ -256,16 +285,28 @@ async def send_friend_requests(cookie: LPassCookie, api: LPassAPI, *, count: int
                     result.clicked += 1
                     await page.wait_for_timeout(1500)
             if need_share:
-                # 打开抽屉后站点就把「分享交友链接」记账，再补一次分享按钮更稳
                 try:
                     await page.get_by_text("分享邀请链接", exact=False).first.click(
                         force=True, timeout=4000)
                 except Exception:
                     pass
-                await page.wait_for_timeout(4000)
+                await page.wait_for_timeout(2500)
+                share_url = ""
+                try:
+                    share_url = await page.evaluate(GRAB_LINK_JS)
+                except Exception:
+                    share_url = ""
+                if not share_url:
+                    try:
+                        share_url = await page.evaluate("navigator.clipboard.readText()")
+                    except Exception:
+                        share_url = ""
+                result.share_link = str(share_url or "")[:300]
         finally:
             await browser.close()
 
+    if result.share_link:
+        await open_link_anonymous(result.share_link, headless=headless)
     after = await _friend_progress(api)
     if before is not None and after is not None:
         result.confirmed = max(0, after - before)
@@ -285,6 +326,34 @@ async def _share_pending(api: LPassAPI) -> bool:
     if task is None:
         return False
     return task_completed(task) is not True
+
+
+async def open_link_anonymous(url: str, *, wait_ms: int = 12000,
+                               headless: bool = True) -> bool:
+    """用全新无 Cookie 上下文打开外链，模拟"别人点开分享链接"。"""
+    import os
+
+    if not url or not url.startswith("http"):
+        return False
+    if os.environ.get("BLABLABOT_STANDALONE") == "1":
+        return False
+    try:
+        from playwright.async_api import async_playwright
+    except Exception:  # noqa: BLE001
+        return False
+    try:
+        async with async_playwright() as p:
+            browser = await p.chromium.launch(headless=headless)
+            try:
+                ctx = await browser.new_context(locale="zh-CN")
+                page = await ctx.new_page()
+                await page.goto(url, wait_until="domcontentloaded", timeout=45000)
+                await page.wait_for_timeout(wait_ms)
+            finally:
+                await browser.close()
+        return True
+    except Exception:  # noqa: BLE001
+        return False
 
 
 async def _friend_state(api: LPassAPI) -> Optional[dict]:

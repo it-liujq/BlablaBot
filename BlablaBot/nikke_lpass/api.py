@@ -315,6 +315,18 @@ class LPassAPI:
             if isinstance(data.get("paid_point"), dict) else 0,
         }
 
+    async def points_list(self, *, page: int = 1, size: int = 50) -> list[dict]:
+        """积分流水（记录页数据源）：name/points/create_time/type。"""
+        payload = await self.request(
+            "GET", f"{POINTS}/GetUserPointsList",
+            params={"page": page, "page_size": size, "type": 1},
+        )
+        data = payload.get("data") or {}
+        items = data.get("points") if isinstance(data, dict) else None
+        if not isinstance(items, list):
+            return []
+        return [x for x in items if isinstance(x, dict)]
+
     # ---------- 任务 ----------
 
     async def tasks(self) -> list[dict]:

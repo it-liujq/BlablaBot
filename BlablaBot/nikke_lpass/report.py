@@ -29,6 +29,8 @@ def render(result: DailyResult, *, prefix: str = "") -> str:
     delta = result.delta
     sign = f"+{delta}" if delta >= 0 else str(delta)
     lines.append(f"金币:{result.points_before} →{result.points_after}({sign})")
+    if result.today_earned:
+        lines.append(f"今日流水:+{result.today_earned}（{len(result.today_points)} 条）")
     lines.append("")
 
     daily_rows, once_rows, other_rows = _rows(result)
@@ -65,9 +67,10 @@ def _rows(result: DailyResult):
     once: list[tuple] = []
     other: list[str] = []
 
-    signin = next((s for s in result.steps if s.key == "signin"), None)
-    if signin is not None:
-        daily.append(_signin_line(signin, result))
+    for key in ("signin", "ladder"):
+        step = next((s for s in result.steps if s.key == key), None)
+        if step is not None:
+            daily.append(_step_line(step, result))
 
     for task in result.tasks:
         key = classify(task)
@@ -93,21 +96,40 @@ def _rows(result: DailyResult):
     return daily, once_lines, other
 
 
-def _signin_line(step: StepResult, result: DailyResult) -> str:
-    if step.status == "done":
-        day = result.signin_day or ""
-        return f"每日签到：第{day}天签到成功（+{step.points})" if day else "每日签到：签到成功"
-    if step.status == "already":
-        detail = (step.detail or f"七日进度 {result.signin_day or 0}/{result.ladder_total or 7}")
-        detail = detail.replace("，今天已签", "").replace("，今日已签", "")
-        if "今日" in detail or "今天" in detail:
-            return f"每日签到：{detail}"
-        return f"每日签到：今日已签（{detail}）"
+def _step_line(step: StepResult, result: DailyResult) -> str:
+    if step.key == "signin":
+        return _signin_line(step, result)
+    # ladder：7-Day Coin Bonus（奖励以今日流水为准）
+    earned = sum(int(i.get("points", 0) or 0) for i in result.today_points
+                 if str(i.get("name", "")) == step.label)
+    points = f"（+{earned})" if earned else (f"（+{step.points})" if step.points else "")
+    detail = f" {step.detail}" if step.detail else ""
+    if step.status in ("done", "already"):
+        return f"{step.label}{points} 已完成{detail}"
     if step.status == "failed":
-        return f"每日签到：未确认（{step.detail or '接口异常'}）"
+        return f"{step.label} 未完成（{step.detail or '接口异常'}）"
     if step.status == "skipped":
-        return "每日签到：演练跳过"
-    return "每日签到：状态未知"
+        return f"{step.label} 演练跳过"
+    return f"{step.label} 状态未知"
+
+
+def _signin_line(step: StepResult, result: DailyResult) -> str:
+    # 每日签到独立结算：优先看今日流水里是否已有「每日签到」
+    earned = 0
+    for item in result.today_points:
+        if str(item.get("name", "")) == "每日签到":
+            earned += int(item.get("points", 0) or 0)
+    if earned:
+        return f"每日签到（+{earned}) 已完成"
+    if step.status == "done":
+        return f"每日签到（+{step.points}) 已完成"
+    if step.status == "already":
+        return f"每日签到（+{step.points}) 已完成" if step.points else "每日签到 已完成"
+    if step.status == "failed":
+        return f"每日签到 未完成（{step.detail or '接口异常'}）"
+    if step.status == "skipped":
+        return "每日签到 演练跳过"
+    return "每日签到 未完成（+100)"
 
 
 def _task_line(task: dict, key: str) -> str:

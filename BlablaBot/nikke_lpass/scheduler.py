@@ -13,7 +13,12 @@ from .tasks import DailyRunner
 from .ui import send_friend_requests
 
 JOB_ID = "blablabot-lpass-auto"
-TZ = ZoneInfo("Asia/Shanghai")
+try:
+    TZ = ZoneInfo("Asia/Shanghai")
+except Exception:  # Windows 无 tzdata 时退回固定 +08:00
+    from datetime import timedelta, timezone
+
+    TZ = timezone(timedelta(hours=8))
 logger = logging.getLogger(__name__)
 
 

@@ -38,6 +38,10 @@ def cookie() -> LPassCookie:
     return parsed
 
 
+async def _fast_sleep(_seconds):
+    return None
+
+
 def api_with(handler):
     client = httpx.AsyncClient(transport=httpx.MockTransport(handler))
     return LPassAPI(cookie(), http=client)
@@ -181,10 +185,10 @@ class AlreadySigninTest(unittest.IsolatedAsyncioTestCase):
             return httpx.Response(200, json={"code": 0, "data": {"tasks": []}})
 
         async with api_with(handler) as api:
-            result = await DailyRunner(api).run()
+            result = await DailyRunner(api, sleep=_fast_sleep).run()
         self.assertFalse(any(p.endswith("DailyCheckIn") for p in calls))
-        self.assertEqual({s.key: s.status for s in result.steps}["signin"], "already")
-        self.assertIn("每日签到：今日已签", render(result))
+        self.assertEqual({s.key: s.status for s in result.steps}["ladder"], "already")
+        self.assertIn("7-Day", render(result))
 
     async def test_new_already_code_is_not_a_failure(self):
         def handler(request):
@@ -232,13 +236,13 @@ class RunnerTest(unittest.IsolatedAsyncioTestCase):
     async def test_daily_full_run(self):
         handler, calls = self._handler()
         async with api_with(handler) as api:
-            result = await DailyRunner(api).run()
+            result = await DailyRunner(api, sleep=_fast_sleep).run()
 
         text = render(result)
         self.assertEqual(result.delta, 250)
         self.assertEqual(result.signin_day, 3)
         self.assertIn("金币:5485 →5735(+250)", text)
-        self.assertIn("第3天签到成功", text)
+        self.assertIn("7-Day", text)
         self.assertIn("分享链接：https://pass.levelinfinite.com/points?code=zz", text)
         self.assertIn("日常:", text)
         self.assertIn("一次性任务:", text)
@@ -249,7 +253,7 @@ class RunnerTest(unittest.IsolatedAsyncioTestCase):
     async def test_dry_run_sends_nothing(self):
         handler, calls = self._handler()
         async with api_with(handler) as api:
-            result = await DailyRunner(api, dry_run=True).run()
+            result = await DailyRunner(api, dry_run=True, sleep=_fast_sleep).run()
         self.assertFalse(any(p.endswith("DailyCheckIn") for p, _ in calls))
         self.assertFalse(any(p.endswith("CompleteTaskAddPoint") for p, _ in calls))
         self.assertFalse(any(p.endswith("GetShareLink") for p, _ in calls))
@@ -273,9 +277,9 @@ class RunnerTest(unittest.IsolatedAsyncioTestCase):
             return httpx.Response(200, json={"code": 0, "data": {"tasks": []}})
 
         async with api_with(handler) as api:
-            result = await DailyRunner(api).run()
+            result = await DailyRunner(api, sleep=_fast_sleep).run()
         statuses = {step.key: step.status for step in result.steps}
-        self.assertEqual(statuses["signin"], "failed")
+        self.assertEqual(statuses["ladder"], "failed")
         self.assertTrue(result.share_link.endswith("code=qq"))
 
     async def test_walkin_task_claimed_when_quota_met(self):
@@ -285,7 +289,7 @@ class RunnerTest(unittest.IsolatedAsyncioTestCase):
                                   "completed_times": 1}]}
         handler, calls = self._handler(extra_tasks=[task])
         async with api_with(handler) as api:
-            result = await DailyRunner(api).run()
+            result = await DailyRunner(api, sleep=_fast_sleep).run()
         self.assertTrue(any(p.endswith("CompleteTaskAddPoint") and b.get("task_id") == "77"
                             for p, b in calls))
         self.assertEqual({s.key: s.status for s in result.steps}["task:77"], "done")
