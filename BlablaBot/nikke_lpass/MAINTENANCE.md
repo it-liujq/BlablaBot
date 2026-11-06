@@ -57,6 +57,22 @@
   按钮变成「已完成」并禁用，与 #bla登录 的成功反馈一致；
 - 背景与卡片样式复用 `templates/login.html` 的素材（`ALICEUID_Login_liberalio_.jpg`）。
 
+## 为什么登录改成异步 + 轮询
+
+Playwright 登录要 30~90 秒，同步等待会撞 Cloudflare 的 100 秒网关超时：
+前端拿到的是 `524` + HTML 错误页，`r.json()` 抛
+`Unexpected token '<', "<!DOCTYPE "... is not valid JSON`，页面看起来「点了没反应」。
+
+实测（2026-11-07）：
+
+| 接口 | 同步等待时 | 现在 |
+| --- | --- | --- |
+| `POST /cookie`（只校验，约 5 秒） | `400` 正常返回 | 不变 |
+| `POST /login`（跑 Playwright） | `524` HTML 超时页 | 立刻返回 `{"status":"logging_in"}` |
+| `GET /status`（新增） | — | 页面每 2.5 秒轮询，成功/失败各自回写 |
+
+前端同时做了 HTML 兜底：响应不是 JSON 时提示「服务端返回了网页而不是数据（网关超时或反代异常）」。
+
 ## 网页登录（Playwright）实测
 
 登录入口在 `pass.levelinfinite.com/rewards` 右上角头像，实测流程：

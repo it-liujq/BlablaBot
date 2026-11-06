@@ -1,10 +1,12 @@
 """LPass 绑定网页：/nikke/lpass/{token}
 
-布局与 #bla登录 一致：账号密码 / 粘贴 Cookie 用 tab 切换，
-背景与卡片样式复用同一套素材，交互（tab、状态框、按钮禁用）保持同样手感。
+布局与 #bla登录 一致：账号密码 / 粘贴 Cookie 用 tab 切换。
+登录改成「立即返回 + 轮询状态」：Playwright 登录要 30~90 秒，直接同步等待会被
+Cloudflare 的 100 秒网关超时打断（返回 524 HTML，前端 JSON 解析报错）。
 """
 from __future__ import annotations
 
+import asyncio
 import html
 import time
 
@@ -26,11 +28,7 @@ PAGE = """<!DOCTYPE html>
 <meta name="referrer" content="no-referrer">
 <title>LI PASS 账号绑定</title>
 <style>
-  :root{
-    --ink:#1f2430;--muted:rgba(255,255,255,.62);
-    --pink:#7c4dff;--pink-dark:#6a3ff0;
-    --ok:#2f9e73;--err:#cf4b45;
-  }
+  :root{--ink:#1f2430;--muted:rgba(255,255,255,.62);--pink:#7c4dff;--pink-dark:#6a3ff0;}
   *{box-sizing:border-box}
   html,body{min-height:100%}
   body{
@@ -132,7 +130,7 @@ PAGE = """<!DOCTYPE html>
       <input id="email" type="email" autocomplete="username" placeholder="you@example.com">
       <label for="password">密码</label>
       <input id="password" type="password" autocomplete="current-password" placeholder="LI PASS 密码">
-      <p class="hint">若提交后弹出人机验证，请改用「粘贴 Cookie」。</p>
+      <p class="hint">登录在后台进行，页面会自动刷新进度（约 30~90 秒）。若出现人机验证，请改用「粘贴 Cookie」。</p>
     </div>
 
     <div id="cookie-fields" hidden>
@@ -153,10 +151,14 @@ const TOKEN = "{{TOKEN}}";
 const $ = (id) => document.getElementById(id);
 const statusBox = $("status");
 let authMode = "password";
+let pollTimer = null;
 
 function setStatus(text, kind) {
   statusBox.className = "status show " + (kind || "info");
   statusBox.textContent = text;
+}
+function stopPoll() {
+  if (pollTimer) { clearInterval(pollTimer); pollTimer = null; }
 }
 function showMode(mode) {
   authMode = mode;
@@ -168,7 +170,53 @@ function showMode(mode) {
   $("mode-cookie").setAttribute("aria-selected", String(mode === "cookie"));
   $("submit").textContent = mode === "cookie" ? "校验 Cookie 并绑定" : "登录并绑定";
   statusBox.className = "status";
+  stopPoll();
 }
+
+// 网关超时时会返回 HTML，直接 r.json() 会抛 SyntaxError，这里先按文本读。
+async function readJson(resp) {
+  const text = await resp.text();
+  try {
+    return JSON.parse(text);
+  } catch (e) {
+    if (text.trim().startsWith("<")) {
+      return { ok: false, msg: "服务端返回了网页而不是数据（网关超时或反代异常），请稍后重试。" };
+    }
+    return { ok: false, msg: "返回格式异常：" + text.slice(0, 120) };
+  }
+}
+
+function onSuccess(data) {
+  setStatus(data.message || ("绑定成功，账号：" + (data.nickname || "LI PASS 账号")), "ok");
+  $("submit").textContent = "已完成";
+  $("submit").disabled = true;
+  $("mode-password").disabled = $("mode-cookie").disabled = true;
+  stopPoll();
+}
+
+function onFailure(data) {
+  setStatus(data.msg || "绑定失败", "err");
+  $("submit").disabled = false;
+  if (authMode === "password") $("mode-cookie").classList.add("suggest");
+  stopPoll();
+}
+
+async function pollStatus() {
+  try {
+    const resp = await fetch("/nikke/lpass/api/" + TOKEN + "/status");
+    const data = await readJson(resp);
+    if (data.status === "success") { onSuccess(data); return; }
+    if (data.status === "failed") { onFailure(data); return; }
+    if (data.status === "logging_in") {
+      setStatus("正在登录中…（约 30~90 秒，请勿关闭页面）", "info");
+      return;
+    }
+    onFailure(data);
+  } catch (err) {
+    setStatus("查询进度失败：" + err, "err");
+  }
+}
+
 $("mode-password").addEventListener("click", () => showMode("password"));
 $("mode-cookie").addEventListener("click", () => showMode("cookie"));
 
@@ -176,31 +224,33 @@ $("form").addEventListener("submit", async (e) => {
   e.preventDefault();
   const submit = $("submit");
   submit.disabled = true;
-  const url = authMode === "cookie"
-    ? "/nikke/lpass/api/" + TOKEN + "/cookie"
-    : "/nikke/lpass/api/" + TOKEN + "/login";
-  const body = authMode === "cookie"
-    ? { cookie: $("cookie-input").value }
-    : { email: $("email").value.trim(), password: $("password").value };
-  setStatus(authMode === "cookie" ? "正在校验 Cookie…" : "正在打开网页登录，约需 30~90 秒，请勿关闭页面", "info");
   try {
-    const resp = await fetch(url, {
+    if (authMode === "cookie") {
+      setStatus("正在校验 Cookie…", "info");
+      const resp = await fetch("/nikke/lpass/api/" + TOKEN + "/cookie", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ cookie: $("cookie-input").value })
+      });
+      const data = await readJson(resp);
+      if (data.ok) onSuccess(data); else onFailure(data);
+      return;
+    }
+
+    setStatus("已提交登录，正在后台打开网页…", "info");
+    const resp = await fetch("/nikke/lpass/api/" + TOKEN + "/login", {
       method: "POST",
       headers: { "Content-Type": "application/json" },
-      body: JSON.stringify(body)
+      body: JSON.stringify({
+        email: $("email").value.trim(),
+        password: $("password").value
+      })
     });
-    const data = await resp.json();
-    if (data.ok) {
-      setStatus(data.message || ("绑定成功，账号：" + (data.nickname || "LI PASS 账号")), "ok");
-      submit.textContent = "已完成";
-      $("mode-password").disabled = $("mode-cookie").disabled = true;
-    } else {
-      setStatus(data.msg || "绑定失败", "err");
-      submit.disabled = false;
-      if (authMode === "password") {
-        $("mode-cookie").classList.add("suggest");
-      }
-    }
+    const data = await readJson(resp);
+    if (!data.ok && data.status !== "logging_in") { onFailure(data); return; }
+    setStatus("正在登录中…（约 30~90 秒，请勿关闭页面）", "info");
+    stopPoll();
+    pollTimer = setInterval(pollStatus, 2500);
   } catch (err) {
     setStatus("请求失败：" + err, "err");
     submit.disabled = false;
@@ -211,21 +261,8 @@ $("form").addEventListener("submit", async (e) => {
 </html>"""
 
 
-def _success_payload(nickname: str, summary: dict, cookie) -> JSONResponse:
-    """与 #bla登录 一致：明确告知已绑定，并给出账号、金币与剩余天数。"""
-    points = int(summary.get("points") or 0)
-    days = cookie.days_left
-    lines = ["绑定成功", f"账号：{nickname or 'LI PASS 账号'}", f"金币：{points}"]
-    lines.append(f"登录态剩余约 {days} 天" if days else "登录态有效期未知，失效后需重新绑定")
-    lines.append("已在群内发送 #LPass日常 开始每日任务")
-    return JSONResponse({
-        "ok": True,
-        "nickname": nickname,
-        "points": points,
-        "days": days,
-        "masked": (cookie.openid[:4] + "*" * 8 + cookie.openid[-4:]) if cookie.openid else "",
-        "message": "\n".join(lines),
-    })
+# token -> 成功载荷（含金币与剩余天数）；页面轮询直接读这里
+_RESULTS: dict[str, dict] = {}
 
 
 class LoginBody(BaseModel):
@@ -244,6 +281,68 @@ def _bad(msg: str, status: int = 410) -> HTMLResponse:
         f"{html.escape(msg)}</body>", status_code=status)
 
 
+def _mask(openid: str) -> str:
+    if not openid:
+        return ""
+    return openid[:4] + "*" * 8 + openid[-4:]
+
+
+def _success_payload(nickname: str, points: int, days: int, openid: str) -> dict:
+    """与 #bla登录 一致：明确告知已绑定，并给出账号、金币与剩余天数。"""
+    lines = ["绑定成功", f"账号：{nickname or 'LI PASS 账号'}", f"金币：{points}"]
+    lines.append(f"登录态剩余约 {days} 天" if days else "登录态有效期未知，失效后需重新绑定")
+    lines.append("已在群内发送 #LPass日常 开始每日任务")
+    return {"ok": True, "status": "success", "nickname": nickname, "points": points,
+            "days": days, "masked": _mask(openid), "message": "\n".join(lines)}
+
+
+async def _finish_login(token: str, email: str, password: str) -> None:
+    """后台任务：跑 Playwright 登录并落库，状态写在 session 上供页面轮询。"""
+    session = sessions.get(token)
+    if session is None:
+        return
+    try:
+        cookie = await login_with_password(email, password, timeout=110)
+        summary = await verify(cookie)
+    except LoginError as exc:
+        session.status = "failed"
+        session.error = str(exc) + "\n可切换到「粘贴 Cookie」完成绑定。"
+        return
+    except LPassAuthError:
+        session.status = "failed"
+        session.error = "登录完成但未拿到有效 LIP 登录态，请改用 Cookie 绑定。"
+        return
+    except LPassError as exc:
+        session.status = "failed"
+        session.error = f"登录态校验失败：{exc}"
+        return
+    except Exception as exc:  # noqa: BLE001
+        session.status = "failed"
+        session.error = "登录过程异常，请稍后重试或改用 Cookie。"
+        logger.error(f"[Lpass] 网页登录异常 error_type={type(exc).__name__}")
+        return
+
+    nickname = str(summary.get("nickname") or cookie.user_name or "")
+    try:
+        await LPassBind.save_bind(
+            session.user_id, session.bot_id, session.group_id,
+            cookie_enc=encrypt_cookie(cookie),
+            lip_openid=cookie.openid,
+            nickname=nickname,
+            expire_at=cookie.expire_at,
+        )
+    except Exception as exc:  # noqa: BLE001
+        session.status = "failed"
+        session.error = "登录成功但保存绑定失败，请稍后重试。"
+        logger.error(f"[Lpass] 绑定保存异常 error_type={type(exc).__name__}")
+        return
+    session.nickname = nickname
+    session.status = "success"
+    _RESULTS[token] = _success_payload(nickname, int(summary.get("points") or 0),
+                                       cookie.days_left, cookie.openid)
+    logger.info("[Lpass] 网页登录绑定成功")
+
+
 @app.get("/nikke/lpass/{token}", response_class=HTMLResponse)
 async def lpass_login_page(token: str):
     session = sessions.get(token)
@@ -256,73 +355,82 @@ async def lpass_login_page(token: str):
 
 @app.post("/nikke/lpass/api/{token}/login")
 async def lpass_login_submit(token: str, payload: LoginBody):
+    """立即返回并启动后台登录，避免被网关 100 秒超时打断。"""
     session = sessions.get(token)
     if session is None or session.mode != "lpass":
-        return JSONResponse({"ok": False, "msg": "链接已失效，请重新发送 #LPass绑定。"},
-                            status_code=410)
+        return JSONResponse({"ok": False, "status": "failed",
+                             "msg": "链接已失效，请重新发送 #LPass绑定。"}, status_code=410)
+    if session.status == "success":
+        cached = _RESULTS.get(token)
+        if cached:
+            return JSONResponse(cached)
+        return JSONResponse({"ok": True, "status": "success",
+                             "nickname": session.nickname,
+                             "message": f"绑定成功\n账号：{session.nickname}"})
     email = payload.email.strip()
     password = payload.password
     if not email or not password:
-        return JSONResponse({"ok": False, "msg": "请填写邮箱和密码。"}, status_code=400)
-    if session.status in ("logging_in", "sending_code"):
-        return JSONResponse({"ok": False, "msg": "登录正在进行，请稍候。"}, status_code=429)
+        return JSONResponse({"ok": False, "status": "failed",
+                             "msg": "请填写邮箱和密码。"}, status_code=400)
+    if session.status == "logging_in":
+        return JSONResponse({"ok": True, "status": "logging_in"})
     session.status = "logging_in"
-    try:
-        cookie = await login_with_password(email, password, timeout=150)
-        summary = await verify(cookie)
-    except LoginError as exc:
-        session.status = "failed"
-        return JSONResponse({"ok": False,
-                             "msg": str(exc) + "\n可切换到「粘贴 Cookie」完成绑定。"},
-                            status_code=400)
-    except LPassAuthError:
-        session.status = "failed"
-        return JSONResponse({"ok": False,
-                             "msg": "登录完成但未拿到有效 LIP 登录态，请改用 Cookie 绑定。"},
-                            status_code=400)
-    except LPassError as exc:
-        session.status = "failed"
-        return JSONResponse({"ok": False, "msg": f"登录态校验失败：{exc}"}, status_code=400)
-    except Exception as exc:  # noqa: BLE001
-        session.status = "failed"
-        logger.error(f"[Lpass] 网页登录异常 error_type={type(exc).__name__}")
-        return JSONResponse({"ok": False, "msg": "登录过程异常，请稍后重试或改用 Cookie。"},
-                            status_code=500)
+    session.error = ""
+    asyncio.create_task(_finish_login(token, email, password))
+    return JSONResponse({"ok": True, "status": "logging_in"})
 
-    nickname = str(summary.get("nickname") or cookie.user_name or "")
-    await LPassBind.save_bind(
-        session.user_id, session.bot_id, session.group_id,
-        cookie_enc=encrypt_cookie(cookie),
-        lip_openid=cookie.openid,
-        nickname=nickname,
-        expire_at=cookie.expire_at,
-    )
-    session.status = "success"
-    logger.info("[Lpass] 网页登录绑定成功")
-    return _success_payload(nickname, summary, cookie)
+
+@app.get("/nikke/lpass/api/{token}/status")
+async def lpass_login_status(token: str):
+    session = sessions.get(token)
+    if session is None or session.mode != "lpass":
+        return JSONResponse({"ok": False, "status": "failed",
+                             "msg": "链接已失效，请重新发送 #LPass绑定。"}, status_code=410)
+    if session.status == "success":
+        cached = _RESULTS.get(token)
+        if cached:
+            return JSONResponse(cached)
+        return JSONResponse({"ok": True, "status": "success",
+                             "nickname": session.nickname,
+                             "message": f"绑定成功\n账号：{session.nickname}"})
+    if session.status == "failed":
+        return JSONResponse({"ok": False, "status": "failed",
+                             "msg": session.error or "登录失败，请改用 Cookie 绑定。"})
+    return JSONResponse({"ok": True, "status": "logging_in"})
 
 
 @app.post("/nikke/lpass/api/{token}/cookie")
 async def lpass_login_cookie(token: str, payload: CookieBody):
     session = sessions.get(token)
     if session is None or session.mode != "lpass":
-        return JSONResponse({"ok": False, "msg": "链接已失效，请重新发送 #LPass绑定。"},
-                            status_code=410)
+        return JSONResponse({"ok": False, "status": "failed",
+                             "msg": "链接已失效，请重新发送 #LPass绑定。"}, status_code=410)
     cookie = parse_cookie(payload.cookie)
     if cookie is None:
-        return JSONResponse({"ok": False,
+        return JSONResponse({"ok": False, "status": "failed",
                              "msg": "这段内容里没有 lip_openid / lip_token，请复制完整 Cookie。"},
                             status_code=400)
     try:
         summary = await verify(cookie)
     except LPassAuthError:
-        return JSONResponse({"ok": False, "msg": "Cookie 无效或已过期。"}, status_code=400)
+        return JSONResponse({"ok": False, "status": "failed",
+                             "msg": "Cookie 无效或已过期。"}, status_code=400)
     except LPassError as exc:
-        return JSONResponse({"ok": False, "msg": f"校验失败：{exc}"}, status_code=400)
+        return JSONResponse({"ok": False, "status": "failed",
+                             "msg": f"校验失败：{exc}"}, status_code=400)
     nickname = str(summary.get("nickname") or cookie.user_name or "")
-    await LPassBind.save_bind(
-        session.user_id, session.bot_id, session.group_id,
-        cookie_enc=encrypt_cookie(cookie), lip_openid=cookie.openid,
-        nickname=nickname, expire_at=cookie.expire_at)
+    try:
+        await LPassBind.save_bind(
+            session.user_id, session.bot_id, session.group_id,
+            cookie_enc=encrypt_cookie(cookie), lip_openid=cookie.openid,
+            nickname=nickname, expire_at=cookie.expire_at)
+    except Exception as exc:  # noqa: BLE001
+        logger.error(f"[Lpass] Cookie 绑定保存异常 error_type={type(exc).__name__}")
+        return JSONResponse({"ok": False, "status": "failed",
+                             "msg": "校验通过但保存绑定失败，请稍后重试。"}, status_code=500)
+    session.nickname = nickname
     session.status = "success"
-    return _success_payload(nickname, summary, cookie)
+    result = _success_payload(nickname, int(summary.get("points") or 0),
+                              cookie.days_left, cookie.openid)
+    _RESULTS[token] = result
+    return JSONResponse(result)
