@@ -163,9 +163,11 @@ class DailyRunner:
         await self._manual_tasks(tasks, result)
         await self._one_time(tasks, result)
 
+        await self._read_points(result, first=False)
+        # 首份报告也要有流水，否则「每日签到」等只能显示未完成
+        await self._refresh_points(result)
         if settle and not self.dry_run:
             await self.settle(result)
-        await self._read_points(result, first=False)
         return result
 
     # ---------- 基础数据 ----------
@@ -204,8 +206,11 @@ class DailyRunner:
                        f"第{done}天/{total}", task_points(ladder))
 
         daily = next((x for x in tasks if classify(x) == "signin"), None)
+        signed = any(str(i.get("name", "")) == "每日签到" for i in result.today_points)
         if daily is not None and task_completed(daily) is True:
             result.add("signin", "每日签到", "already", "", task_points(daily))
+        elif daily is None and signed:
+            result.add("signin", "每日签到", "already", "", 100)
         else:
             result.add("signin", "每日签到", "pending", "")
         return result
@@ -245,6 +250,14 @@ class DailyRunner:
             if attempt == 9:
                 return
             await self.sleep(30)
+
+    async def _signin_in_points(self) -> bool:
+        """任务表没有每日签到项时，用记录页流水判断今天是否已签。"""
+        try:
+            items = await self._today_points()
+        except LPassError:
+            return False
+        return any(str(i.get("name", "")) == "每日签到" for i in items)
 
     async def _refresh_points(self, result: DailyResult):
         items = await self._today_points()
@@ -291,7 +304,10 @@ class DailyRunner:
                                    f"第{result.signin_day}天签到成功", task_points(ladder))
 
         if daily is None:
-            result.add("signin", "每日签到", "pending", "")
+            if await self._signin_in_points():
+                result.add("signin", "每日签到", "already", "", 100)
+            else:
+                result.add("signin", "每日签到", "pending", "")
         elif task_completed(daily) is True:
             result.add("signin", "每日签到", "already", "", task_points(daily))
         elif not task_id(daily):
