@@ -154,6 +154,16 @@ CONFIG_DEFAULT: Dict[str, GSC] = {
     "AliceUID_SignGroupNotify": GsBoolConfig(
         "签到群通知：全群批量设置", "改变此项时一次性设置全部群，并作为新群默认值；之后可用群内开启/关闭签到群通知单独覆盖。保存同值不重置单群设置；重复应用同值请用全群签到通知命令。只影响签到群通知。", True,
     ),
+    "AliceUID_SignNotifyWhitelist": GsListStrConfig(
+        "签到通知白名单",
+        "群号列表；只有这些群接收自动签到结果，留空表示不限制。与黑名单互斥，保存时校验。",
+        [],
+    ),
+    "AliceUID_SignNotifyBlacklist": GsListStrConfig(
+        "签到通知黑名单",
+        "群号列表；这些群不接收自动签到结果。与白名单互斥，保存时校验。",
+        [],
+    ),
     "AliceUID_CommunityRequestRange": GsStrConfig(
         "社区单次请求随机间隔（秒）", "最小值-最大值，默认5-15，可填2-5或15-15，允许1～3600秒及最多三位小数。全账号串行，保存后重启生效。", "5-15",
     ),
