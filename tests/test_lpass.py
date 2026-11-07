@@ -14,6 +14,7 @@ import httpx
 sys.path.insert(0, os.path.dirname(os.path.dirname(os.path.abspath(__file__))))
 # 让 BlablaBot/__init__.py 跳过 GsCore 相关注册，只做纯逻辑测试
 os.environ.setdefault("BLABLABOT_STANDALONE", "1")
+os.environ.setdefault("LPASS_NO_BROWSER", "1")
 
 from BlablaBot.nikke_lpass.api import (  # noqa: E402
     LPassAPI,

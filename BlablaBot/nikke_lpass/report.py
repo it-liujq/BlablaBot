@@ -28,9 +28,12 @@ def render(result: DailyResult, *, prefix: str = "") -> str:
     lines = [f"{prefix}{TITLE}" if prefix else TITLE]
     delta = result.delta
     sign = f"+{delta}" if delta >= 0 else str(delta)
-    lines.append(f"金币:{result.points_before} →{result.points_after}({sign})")
     if result.today_earned:
-        lines.append(f"今日流水:+{result.today_earned}（{len(result.today_points)} 条）")
+        lines.append(
+            f"金币:+{result.today_earned}（今日流水 {len(result.today_points)} 条；"
+            f"余额 {result.points_before}→{result.points_after}）")
+    else:
+        lines.append(f"金币:{result.points_before} →{result.points_after}({sign})")
     lines.append("")
 
     daily_rows, once_rows, other_rows = _rows(result)
@@ -103,7 +106,13 @@ def _step_line(step: StepResult, result: DailyResult) -> str:
     earned = sum(int(i.get("points", 0) or 0) for i in result.today_points
                  if str(i.get("name", "")) == step.label)
     points = f"（+{earned})" if earned else (f"（+{step.points})" if step.points else "")
-    detail = f" {step.detail}" if step.detail else ""
+    detail = ""
+    if step.detail:
+        detail = " " + step.detail
+        if len(step.detail) >= 3 and step.detail.startswith("第") and "天" in step.detail:
+            day = step.detail[1:step.detail.index("天")]
+            total = f"/{result.ladder_total}" if result.ladder_total else ""
+            detail = f"（第{day}天{total}）"
     if step.status in ("done", "already"):
         return f"{step.label}{points} 已完成{detail}"
     if step.status == "failed":

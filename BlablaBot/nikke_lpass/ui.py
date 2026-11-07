@@ -13,6 +13,8 @@
 """
 from __future__ import annotations
 
+import os
+import re
 import time
 from dataclasses import dataclass, field
 from typing import Optional
@@ -174,6 +176,26 @@ async def _click_go(page, keyword: str = FRIEND_TASK_HINT) -> bool:
     return False
 
 
+CAPTURE_COPY_JS = r"""
+() => {
+  if (window.__copiedHooked) return;
+  window.__copiedHooked = true;
+  window.__copied = [];
+  const push = (t) => { if (t) window.__copied.push(String(t)); };
+  try {
+    const clip = navigator.clipboard;
+    if (clip && clip.writeText) {
+      const orig = clip.writeText.bind(clip);
+      clip.writeText = (t) => { push(t); return orig(t); };
+    }
+  } catch (e) {}
+  document.addEventListener('copy', () => {
+    try { push(window.getSelection().toString()); } catch (e) {}
+  }, true);
+}
+"""
+
+
 COPY_INVITE_JS = r"""
 () => {
   const collect = (root, out) => {
@@ -195,63 +217,90 @@ COPY_INVITE_JS = r"""
 """
 
 
-async def _copy_invite_link(page) -> str:
-    """点分享文本右侧的复制按钮，再从剪贴板取链接。"""
-    box = None
-    try:
-        box = await page.evaluate(COPY_INVITE_JS)
-    except Exception:  # noqa: BLE001
-        box = None
-    if isinstance(box, dict):
-        try:
-            await page.mouse.click(float(box["x"]), float(box["y"]))
-            await page.wait_for_timeout(1200)
-        except Exception:  # noqa: BLE001
-            pass
-    for _ in range(4):
-        try:
-            text = await page.evaluate("navigator.clipboard.readText()")
-        except Exception:  # noqa: BLE001
-            text = ""
-        if text and "http" in text:
-            return str(text).strip()
-        await page.wait_for_timeout(800)
-    return ""
-
-
-GRAB_LINK_JS = r"""
+INVITE_URL_JS = r"""
 () => {
   const collect = (root, out) => {
-    for (const el of root.querySelectorAll('*')) {
-      out.push(el);
-      if (el.shadowRoot) collect(el.shadowRoot, out);
-    }
+    for (const el of root.querySelectorAll('*')) { out.push(el); if (el.shadowRoot) collect(el.shadowRoot, out); }
     return out;
   };
   const all = collect(document, []);
-  for (const el of all) {
-    const t = (el.textContent || '').trim();
-    if (t.length > 300 || !t.includes('pass.levelinfinite.com')) continue;
-    const m = t.match(/https?:\/\/[^\s"'<>\]]+/);
-    if (m) return m[0];
-  }
-  for (const el of all) {
-    if (el.tagName === 'TEXTAREA' || el.tagName === 'INPUT') {
-      const v = el.value || '';
-      const m = v.match(/https?:\/\/[^\s"'<>\]]+/);
-      if (m) return m[0];
-    }
-  }
+  const anchor = all.find(e => (e.textContent || '').includes('添加我为'));
+  const scope = anchor ? (anchor.closest('.ant-drawer') || anchor.parentElement) : document.body;
+  const text = scope ? (scope.textContent || '') : '';
+  const m = text.match(/https?:\/\/[^\s"'\]\[<>)]*searchUser[^\s"'\]\[<>)]*/);
+  if (m) return m[0];
   return '';
 }
 """
 
 
+async def _copy_invite_link(page) -> str:
+    """点邀请文本右侧的复制图标，并从文本里取出链接；剪贴板/DOM 兜底。
+
+    实测结构（2026-11-07）：
+        <div class="_1p2ts9tj">
+          <div class="_1p2ts9tl">添加我为…[https://pass.levelinfinite.com?action=searchUser&searchUserName=xx]</div>
+          <span class="anticon _1p2ts9tm"><svg .../></span>   ← 复制按钮
+        </div>
+    """
+    url = ""
+    try:
+        anchor = page.get_by_text("添加我为", exact=False).first
+        text = await anchor.inner_text()
+        match = re.search(r"https?://[^\s\]]*searchUser[^\s\]]*", text)
+        if match:
+            url = match.group(0)
+    except Exception:  # noqa: BLE001
+        anchor = None
+    if anchor is None:
+        return ""
+
+    if anchor is not None:
+        for sel in ("xpath=following-sibling::*[contains(@class,'anticon')]",
+                    "xpath=..//*[contains(@class,'anticon')]"):
+            try:
+                await anchor.locator(sel).first.click(timeout=5000)
+                break
+            except Exception:  # noqa: BLE001
+                continue
+
+    if url:
+        return url
+
+    for _ in range(4):
+        try:
+            dom = await page.evaluate(INVITE_URL_JS)
+        except Exception:  # noqa: BLE001
+            dom = ""
+        if dom and "http" in str(dom):
+            return str(dom).strip()
+        try:
+            copied = await page.evaluate("window.__copied || []")
+        except Exception:  # noqa: BLE001
+            copied = []
+        for item in copied:
+            if item and "http" in str(item):
+                return str(item).strip()
+        try:
+            clip = await page.evaluate("navigator.clipboard.readText()")
+        except Exception:  # noqa: BLE001
+            clip = ""
+        if clip and "http" in str(clip):
+            return str(clip).strip()
+        await page.wait_for_timeout(800)
+    return ""
+
+
 async def _wait_drawer(page, timeout_s: float) -> bool:
+    """等好友抽屉出现：标题是「添加好友」，列表是「推荐好友」，任一即可。"""
     deadline = time.time() + timeout_s
     while time.time() < deadline:
-        if await page.get_by_text(DRAWER_HINT, exact=True).count():
-            return True
+        for hint in (DRAWER_HINT, "添加好友"):
+            try:
+                if await page.get_by_text(hint, exact=True).count():
+                    return True
+            except Exception:  # noqa: BLE001
+                continue
         await page.wait_for_timeout(800)
     return False
 
@@ -281,11 +330,16 @@ async def send_friend_requests(cookie: LPassCookie, api: LPassAPI, *, count: int
                                                 viewport={"width": 1600, "height": 1000})
             await context.add_cookies(_jar(cookie))
             page = await context.new_page()
+            await page.add_init_script(script=f"({CAPTURE_COPY_JS})()")
             await page.goto(REWARDS_URL, wait_until="domcontentloaded", timeout=60000)
             await page.wait_for_timeout(3000)
             await page.evaluate(
                 "meta => localStorage.setItem('lip_login_meta', JSON.stringify(meta))",
                 _meta(cookie))
+            try:
+                await page.evaluate(CAPTURE_COPY_JS)
+            except Exception:  # noqa: BLE001
+                pass
             await page.reload(wait_until="domcontentloaded")
             await page.wait_for_timeout(10000)
             try:
@@ -339,7 +393,7 @@ async def send_friend_requests(cookie: LPassCookie, api: LPassAPI, *, count: int
                 share_url = await _copy_invite_link(page)
                 if not share_url:
                     try:
-                        share_url = await page.evaluate(GRAB_LINK_JS)
+                        share_url = await page.evaluate(INVITE_URL_JS)
                     except Exception:
                         share_url = ""
                 if not share_url:
@@ -375,11 +429,9 @@ async def _share_pending(api: LPassAPI) -> bool:
 async def open_link_anonymous(url: str, *, wait_ms: int = 12000,
                                headless: bool = True, incognito: bool = True) -> bool:
     """用全新的无痕窗口（--incognito，无任何 Cookie）打开外链。"""
-    import os
-
     if not url or not url.startswith("http"):
         return False
-    if os.environ.get("BLABLABOT_STANDALONE") == "1":
+    if os.environ.get("LPASS_NO_BROWSER") == "1":
         return False
     try:
         from playwright.async_api import async_playwright

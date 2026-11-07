@@ -281,6 +281,31 @@ def _bad(msg: str, status: int = 410) -> HTMLResponse:
         f"{html.escape(msg)}</body>", status_code=status)
 
 
+async def _notify_session(session, text: str) -> None:
+    """把绑定结果发回聊天（与 #bla登录 一致：群里发群、私聊发私聊）。"""
+    ws = str(getattr(session, "notify_ws", "") or "")
+    if not ws:
+        return
+    try:
+        from gsuid_core.gss import gss
+
+        transport = gss.active_bot.get(ws)
+        if transport is None:
+            return
+        group = str(session.group_id or "")
+        if group:
+            await transport.target_send(text, "group", group, session.bot_id,
+                                        str(getattr(session, "notify_self", "") or ""),
+                                        group_id=group, at_sender=False, wait_recall=True)
+        else:
+            await transport.target_send(text, "direct", str(session.user_id),
+                                        session.bot_id,
+                                        str(getattr(session, "notify_self", "") or ""),
+                                        at_sender=True, wait_recall=True)
+    except Exception as exc:  # noqa: BLE001
+        logger.warning(f"[Lpass] 绑定结果推送失败 error_type={type(exc).__name__}")
+
+
 def _mask(openid: str) -> str:
     if not openid:
         return ""
@@ -307,19 +332,23 @@ async def _finish_login(token: str, email: str, password: str) -> None:
     except LoginError as exc:
         session.status = "failed"
         session.error = str(exc) + "\n可切换到「粘贴 Cookie」完成绑定。"
+        await _notify_session(session, "LEVELINFINITEPASS绑定失败：" + str(exc)[:200])
         return
     except LPassAuthError:
         session.status = "failed"
         session.error = "登录完成但未拿到有效 LIP 登录态，请改用 Cookie 绑定。"
+        await _notify_session(session, "LEVELINFINITEPASS绑定失败：未拿到有效登录态，请改用 Cookie 绑定。")
         return
     except LPassError as exc:
         session.status = "failed"
         session.error = f"登录态校验失败：{exc}"
+        await _notify_session(session, f"LEVELINFINITEPASS绑定失败：{exc}")
         return
     except Exception as exc:  # noqa: BLE001
         session.status = "failed"
         session.error = "登录过程异常，请稍后重试或改用 Cookie。"
         logger.error(f"[Lpass] 网页登录异常 error_type={type(exc).__name__}")
+        await _notify_session(session, "LEVELINFINITEPASS绑定失败：登录过程异常，请改用 Cookie。")
         return
 
     nickname = str(summary.get("nickname") or cookie.user_name or "")
@@ -335,12 +364,15 @@ async def _finish_login(token: str, email: str, password: str) -> None:
         session.status = "failed"
         session.error = "登录成功但保存绑定失败，请稍后重试。"
         logger.error(f"[Lpass] 绑定保存异常 error_type={type(exc).__name__}")
+        await _notify_session(session, "LEVELINFINITEPASS绑定失败：保存绑定失败，请稍后重试。")
         return
     session.nickname = nickname
     session.status = "success"
-    _RESULTS[token] = _success_payload(nickname, int(summary.get("points") or 0),
-                                       cookie.days_left, cookie.openid)
+    payload = _success_payload(nickname, int(summary.get("points") or 0),
+                               cookie.days_left, cookie.openid)
+    _RESULTS[token] = payload
     logger.info("[Lpass] 网页登录绑定成功")
+    await _notify_session(session, "LEVELINFINITEPASS" + payload["message"])
 
 
 @app.get("/nikke/lpass/{token}", response_class=HTMLResponse)
@@ -433,4 +465,5 @@ async def lpass_login_cookie(token: str, payload: CookieBody):
     result = _success_payload(nickname, int(summary.get("points") or 0),
                               cookie.days_left, cookie.openid)
     _RESULTS[token] = result
+    await _notify_session(session, "LEVELINFINITEPASS" + result["message"])
     return JSONResponse(result)

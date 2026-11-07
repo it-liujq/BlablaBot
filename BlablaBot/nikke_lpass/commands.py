@@ -107,6 +107,9 @@ async def lpass_bind(bot: Bot, ev: Event):
         else:
             session = sessions.create(ev.user_id, ev.bot_id, ev.group_id, area_id=0, ttl=600)
             session.mode = "lpass"
+            # 绑定结果要回发到聊天，这里记下推送路由
+            session.notify_ws = str(getattr(ev, "WS_BOT_ID", "") or "")
+            session.notify_self = str(getattr(ev, "bot_self_id", "") or "")
         url = f"{get_base_url()}/nikke/lpass/{session.token}"
         await _reply(bot, ev, 
             "请在浏览器打开下面的链接登录 LEVEL INFINITE PASS（10 分钟内有效）：\n"
@@ -291,6 +294,8 @@ async def lpass_daily(bot: Bot, ev: Event):
                             f"[Lpass] 好友自动化跳过 error_type={type(exc).__name__}")
                 runner = DailyRunner(api, dry_run=dry_run)
                 result = await runner.run(settle=False)
+                # 好友/分享是在浏览器里做的，run 里的任务快照可能是动作前的
+                await runner.refresh_tasks(result)
                 if friend is not None and (friend.confirmed or friend.share_done):
                     result.notes.append(f"好友/分享：{friend.summary()}")
 

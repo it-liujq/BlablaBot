@@ -264,6 +264,13 @@ class DailyRunner:
         result.today_points = items
         result.today_earned = sum(_int(i.get("points")) for i in items)
 
+    async def refresh_tasks(self, result: DailyResult) -> list[dict]:
+        """动作执行完后重新拉一次任务表，避免报告用旧快照（如好友请求 0/3）。"""
+        tasks = await self._load_tasks(result)
+        if tasks:
+            result.tasks = tasks
+        return tasks
+
     async def _load_tasks(self, result: DailyResult) -> list[dict]:
         try:
             return await self.api.tasks()
