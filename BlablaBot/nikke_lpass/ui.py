@@ -244,8 +244,18 @@ async def _copy_invite_link(page) -> str:
         </div>
     """
     url = ""
+    anchor = None
+    for scope in [page] + list(_friend_frames(page)):
+        try:
+            cand = scope.get_by_text("添加我为", exact=False).first
+            if await cand.count():
+                anchor = cand
+                break
+        except Exception:  # noqa: BLE001
+            continue
     try:
-        anchor = page.get_by_text("添加我为", exact=False).first
+        if anchor is None:
+            raise LookupError("no anchor")
         text = await anchor.inner_text()
         match = re.search(r"https?://[^\s\]]*searchUser[^\s\]]*", text)
         if match:
@@ -300,73 +310,58 @@ def _friend_frames(page):
     return frames or [page.main_frame]
 
 
-ADD_JS = r"""
-(index) => {
+ADD_BTN_JS = r"""
+() => {
   const walk = (root, out) => {
-    for (const el of root.querySelectorAll('*')) { out.push(el); if (el.shadowRoot) walk(el.shadowRoot, out); }
+    for (const el of root.querySelectorAll('*')) {
+      out.push(el);
+      if (el.shadowRoot) walk(el.shadowRoot, out);
+    }
     return out;
   };
   const all = walk(document, []);
-  window.__added = window.__added || [];
-  const seen = new Set(window.__added);
-  const names = [];
+  const out = [];
+  const seen = new Set();
   for (const el of all) {
     if (el.children.length) continue;
     const t = (el.textContent || '').trim();
     if (t.length < 3 || t.length > 24 || /\s/.test(t)) continue;
     if (!/^[A-Za-z0-9_.-]+$/.test(t)) continue;
-    const row = el.parentElement;
-    if (!row || row.children.length !== 2) continue;
-    const btn = row.children[1];
-    if (btn === el || (btn.textContent || '').trim()) continue;
-    if (seen.has(t) || names.includes(t)) continue;
-    names.push(t);
-    if (names.length > index) {
-      try { btn.scrollIntoView({block: 'center'}); } catch (e) {}
-      try { btn.click(); } catch (e) { return ''; }
-      window.__added.push(t);
-      return t;
+    let p = el.parentElement, icon = null;
+    for (let i = 0; i < 4 && p; i++, p = p.parentElement) {
+      const found = p.querySelectorAll('span.anticon');
+      if (found.length === 1) { icon = found[0]; break; }
+      if (found.length > 1) break;
     }
+    if (!icon || seen.has(t)) continue;
+    const r = icon.getBoundingClientRect();
+    if (r.width < 8 || r.height < 8) continue;
+    seen.add(t);
+    out.push({name: t, x: r.x + r.width / 2, y: r.y + r.height / 2});
   }
-  return '';
+  return out;
 }
 """
 
-LIST_JS = r"""
-() => {
-  const walk = (root, out) => {
-    for (const el of root.querySelectorAll('*')) { out.push(el); if (el.shadowRoot) walk(el.shadowRoot, out); }
-    return out;
-  };
-  const all = walk(document, []);
-  const names = [];
-  for (const el of all) {
-    if (el.children.length) continue;
-    const t = (el.textContent || '').trim();
-    if (t.length < 3 || t.length > 24 || /\s/.test(t)) continue;
-    if (!/^[A-Za-z0-9_.-]+$/.test(t)) continue;
-    const row = el.parentElement;
-    if (!row || row.children.length !== 2) continue;
-    const btn = row.children[1];
-    if (btn === el || (btn.textContent || '').trim()) continue;
-    if (!names.includes(t)) names.push(t);
-  }
-  return names;
-}
-"""
+
+async def _add_buttons(page) -> list[dict]:
+    """返回推荐好友每行的 {name, x, y}（x/y 为加号图标的页面坐标）。"""
+    for frame in _friend_frames(page):
+        try:
+            items = await frame.evaluate(ADD_BTN_JS)
+        except Exception:  # noqa: BLE001
+            continue
+        if isinstance(items, list) and items:
+            return [i for i in items if isinstance(i, dict)]
+    return []
 
 
 async def _wait_drawer(page, timeout_s: float) -> bool:
     """抽屉真正可用的标志：能列出推荐好友，或能看到「推荐好友/添加好友」文案。"""
     deadline = time.time() + timeout_s
     while time.time() < deadline:
-        for frame in _friend_frames(page):
-            try:
-                names = await frame.evaluate(LIST_JS)
-            except Exception:  # noqa: BLE001
-                names = None
-            if isinstance(names, list) and names:
-                return True
+        if await _add_buttons(page):
+            return True
         for hint in (DRAWER_HINT, "添加好友"):
             try:
                 if await page.get_by_text(hint, exact=True).count():
@@ -378,45 +373,32 @@ async def _wait_drawer(page, timeout_s: float) -> bool:
 
 
 async def _click_add_buttons(page, count: int) -> list[str]:
-    """点推荐好友每行的「+」。实测结构：
+    """点推荐好友每行右侧的加号图标（span.anticon，addUser）。
 
-        <div><div>Player_xxx</div><div></div></div>
-        名字                             添加按钮（空 div，背景图）
-
-    抽屉在 /friend 子 frame 里，因此在 frame 上执行同样的 DOM 遍历。
+    实测（2026-11-10）：名字块里那个空 div 只是占位，点它不会发请求；
+    真正的添加按钮是右侧的 `span.anticon`，点它才会发
+    `lip_batch_create_invitation`（返回 ret:0），任务计数随即 +1。
     """
     clicked: list[str] = []
     if count <= 0:
         return clicked
-    for frame in _friend_frames(page):
+    for _ in range(count):
+        items = await _add_buttons(page)
+        pending = [i for i in items if i.get("name") not in clicked]
+        if not pending:
+            break
+        item = pending[0]
         try:
-            await frame.evaluate("() => { window.__added = []; }")
+            await page.mouse.click(float(item["x"]), float(item["y"]))
         except Exception:  # noqa: BLE001
-            continue
-        for _ in range(count):
-            name = ""
-            try:
-                name = await frame.evaluate(ADD_JS, 0)
-            except Exception:  # noqa: BLE001
-                name = ""
-            if not name:
-                break
-            clicked.append(str(name))
-            await page.wait_for_timeout(2000)
-        if clicked:
-            return clicked
+            break
+        clicked.append(str(item["name"]))
+        await page.wait_for_timeout(2200)
     return clicked
 
 
 async def _list_add_buttons(page) -> list[str]:
-    for frame in _friend_frames(page):
-        try:
-            names = await frame.evaluate(LIST_JS)
-        except Exception:  # noqa: BLE001
-            continue
-        if isinstance(names, list) and names:
-            return [str(n) for n in names]
-    return []
+    return [str(i.get("name")) for i in await _add_buttons(page)]
 
 
 async def send_friend_requests(cookie: LPassCookie, api: LPassAPI, *, count: int = 3,

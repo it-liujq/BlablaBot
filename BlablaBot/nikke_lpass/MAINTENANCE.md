@@ -87,6 +87,31 @@ Playwright 登录要 30~90 秒，同步等待会撞 Cloudflare 的 100 秒网关
 
 补充：邀请卡片（复制链接）在主文档里，点复制图标用 `span.anticon` 同级定位。
 
+## 好友「+」到底是哪个元素（2026-11-10 实测）
+
+抽屉行结构：
+
+```
+<div class="_16sr9a23">
+  <div class="_16sr9a29">              ← 左侧：头像 + 名字
+    <img class="_16sr9a24">
+    <div class="_16sr9a25">
+      <div class="_16sr9a26 _16sr9a27">Player_xxx</div>
+      <div class="_16sr9a28"></div>    ← 占位空 div（0 高度，点了没反应）
+    </div>
+  </div>
+  <div class="_16sr9a2a">
+    <span class="anticon">…addUser…</span>   ← 真正的添加按钮
+  </div>
+</div>
+```
+
+所以必须点名字右侧那块里的 `span.anticon`（addUser 图标），
+点击后发出 `lip_batch_create_invitation` 且返回 `ret:0`，
+「发送3次好友请求」计数随即 +1（实测 0/3 → 3/3，约 20 秒内）。
+
+判定抽屉是否可用：`ADD_BTN_JS` 能列出带坐标的加号按钮即可。
+
 ## 网页登录（Playwright）实测
 
 登录入口在 `pass.levelinfinite.com/rewards` 右上角头像，实测流程：
