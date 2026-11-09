@@ -296,8 +296,11 @@ async def lpass_daily(bot: Bot, ev: Event):
                 result = await runner.run(settle=False)
                 # 好友/分享是在浏览器里做的，run 里的任务快照可能是动作前的
                 await runner.refresh_tasks(result)
-                if friend is not None and (friend.confirmed or friend.share_done):
-                    result.notes.append(f"好友/分享：{friend.summary()}")
+                if friend is not None:
+                    if friend.share_link:
+                        result.friend_link = friend.share_link
+                    if friend.confirmed or friend.share_done:
+                        result.notes.append(f"好友/分享：{friend.summary()}")
 
                 # 先出动作结果，别让人干等
                 await _reply(bot, ev, render(result))

@@ -73,6 +73,20 @@ Playwright 登录要 30~90 秒，同步等待会撞 Cloudflare 的 100 秒网关
 
 前端同时做了 HTML 兜底：响应不是 JSON 时提示「服务端返回了网页而不是数据（网关超时或反代异常）」。
 
+## 好友抽屉在 /friend 子 frame 里（2026-11-09 实测）
+
+点任务行的 GO 后，好友抽屉内容渲染在独立的子 frame
+`https://pass.levelinfinite.com/friend`，**不在主文档**：
+
+- `page.get_by_text(...)` / `page.locator(...)` 只能看到主文档，所以之前在主页面上
+  按坐标点「+」、找 `.ant-drawer` 都失败（点到的是页面其他位置）；
+- 正确做法：`page.frames` 里挑 `"/friend" in url`，在该 frame 上做 DOM 遍历后点
+  每行「+」（行结构 `<div><div>名字</div><div>按钮</div></div>`）；
+- 抽屉是否真的打开，也以该 frame 能列出推荐好友（`LIST_JS` 非空）为准，
+  不能只看 frame 是否存在（iframe 一直存在）。
+
+补充：邀请卡片（复制链接）在主文档里，点复制图标用 `span.anticon` 同级定位。
+
 ## 网页登录（Playwright）实测
 
 登录入口在 `pass.levelinfinite.com/rewards` 右上角头像，实测流程：

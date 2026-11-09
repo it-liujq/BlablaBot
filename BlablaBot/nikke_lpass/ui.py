@@ -291,10 +291,82 @@ async def _copy_invite_link(page) -> str:
     return ""
 
 
+def _friend_frames(page):
+    """好友抽屉实际渲染在 /friend 子 frame 里，优先用它。"""
+    try:
+        frames = [f for f in page.frames if "/friend" in (f.url or "")]
+    except Exception:  # noqa: BLE001
+        frames = []
+    return frames or [page.main_frame]
+
+
+ADD_JS = r"""
+(index) => {
+  const walk = (root, out) => {
+    for (const el of root.querySelectorAll('*')) { out.push(el); if (el.shadowRoot) walk(el.shadowRoot, out); }
+    return out;
+  };
+  const all = walk(document, []);
+  window.__added = window.__added || [];
+  const seen = new Set(window.__added);
+  const names = [];
+  for (const el of all) {
+    if (el.children.length) continue;
+    const t = (el.textContent || '').trim();
+    if (t.length < 3 || t.length > 24 || /\s/.test(t)) continue;
+    if (!/^[A-Za-z0-9_.-]+$/.test(t)) continue;
+    const row = el.parentElement;
+    if (!row || row.children.length !== 2) continue;
+    const btn = row.children[1];
+    if (btn === el || (btn.textContent || '').trim()) continue;
+    if (seen.has(t) || names.includes(t)) continue;
+    names.push(t);
+    if (names.length > index) {
+      try { btn.scrollIntoView({block: 'center'}); } catch (e) {}
+      try { btn.click(); } catch (e) { return ''; }
+      window.__added.push(t);
+      return t;
+    }
+  }
+  return '';
+}
+"""
+
+LIST_JS = r"""
+() => {
+  const walk = (root, out) => {
+    for (const el of root.querySelectorAll('*')) { out.push(el); if (el.shadowRoot) walk(el.shadowRoot, out); }
+    return out;
+  };
+  const all = walk(document, []);
+  const names = [];
+  for (const el of all) {
+    if (el.children.length) continue;
+    const t = (el.textContent || '').trim();
+    if (t.length < 3 || t.length > 24 || /\s/.test(t)) continue;
+    if (!/^[A-Za-z0-9_.-]+$/.test(t)) continue;
+    const row = el.parentElement;
+    if (!row || row.children.length !== 2) continue;
+    const btn = row.children[1];
+    if (btn === el || (btn.textContent || '').trim()) continue;
+    if (!names.includes(t)) names.push(t);
+  }
+  return names;
+}
+"""
+
+
 async def _wait_drawer(page, timeout_s: float) -> bool:
-    """等好友抽屉出现：标题是「添加好友」，列表是「推荐好友」，任一即可。"""
+    """抽屉真正可用的标志：能列出推荐好友，或能看到「推荐好友/添加好友」文案。"""
     deadline = time.time() + timeout_s
     while time.time() < deadline:
+        for frame in _friend_frames(page):
+            try:
+                names = await frame.evaluate(LIST_JS)
+            except Exception:  # noqa: BLE001
+                names = None
+            if isinstance(names, list) and names:
+                return True
         for hint in (DRAWER_HINT, "添加好友"):
             try:
                 if await page.get_by_text(hint, exact=True).count():
@@ -303,6 +375,48 @@ async def _wait_drawer(page, timeout_s: float) -> bool:
                 continue
         await page.wait_for_timeout(800)
     return False
+
+
+async def _click_add_buttons(page, count: int) -> list[str]:
+    """点推荐好友每行的「+」。实测结构：
+
+        <div><div>Player_xxx</div><div></div></div>
+        名字                             添加按钮（空 div，背景图）
+
+    抽屉在 /friend 子 frame 里，因此在 frame 上执行同样的 DOM 遍历。
+    """
+    clicked: list[str] = []
+    if count <= 0:
+        return clicked
+    for frame in _friend_frames(page):
+        try:
+            await frame.evaluate("() => { window.__added = []; }")
+        except Exception:  # noqa: BLE001
+            continue
+        for _ in range(count):
+            name = ""
+            try:
+                name = await frame.evaluate(ADD_JS, 0)
+            except Exception:  # noqa: BLE001
+                name = ""
+            if not name:
+                break
+            clicked.append(str(name))
+            await page.wait_for_timeout(2000)
+        if clicked:
+            return clicked
+    return clicked
+
+
+async def _list_add_buttons(page) -> list[str]:
+    for frame in _friend_frames(page):
+        try:
+            names = await frame.evaluate(LIST_JS)
+        except Exception:  # noqa: BLE001
+            continue
+        if isinstance(names, list) and names:
+            return [str(n) for n in names]
+    return []
 
 
 async def send_friend_requests(cookie: LPassCookie, api: LPassAPI, *, count: int = 3,
@@ -373,28 +487,26 @@ async def send_friend_requests(cookie: LPassCookie, api: LPassAPI, *, count: int
                 return result
 
             if need_friend:
-                rows = await page.evaluate(ROWS_JS, DRAWER_HINT)
-                rows = rows if isinstance(rows, list) else []
-                result.names = [r.get("name", "") for r in rows]
-                for row in rows[: max(0, count)]:
-                    if dry_run:
-                        result.clicked += 1
-                        continue
-                    await page.mouse.click(row["right"] - 24, row["y"])
-                    result.clicked += 1
-                    await page.wait_for_timeout(1500)
+                if dry_run:
+                    result.names = (await _list_add_buttons(page))[:count]
+                    result.clicked = len(result.names)
+                else:
+                    result.names = await _click_add_buttons(page, count)
+                    result.clicked = len(result.names)
             if need_share:
-                try:
-                    await page.get_by_text("分享邀请链接", exact=False).first.click(
-                        force=True, timeout=2500)
-                except Exception:  # noqa: BLE001
-                    pass
-                await page.wait_for_timeout(1500)
+                for _ in range(3):
+                    try:
+                        await page.get_by_text("分享邀请链接", exact=False).first.click(
+                            force=True, timeout=6000)
+                        break
+                    except Exception:  # noqa: BLE001
+                        await page.wait_for_timeout(1500)
+                await page.wait_for_timeout(2000)
                 share_url = await _copy_invite_link(page)
                 if not share_url:
                     try:
                         share_url = await page.evaluate(INVITE_URL_JS)
-                    except Exception:
+                    except Exception:  # noqa: BLE001
                         share_url = ""
                 if not share_url:
                     share_url = ("https://pass.levelinfinite.com?action=searchUser"

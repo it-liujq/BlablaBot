@@ -42,6 +42,8 @@ def render(result: DailyResult, *, prefix: str = "") -> str:
     lines.extend(daily_rows or ["（无）"])
     if result.share_link:
         lines.append(f"分享链接：{result.share_link}")
+    if result.friend_link:
+        lines.append(f"交友邀请链接：{result.friend_link}")
     lines.append("")
 
     lines.append("一次性任务:")
@@ -245,6 +247,8 @@ def render_status_detail(result: DailyResult, *, nickname: str, points_earned: i
     lines.extend(daily_rows or ["（无）"])
     if result.share_link:
         lines.append(f"分享链接：{result.share_link}")
+    if result.friend_link:
+        lines.append(f"交友邀请链接：{result.friend_link}")
     lines.append("")
     lines.append("一次性任务:")
     lines.extend(once_rows or ["（无）"])

@@ -73,8 +73,11 @@ class LPassAutoScheduler:
                     logger.warning("LPass auto friend ui skipped error_type=%s",
                                    type(exc).__name__)
                 result = await DailyRunner(api).run()
-                if friend is not None and (friend.confirmed or friend.share_done):
-                    result.notes.append(f"好友/分享：{friend.summary()}")
+                if friend is not None:
+                    if friend.share_link:
+                        result.friend_link = friend.share_link
+                    if friend.confirmed or friend.share_done:
+                        result.notes.append(f"好友/分享：{friend.summary()}")
             text = render(result)
         except Exception as exc:  # noqa: BLE001
             logger.warning("LPass auto error_type=%s", type(exc).__name__)

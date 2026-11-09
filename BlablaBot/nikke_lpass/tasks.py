@@ -122,6 +122,7 @@ class DailyResult:
     steps: list[StepResult] = field(default_factory=list)
     notes: list[str] = field(default_factory=list)
     share_link: str = ""
+    friend_link: str = ""
     tasks: list[dict] = field(default_factory=list)
     today_points: list[dict] = field(default_factory=list)
     today_earned: int = 0
