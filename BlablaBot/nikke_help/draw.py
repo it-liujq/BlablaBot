@@ -1,5 +1,6 @@
 """Role-aware help content and standalone HTML rendering, without network IO."""
 from __future__ import annotations
+from ..version import VERSION, BUILD
 from ..nikke_commands import command_prefix
 
 import base64
@@ -51,13 +52,15 @@ def build_help_context(permission: int = 6, *, login_mode='browser') -> dict:
             {'command': f'{command_prefix()}信息刷新 / {command_prefix()}刷新信息', 'description': '轻量更新本人名片资料并回图，不读取全部角色装备详情'},
             {'command': f'{command_prefix()}刷新爱丽丝面板', 'description': '替换角色名，更新该角色数据并渲染卡片；至少间隔5秒'},
             {'command': f'{command_prefix()}卡片', 'description': '读取本人角色与皮肤缓存；每行10个头像，含星级/核心角标'},
-            {'command': f'{command_prefix()}练度全量导出', 'description': '本人全角色练度导出Excel；本地缓存、双角色并排、表内爆裂/定位/企业筛选'},
+            {'command': f'{command_prefix()}练度全量导出', 'description': '实际等级Excel；支持筛选和公开链接，攻防生命缺失时注明原因'},
+            {'command': f'{command_prefix()}练度全量导出json / JSON', 'description': '实际等级JSON，便于AI分析；可追加公开练度链接'},
+            {'command': f'{command_prefix()}400练度全量导出[json]', 'description': '400级模拟，可换1000等有成长数据的等级；其余配置保持当前'},
             {'command': f'{command_prefix()}刷新面板', 'description': '全量更新本人资料、全部角色练度与皮肤；完成后发送信息图'},
             {'command': f'{command_prefix()}资源查询 [刷新]', 'description': '无可用图时同步本人收菜并出图；成功出图后复用5分钟，失败仅短暂冷却；显示90%和回满预计时间'},
             {'command': f'{command_prefix()}开启收菜提醒 / {command_prefix()}关闭收菜提醒', 'description': '当前群聊或私聊独立开关；开启发一次资源卡，后续纯文字；连续两晚23点MAX自动停查'},
-            {'command': f'{command_prefix()}个人突袭推荐 [亮色/暗色/随机]', 'description': '实验性：DILDORO本人编队推荐，本地缓存5天；独立亮暗主题，默认暗色'},
+            {'command': f'{command_prefix()}个人突袭推荐[火/水/风/电/铁] [主题]', 'description': '实验性：默认或指定弱点，支持完整属性名及单人突袭推荐；查询自动检查更新'},
             {'command': f'{command_prefix()}收菜提醒状态', 'description': '查看本会话订阅、共享快照和下一检查；不请求游戏接口'},
-            {'command': f'{command_prefix()}个人突袭推荐刷新 [亮色/暗色/随机]', 'description': '练度变化时重新导入并计算，成功后更新本人五天缓存'},
+            {'command': f'{command_prefix()}个人突袭推荐[属性]刷新 [主题]', 'description': '刷新对应属性；主题可用亮色/暗色/随机，默认暗色'},
             {'command': f'{command_prefix()}收菜免打扰 00:00-08:00', 'description': '仅收菜提醒，北京时间；支持跨午夜，输入关闭取消；不影响签到及其他业务'},
             {'command': f'{command_prefix()}红莲暗影别名查询 / {command_prefix()}黑莲别名查询', 'description': '头像卡片展示角色本名与别名；支持简繁和省略符号'},
             {'command': f'{command_prefix()}日历', 'description': '官网默认活动日历截图，附来源和拍摄时间'},
@@ -92,6 +95,7 @@ def build_help_context(permission: int = 6, *, login_mode='browser') -> dict:
         sections.extend([
             {'title': '数据库与全局管理', 'tag': '仅 Bot 主', 'description': '公开数据库、账号与用户权限，以及全局外观维护。', 'items': [
                 {'command': f'{command_prefix()}数据库更新', 'description': '先角色资料后图库；招募日历静默更新，保留周检'},
+                {'command': f'{command_prefix()}日志导出[分钟数]', 'description': 'Bot主导出最近1～1440分钟的脱敏插件日志MD，包含版本信息；例如日志导出10'},
                 {'command': f'{command_prefix()}数据库更新 状态 / 帮助', 'description': '查看日历排期、小时补查及24小时结果、图库队列'},
                 {'command': f'{command_prefix()}更新资源', 'description': '兼容旧命令，同样进入增量数据库任务'},
                 {'command': '后台：每日签到时间', 'description': '北京时间HH:MM，默认08:33；保存后更新调度，手动签到仍可立即执行'},
@@ -132,12 +136,13 @@ def build_help_context(permission: int = 6, *, login_mode='browser') -> dict:
         'cookie_hint': f'请使用已有游戏邮箱；凭据失效用{command_prefix()}重新登录/重新登陆，无需先解绑。不要在群里发送密码、验证码或Cookie。',
         'limit_hint': '社区请求默认随机5～15秒，换号随机等待10～120秒，Bot主可在后台自定义；08:00划分周期，每周期最多30次请求；成功不重复，短期故障有限重试，连续三天失败自动关闭。UID登记不提供匿名练度授权。',
         'database_hint': '公共库每周五02:33（北京时间）增量检查，仅Bot主维护；皮肤显示按本人接口，静态清单不代表拥有。',
+        'version': VERSION, 'build': BUILD,
         'footer': f'选错区服或换号：先 {command_prefix()}解绑，再选区服重新登录。港澳台登录流程暂未支持。',
     }
 
 
 def help_text(context: dict) -> str:
-    lines = [f"BlablaBot 指令指南 · {context['role']}", '快速开始：' + ' → '.join(step['command'] for step in context['steps']),
+    lines = [f"BlablaBot {VERSION}（构建{BUILD}）指令指南 · {context['role']}", '快速开始：' + ' → '.join(step['command'] for step in context['steps']),
              '区服命令：' + ' / '.join(context['regions']),
              f'登录/登陆均可，例如{command_prefix()}登陆日服；{command_prefix()}重新登录/{command_prefix()}重新登陆同样可用。']
     for section in context['sections']:

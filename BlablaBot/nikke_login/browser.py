@@ -454,36 +454,22 @@ async def login(
             raise LoginError(EMAIL_LOGIN_NOTICE)
     if area_id not in REGIONS:
         raise LoginError("请明确选择受支持的区服；港澳台服暂未支持")
-    from playwright.async_api import async_playwright
+    from ..nikke_browser.runtime import manager, playwright
 
     deadline = time.monotonic() + timeout
-    async with async_playwright() as p:
-        launch_kwargs = {"headless": headless}
-        if proxy:
-            launch_kwargs["proxy"] = {"server": proxy}
-        browser = None
-        errors = []
-        for ch in ([channel] if channel != "auto" else [None, "msedge"]):
-            try:
-                kw = dict(launch_kwargs)
-                if ch:
-                    kw["channel"] = ch
-                browser = await p.chromium.launch(**kw)
-                break
-            except Exception as exc:  # noqa: BLE001
-                errors.append(f"{ch or 'chromium'}: {exc}")
-        if browser is None:
-            raise LoginError("浏览器启动失败：" + " | ".join(errors))
+    async with playwright(error_type=LoginError, operation="账号登录") as p:
+        browser = await manager.launch(p, channel=channel, headless=headless, proxy=proxy)
 
-        ctx = await browser.new_context(
-            viewport={"width": 1440, "height": 900},
-            locale="zh-TW",
-            user_agent=DEFAULT_UA,
-            timezone_id="Asia/Taipei",
-        )
-        page = await ctx.new_page()
+        ctx = None
         email_feedback = None
         try:
+            ctx = await browser.new_context(
+                viewport={"width": 1440, "height": 900},
+                locale="zh-TW",
+                user_agent=DEFAULT_UA,
+                timezone_id="Asia/Taipei",
+            )
+            page = await ctx.new_page()
             await page.goto(
                 "https://www.blablalink.com/",
                 wait_until="domcontentloaded",
@@ -558,6 +544,7 @@ async def login(
             if email_feedback:
                 email_feedback.close()
             try:
-                await ctx.close()
+                if ctx is not None:
+                    await ctx.close()
             finally:
                 await browser.close()
