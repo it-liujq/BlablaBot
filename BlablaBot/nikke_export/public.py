@@ -6,7 +6,7 @@ Public exports are ephemeral; visibility and target role are rechecked for deliv
 import time
 from types import SimpleNamespace
 from urllib.parse import urlencode
-from ..nikke_api.client import REGIONS, HMT_REGION
+from ..nikke_api.client import REGIONS, HMT_REGION, NikkeClient, NikkeApiError
 from ..nikke_character.service import CharacterQueryService
 from ..nikke_roster.service import account_reads
 from .model import ExportError
@@ -20,22 +20,33 @@ class PublicReader:
     async def request(self, path, body=None, method='POST'):
         if not await self.check():
             raise ExportError('绑定或权限已变化，已停止读取公开资料。')
+        if self.area is not None and isinstance(self.owner, NikkeClient):
+            return await self.owner._request(method, path, body, region=self.region)
         return await self.owner._request(method, path, body)
 
     async def get_privacy(self):
         data = await self.request('/api/ugc/direct/standalonesite/User/GetUserPrivacySetting', {'intl_openid': self.share})
         privacy = data.get('data')
-        if not isinstance(privacy, dict) or privacy.get('show_nikke_info') != 1:
+        if not isinstance(privacy, dict) or privacy.get('show_nikke_info') not in (1, 2, 3):
             raise ExportError('目标用户未公开妮姬信息，请先在 Blablalink 隐私设置中公开。')
         return privacy
 
     async def get_role(self):
         data = await self.request('/api/game/proxy/Tools/GetUserSavedRoleInfo?' + urlencode({'uid': self.share}), method='GET')
-        role = (data.get('data') or {}).get('role_info')
-        if not isinstance(role, dict) or not role.get('role_id'):
-            raise ExportError('未取得目标用户绑定的游戏角色，请在 Blablalink 检查角色绑定。')
-        region = HMT_REGION if str(role.get('area_id')) == '91' else REGIONS.get(int(role.get('area_id', 0)))
-        if region is None or region.game_id != self.share.split('-')[0]:
+        payload = data.get('data') or {}
+        if payload.get('is_banned') or payload.get('is_maintenance'):
+            raise ExportError('目标资料当前不可访问或处于维护中。')
+        role = payload.get('role_info')
+        if payload.get('has_saved_role_info') is False:
+            raise ExportError('目标尚未在 Blablalink 选择游戏角色，请检查社区角色设置。')
+        if not isinstance(role, dict) or not (role.get('role_id') or role.get('role_name')):
+            raise ExportError('社区未返回可识别的目标游戏角色，无法确定资料归属。')
+        area = str(role.get('area_id', ''))
+        if not area.isascii() or not area.isdecimal():
+            raise ExportError('社区未返回有效目标区服，无法读取公开练度。')
+        region = HMT_REGION if area == '91' else REGIONS.get(int(area))
+        if (region is None or region.game_id != self.share.split('-')[0]
+                or (role.get('game_id') and str(role['game_id']) != region.game_id)):
             raise ExportError('目标用户的游戏或区服信息不匹配。')
         self.area, self.region = region.area_id, region
         return role
@@ -50,7 +61,30 @@ class PublicReader:
             raise ExportError('公开资料响应不完整，未生成练度文件。')
         return value
 
-async def fetch_public(client, bind, share, check):
+def research_levels(outpost):
+    """Hidden values never stand in for a reported research level of zero."""
+    rows = outpost.get('recycle_room_researches') if isinstance(outpost, dict) else None
+    if not isinstance(rows, list) or outpost.get('is_hide'):
+        return {}
+    result = {}
+    for tid in (1001, 1101, 1102, 1103, 1201, 1202, 1203, 1204, 1205):
+        matches = [r for r in rows if isinstance(r, dict) and r.get('tid') == tid]
+        if len(matches) == 1 and type(matches[0].get('lv')) is int and 0 <= matches[0]['lv'] <= 10**15:
+            result[tid] = matches[0]['lv']
+    return result
+
+
+def outpost_missing(outpost):
+    return len(research_levels(outpost)) != 9
+
+
+def partial_notice(reason, partial=False):
+    return ('权限核对完成：可获取角色及装备练度信息；' + reason +
+            ('，部分角色的攻防生命将标注为缺失。' if partial else '，攻防生命将标注为缺失。') +
+            '正在继续拉取其余数据，请稍候。')
+
+
+async def fetch_public(client, bind, share, check, notice=None):
     if share.split('-')[0] != str(bind.game_id):
         raise ExportError('跨游戏版本的公开查询需要登录对应国际版或港澳台版账号。')
     reader = PublicReader(client, share, check)
@@ -59,29 +93,60 @@ async def fetch_public(client, bind, share, check):
             return await getattr(paced, name)(*args)
     privacy = await read('get_privacy')
     role = await read('get_role')
+    async def read_outpost():
+        visibility = privacy.get('show_outpost_info')
+        scope = {0: '目标未公开前哨基地', 2: '前哨基地仅盟友可见', 3: '前哨基地仅好友可见'}.get(visibility)
+        if visibility not in (1, 2, 3):
+            return {}, (scope or '前哨基地公开设置未知') + '，无法获取回收室数据', 0
+        try:
+            # Relation scopes are resolved by the server using the sender's login.
+            payload = await read('get_game', 'GetUserProfileOutpostInfo')
+        except NikkeApiError as exc:
+            if exc.code != 1301002:
+                raise
+            return {}, (scope or '前哨基地访问受限') + '，无法获取回收室数据', 0
+        outpost = payload.get('outpost_info') or {}
+        reason = ''
+        if outpost_missing(outpost):
+            reason = (scope or '回收室资料缺失或隐藏') + '，无法获取完整回收室数据'
+        return outpost, reason, time.time()
+
+    # Establish actual access before the expensive detail batches.
+    outpost, outpost_reason, outpost_checked_at = await read_outpost()
     roster = (await read('get_game', 'GetUserCharacters')).get('characters')
     codes = CharacterQueryService.roster_codes(roster)
     if not codes or len(codes) > 500:
         raise ExportError('目标用户没有可导出的已拥有角色，或角色数量超出上限。')
+    if outpost_reason and notice is not None:
+        await notice(partial_notice(outpost_reason, partial=bool(research_levels(outpost))))
     details = {}
     for start in range(0, len(codes), 20):
         batch = codes[start:start + 20]
         payload = await read('get_game', 'GetUserCharacterDetails', batch)
         details.update(CharacterQueryService.detail_entries(payload, batch))
-    outpost = {}
-    if privacy.get('show_outpost_info') == 1:
-        outpost = (await read('get_game', 'GetUserProfileOutpostInfo')).get('outpost_info') or {}
     now = time.time()
     target = SimpleNamespace(area_id=reader.area, nickname=role.get('role_name') or '未知指挥官',
-                             uid=str(role['role_id']), game_id=reader.region.game_id)
+                             uid=str(role.get('role_id') or '未提供'), game_id=reader.region.game_id)
     snapshot = dict(complete=True, roster=roster, details=details, saved_at=now,
-                    profile_checked_at=now, outpost_checked_at=now,
+                    profile_checked_at=now, outpost_checked_at=outpost_checked_at,
+                    outpost_unavailable_reason=outpost_reason,
                     source='blablalink_public', profile=dict(chars=roster, saved=role,
                     basic={'nickname': target.nickname}, player={}, outpost=outpost))
     async def recheck():
         latest_privacy = await read('get_privacy')
         latest_role = await read('get_role')
-        if (str(latest_role['role_id']) != target.uid or reader.area != target.area_id
+        if (str(latest_role.get('role_id') or '未提供') != target.uid or reader.area != target.area_id
+                or (not role.get('role_id') and latest_role.get('role_name') != role.get('role_name'))
+                or latest_privacy.get('show_nikke_info') != privacy.get('show_nikke_info')
                 or latest_privacy.get('show_outpost_info') != privacy.get('show_outpost_info')):
             raise ExportError('目标用户区服、角色或公开设置已变化，请重新导出。')
+        if privacy.get('show_nikke_info') in (2, 3):
+            # A friendship/alliance can end without changing the visibility enum.
+            latest_roster = (await read('get_game', 'GetUserCharacters')).get('characters')
+            if not CharacterQueryService.roster_codes(latest_roster):
+                raise ExportError('目标妮姬资料访问权限已变化，请重新导出。')
+        if research_levels(outpost):
+            latest_outpost, _, _ = await read_outpost()
+            if not research_levels(outpost).keys() <= research_levels(latest_outpost).keys():
+                raise ExportError('目标前哨基地访问权限已变化，请重新导出。')
     return snapshot, target, recheck

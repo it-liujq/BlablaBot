@@ -32,6 +32,44 @@ class ResourceService:
         self.images = ImageCache(self.root / 'resource', http=http, clock=clock)
         self._static_lock = asyncio.Lock()
         self._update_lock = asyncio.Lock()
+        self._catalog_lock = asyncio.Lock()
+        self._unknown_catalog_retry = 0
+        self._equipment_lock = asyncio.Lock()
+        self._missing_equipment_retry = 0
+
+    async def ensure_equipment_ids(self, ids):
+        def missing():
+            return set(ids) - {row.get('id') for row in self.load_equipment_items()}
+        if missing():
+            async with self._equipment_lock:
+                if missing() and self.clock() >= self._missing_equipment_retry:
+                    self._missing_equipment_retry = self.clock() + 300
+                    await self.update_tables(force=True, targets=['ItemEquipTable-zh-tw.json'])
+
+    async def ensure_character_catalog(self, codes=(), *, name=None):
+        """Unknown owned IDs bypass freshness once, but never failure cooldowns."""
+        def missing(static):
+            if not static.characters:
+                return True
+            if any(int(code) not in static.characters for code in codes):
+                return True
+            if name:
+                from ..nikke_character.builder import resolve_character, CharacterNotFound
+                try:
+                    resolve_character(name, static)
+                except CharacterNotFound:
+                    return True
+            return False
+        static = self.load_static()
+        if not missing(static):
+            return static
+        async with self._catalog_lock:
+            static = self.load_static()
+            if missing(static) and self.clock() >= self._unknown_catalog_retry:
+                self._unknown_catalog_retry = self.clock() + 300
+                await self.update_tables(force=True, targets=['nikke_list_zh-TW_v2.json'])
+                static = self.load_static()
+        return static
 
     async def update_tables(self, *, force: bool = False, targets=None) -> dict[str, str]:
         async with self._static_lock:
@@ -176,9 +214,11 @@ class ResourceService:
 
     async def prepare_profile(self, context: dict) -> dict:
         from .card_meta import prepare_card_icons, prepare_badges
+        from ..nikke_profile.presentation import profile_lead_index
         result = dict(context)
         result.update(await prepare_badges(self.images))
         team = [dict(row) for row in context.get('top_nikke', [])[:5]]
+        lead_index = profile_lead_index(team)
         for index, row in enumerate(team):
             resource_id = row.get('resource_id', 0)
             skin = self._selected_skin(row)
@@ -191,7 +231,7 @@ class ResourceService:
             row['icon_badge'] = ('缺图' if image.missing else '基础' if image.fallback
                                  or not row.get('skin_mapped', True) else '')
             row.update(await prepare_card_icons(row, self.images))
-            if index == 0:
+            if index == lead_index:
                 art = await self.images.resolved_source('portraits', resource_id, skin)
                 row.update(portrait_url=art.source, portrait_skin_index=art.skin_index,
                            portrait_fallback=art.fallback, portrait_missing=art.missing,
@@ -206,10 +246,10 @@ class ResourceService:
                           avatar_hint='指挥官游戏头像')
         elif team and not team[0].get('resource_missing'):
             result.update(avatar_url=team[0]['icon_url'], avatar_source='lead',
-                          avatar_hint='展示立绘角色头像')
+                          avatar_hint='展示队伍首位角色头像')
         else:
             result.update(avatar_url=PLACEHOLDER, avatar_source='placeholder', avatar_hint='头像暂不可用')
-        result['render_version'] = 'alice-profile-v1108-shared-avatar'
+        result['render_version'] = 'alice-profile-v1133-slot-three'
         return result
 
     async def prepare_character(self, context: dict, *, framing=False) -> dict:

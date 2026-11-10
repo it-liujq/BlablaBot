@@ -17,7 +17,7 @@ from ..nikke_user.models import AliceBind
 from ..nikke_user.service import binding_lock
 from .model import ExportError, prepare
 from .workbook import build_workbook
-from .options import ExportOptions, PATTERN, parse
+from .options import ExportOptions, PATTERN, parse, require_available
 from ..nikke_api.client import NikkeApiError
 
 sv_export = SV('妮姬练度全量导出', pm=6, priority=2)
@@ -55,6 +55,7 @@ async def access(ev):
 
 def _render(snapshot, bind, options=None):
     options = options or ExportOptions()
+    require_available(options)
     from ..nikke_api.client import REGIONS, HMT_REGION
     from ..nikke_resource.service import get_resources
     region = HMT_REGION if bind.area_id == HMT_REGION.area_id else REGIONS.get(bind.area_id)
@@ -68,12 +69,17 @@ def _render(snapshot, bind, options=None):
     attributes = snapshot.get('attributes', {})
     if getattr(resources, 'root', None) is not None and getattr(resources, 'bundled', None) is not None:
         from ..nikke_resource.attributes import get_metadata
-        attributes = get_metadata(resources).compute(snapshot, static, level=options.level)
+        attributes = get_metadata(resources).compute(snapshot, static)
+    simulations = None
     if options.level is not None:
-        if not attributes or any(a.get('target_level') != options.level or a.get('reason') == '目标等级没有完整成长数据' for a in attributes.values()):
-            raise ExportError('目标等级没有完整成长数据，请刷新面板；不会外推或截断等级。')
+        if getattr(resources, 'root', None) is not None and getattr(resources, 'bundled', None) is not None:
+            simulations = get_metadata(resources).compute(snapshot, static, level=options.level)
+        else:
+            simulations = {}
+        if simulations and all(a.get('reason') == '目标等级没有完整成长数据' for a in simulations.values()):
+            raise ExportError('目标等级没有完整成长数据，请稍后更新公开资料；不会外推或截断等级。')
     data = prepare(snapshot, bind, static, region=region.label, equipment=labels,
-                   attributes=attributes, target_level=options.level)
+                   attributes=attributes, simulations=simulations, target_level=options.level)
     if options.format == 'json':
         from .json_export import build_json
         return data.filename.removesuffix('.xlsx') + '.json', build_json(data)
@@ -99,6 +105,11 @@ async def _export(bot, ev, options=None):
     if not await access(ev):
         await bot.send('当前用户或群未开放妮姬练度导出，请联系管理员。', at_sender=at_sender)
         return
+    try:
+        require_available(options)
+    except ExportError as exc:
+        await bot.send(str(exc).replace('nk', command_prefix()), at_sender=at_sender)
+        return
     owner = (str(ev.user_id), str(ev.bot_id))
     if owner in _active:
         await bot.send('你的练度表正在生成或发送，请稍候；本次不会重复导出。', at_sender=at_sender)
@@ -123,8 +134,13 @@ async def _export(bot, ev, options=None):
                     raise ExportError(unavailable_message(authenticated_bind))
                 if panel_identity(authenticated_bind) != panel_identity(bind) or not await current_owner():
                     raise ExportError('绑定或权限已变化，已停止导出。')
+                await bot.send('正在获取全部角色的完整练度信息，数据量较大，可能需要较长时间，请耐心等待。', at_sender=at_sender)
+                async def notice(message):
+                    if not await current_owner():
+                        raise ExportError('绑定或权限已变化，已停止导出。')
+                    await bot.send(message, at_sender=at_sender)
                 async with asyncio.timeout(300):
-                    snapshot, target_bind, public_recheck = await fetch_public(client, bind, options.share, current_owner)
+                    snapshot, target_bind, public_recheck = await fetch_public(client, bind, options.share, current_owner, notice=notice)
                     from ..nikke_resource.attributes import prepare_snapshot
                     await prepare_snapshot(snapshot)
             else:
@@ -135,6 +151,13 @@ async def _export(bot, ev, options=None):
                         raise ExportError('绑定或权限已变化，已停止导出。')
                     store = character_queries.store()
                     snapshot = deepcopy(store.read(panel_identity(bind))) if store is not None else {}
+                    force_refresh = False
+                    if store is not None and hasattr(store, 'latest_roster'):
+                        stamp, rows = store.latest_roster(panel_identity(bind), snapshot)
+                        if (stamp > snapshot.get('roster_checked_at', snapshot.get('saved_at', 0))
+                                and {r.get('name_code') for r in rows} != {r.get('name_code') for r in snapshot.get('roster', [])}):
+                            force_refresh = True
+                            snapshot['complete'] = False
                 from .snapshot import ready as export_ready
                 if not export_ready(snapshot):
                     from ..nikke_user.service import load_client
@@ -149,7 +172,7 @@ async def _export(bot, ev, options=None):
                     from ..nikke_resource.attributes import prepare_snapshot
                     async with asyncio.timeout(300):
                         await refresh_panel(client, bind, actor=ev.user_id, bot=ev.bot_id, wait=True,
-                                            only_missing=True, policy=get_policy(), event=ev,
+                                            only_missing=not force_refresh, policy=get_policy(), event=ev,
                                             attribute_prepare=prepare_snapshot)
                 async with binding_lock(ev.user_id, ev.bot_id):
                     if not await current_owner():
@@ -159,6 +182,9 @@ async def _export(bot, ev, options=None):
                         raise ExportError('新版面板缓存准备未完成，请稍后执行刷新面板再重试导出。')
                     epoch = character_queries._epochs.get(character_queries._account(bind), 0)
                 target_bind = bind
+            from ..nikke_resource.attributes import repair_snapshot_dependencies
+            async with asyncio.timeout(120):
+                await repair_snapshot_dependencies(snapshot, level=options.level)
             if options == ExportOptions():
                 filename, contents = await _thread_render(snapshot, target_bind)
             else:
