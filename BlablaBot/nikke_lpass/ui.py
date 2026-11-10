@@ -13,6 +13,7 @@
 """
 from __future__ import annotations
 
+import asyncio
 import os
 import re
 import time
@@ -363,19 +364,28 @@ async def _add_buttons(page) -> list[dict]:
 
 
 async def _wait_drawer(page, timeout_s: float) -> bool:
-    """抽屉真正可用的标志：能列出推荐好友，或能看到「推荐好友/添加好友」文案。"""
+    """抽屉真正可用的唯一标志：能列出带「+」的推荐好友。
+
+    注意：页面上的「添加好友/推荐好友」文字在抽屉打开前就存在，
+    不能作为判定依据，否则会过早返回、随后按钮数为 0。
+    """
     deadline = time.time() + timeout_s
     while time.time() < deadline:
         if await _add_buttons(page):
             return True
-        for hint in (DRAWER_HINT, "添加好友"):
-            try:
-                if await page.get_by_text(hint, exact=True).count():
-                    return True
-            except Exception:  # noqa: BLE001
-                continue
-        await page.wait_for_timeout(800)
+        await page.wait_for_timeout(1000)
     return False
+
+
+async def _await_buttons(page, timeout_s: float = 12.0) -> list[dict]:
+    """在超时内轮询，直到能枚举出加号按钮。"""
+    deadline = time.time() + timeout_s
+    while time.time() < deadline:
+        buttons = await _add_buttons(page)
+        if buttons:
+            return buttons
+        await page.wait_for_timeout(800)
+    return []
 
 
 MARK_ICON_JS = r"""
@@ -411,7 +421,7 @@ async def _click_add_buttons(page, count: int) -> list[str]:
     if count <= 0:
         return clicked
     for _ in range(count):
-        items = await _add_buttons(page)
+        items = await _await_buttons(page, 12)
         pending = [i for i in items if i.get("name") not in clicked]
         if not pending:
             break
@@ -556,6 +566,14 @@ async def send_friend_requests(cookie: LPassCookie, api: LPassAPI, *, count: int
         result.confirmed = max(0, after - before)
     if need_share:
         result.share_done = not await _share_pending(api)
+    # 站点计数有延迟：最多等 60 秒确认，避免报告里显示旧进度
+    if need_friend and result.clicked and (before is not None) and result.confirmed == 0:
+        for _ in range(6):
+            state = await _friend_state(api)
+            if state is not None and state["completed"]:
+                result.confirmed = max(0, state["times"] - before)
+                break
+            await asyncio.sleep(10)
     logger.info("[Lpass] 好友复查 before=%s after=%s confirmed=%s share_done=%s",
                 before, after, result.confirmed, result.share_done)
     if not need_share:

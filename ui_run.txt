@@ -1,0 +1,13 @@
+before 140: (0, 3) 141: (0, 1)
+opened: True clicked: 3 confirmed: 0
+names: ['Player_OHB2o2Od', 'Player_wSSqjmGM', 'PPAPRT']
+share_link: https://pass.levelinfinite.com?action=searchUser&searchUserName=qingge share_done: True
+error: 
+summary: 点击 3 次，站点确认 0 次；分享交友链接已触发
+poll[0] 140: (0, 3) 141: (1, 1)
+poll[1] 140: (3, 3) 141: (1, 1)
+poll[2] 140: (3, 3) 141: (1, 1)
+poll[3] 140: (3, 3) 141: (1, 1)
+poll[4] 140: (3, 3) 141: (1, 1)
+poll[5] 140: (3, 3) 141: (1, 1)
+elapsed 193.1
