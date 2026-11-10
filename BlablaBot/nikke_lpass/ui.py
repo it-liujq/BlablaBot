@@ -19,6 +19,12 @@ import time
 from dataclasses import dataclass, field
 from typing import Optional
 
+try:
+    from gsuid_core.logger import logger
+except Exception:  # 离线测试环境
+    import logging
+    logger = logging.getLogger("BlablaBot.lpass")
+
 from .api import LPassAPI, LPassCookie, LPassError, task_completed, task_name
 
 REWARDS_URL = ("https://pass.levelinfinite.com/rewards?lang=zh"
@@ -372,12 +378,34 @@ async def _wait_drawer(page, timeout_s: float) -> bool:
     return False
 
 
-async def _click_add_buttons(page, count: int) -> list[str]:
-    """点推荐好友每行右侧的加号图标（span.anticon，addUser）。
+MARK_ICON_JS = r"""
+(name) => {
+  const walk = (root, out) => {
+    for (const el of root.querySelectorAll('*')) { out.push(el); if (el.shadowRoot) walk(el.shadowRoot, out); }
+    return out;
+  };
+  const all = walk(document, []);
+  const target = all.find(e => e.children.length === 0 && (e.textContent || '').trim() === name);
+  if (!target) return false;
+  let p = target.parentElement, icon = null;
+  for (let i = 0; i < 4 && p; i++, p = p.parentElement) {
+    const found = p.querySelectorAll('span.anticon');
+    if (found.length === 1) { icon = found[0]; break; }
+    if (found.length > 1) break;
+  }
+  if (!icon) return false;
+  document.querySelectorAll('[data-lpass-icon]').forEach(e => e.removeAttribute('data-lpass-icon'));
+  icon.setAttribute('data-lpass-icon', '1');
+  return true;
+}
+"""
 
-    实测（2026-11-10）：名字块里那个空 div 只是占位，点它不会发请求；
-    真正的添加按钮是右侧的 `span.anticon`，点它才会发
-    `lip_batch_create_invitation`（返回 ret:0），任务计数随即 +1。
+
+async def _click_add_buttons(page, count: int) -> list[str]:
+    """点推荐好友每行右侧的加号图标（span.anticon）。
+
+    先用坐标点（实测有效），再补一次 locator 点击兜底；
+    每次点完重新枚举，避免列表刷新后索引错位。
     """
     clicked: list[str] = []
     if count <= 0:
@@ -388,11 +416,24 @@ async def _click_add_buttons(page, count: int) -> list[str]:
         if not pending:
             break
         item = pending[0]
+        name = str(item["name"])
+        ok = False
         try:
             await page.mouse.click(float(item["x"]), float(item["y"]))
+            ok = True
         except Exception:  # noqa: BLE001
-            break
-        clicked.append(str(item["name"]))
+            ok = False
+        if not ok:
+            for frame in _friend_frames(page):
+                try:
+                    marked = await frame.evaluate(MARK_ICON_JS, name)
+                    if marked:
+                        await frame.locator("[data-lpass-icon='1']").click(timeout=4000)
+                        ok = True
+                        break
+                except Exception:  # noqa: BLE001
+                    continue
+        clicked.append(name)
         await page.wait_for_timeout(2200)
     return clicked
 
@@ -466,7 +507,10 @@ async def send_friend_requests(cookie: LPassCookie, api: LPassAPI, *, count: int
             result.opened = await _wait_drawer(page, min(30, timeout_s))
             if not result.opened:
                 result.error = "好友抽屉未打开（可能是登录态或页面版本变化）"
+                logger.warning("[Lpass] 好友抽屉未打开 keyword=%s", keyword)
                 return result
+            logger.info("[Lpass] 好友抽屉已打开 keyword=%s need_friend=%s need_share=%s",
+                        keyword, need_friend, need_share)
 
             if need_friend:
                 if dry_run:
@@ -475,6 +519,13 @@ async def send_friend_requests(cookie: LPassCookie, api: LPassAPI, *, count: int
                 else:
                     result.names = await _click_add_buttons(page, count)
                     result.clicked = len(result.names)
+                logger.info("[Lpass] 好友点击 names=%s clicked=%s",
+                            result.names[:5], result.clicked)
+                if not dry_run and result.clicked == 0:
+                    buttons = await _add_buttons(page)
+                    result.error = ("没找到可点的加号按钮（抽屉可能未加载完）"
+                                    f"，当前可见按钮数={len(buttons)}")
+                    logger.warning("[Lpass] 未找到加号按钮 buttons=%s", len(buttons))
             if need_share:
                 for _ in range(3):
                     try:
@@ -494,6 +545,7 @@ async def send_friend_requests(cookie: LPassCookie, api: LPassAPI, *, count: int
                     share_url = ("https://pass.levelinfinite.com?action=searchUser"
                                  f"&searchUserName={cookie.user_name}")
                 result.share_link = str(share_url or "")[:300]
+                logger.info("[Lpass] 分享链接 captured=%s", bool(result.share_link))
         finally:
             await browser.close()
 
@@ -504,6 +556,10 @@ async def send_friend_requests(cookie: LPassCookie, api: LPassAPI, *, count: int
         result.confirmed = max(0, after - before)
     if need_share:
         result.share_done = not await _share_pending(api)
+    logger.info("[Lpass] 好友复查 before=%s after=%s confirmed=%s share_done=%s",
+                before, after, result.confirmed, result.share_done)
+    if not need_share:
+        result.share_done = True
     return result
 
 
