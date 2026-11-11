@@ -22,8 +22,11 @@ def _hero_art() -> str:
 
 
 def build_help_context(permission: int = 6, *, login_mode='browser') -> dict:
-    from ..nikke_community.runtime import configured_sign_time
-    sign_time = configured_sign_time()
+    try:
+        from ..nikke_community.runtime import configured_sign_time
+        sign_time = configured_sign_time()
+    except Exception:  # 社区模块异常时不要让帮助整体报错
+        sign_time = "08:33"
     if type(permission) is not int or not 0 <= permission <= 6:
         permission = 6
     permission = 0 if permission == 0 else 6
