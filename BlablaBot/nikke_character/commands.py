@@ -11,7 +11,7 @@ from gsuid_core.segment import MessageSegment
 from gsuid_core.sv import SV
 
 from ..nikke_api.client import NikkeApiError, NikkeLoginRequired
-from ..nikke_config.config import MAIN_PATH, BlablaBotConfig
+from ..nikke_config.config import MAIN_PATH, AliceUIDConfig
 from ..nikke_permissions.runtime import get_policy
 from ..nikke_resource.service import get_resources
 from ..nikke_user.service import load_client
@@ -34,7 +34,7 @@ def _arguments(text: str) -> str:
 
 def _cache_ttl() -> int:
     try:
-        value = int(BlablaBotConfig.get_config('AliceUID_CacheTTL').data)
+        value = int(AliceUIDConfig.get_config('AliceUID_CacheTTL').data)
         return max(0, value)
     except (TypeError, ValueError, AttributeError):
         return 600

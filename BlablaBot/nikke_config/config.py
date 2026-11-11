@@ -36,3 +36,6 @@ AliceUIDConfig = ValidatedStringConfig(
 
 from ..nikke_render.fonts import install_font_options
 install_font_options(AliceUIDConfig)
+
+# 兼容历史命名
+BlablaBotConfig = AliceUIDConfig
