@@ -2,3 +2,6 @@ __pycache__/
 *.py[cod]
 .ruff_cache/
 .venv/
+
+# Windows 设备名残留
+/CON
