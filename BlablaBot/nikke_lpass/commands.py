@@ -24,6 +24,7 @@ from .auth import LoginError, login_with_password, verify
 from .report import render, render_auto_status, render_bind, render_status_detail
 from .store import (
     DEFAULT_AUTO_TIME,
+    FULL_SIGN_TIME,
     LPassBind,
     decrypt_cookie,
     encrypt_cookie,
@@ -68,7 +69,8 @@ HELP = (
     "#LPass绑定 —— 发一个网页登录链接（推荐，账号密码只在浏览器输入）\n"
     "#LPass绑定 cookie内容 —— 粘贴浏览器里 pass.levelinfinite.com 的 Cookie\n"
     "#LPass绑定 邮箱 密码 —— 由 Bot 打开网页登录并保存登录态\n"
-    "#LPass日常 —— 签到 + 常规任务 + 一次性任务\n"
+    "#LPass日常 / #LPass签到 —— 签到 + 常规任务 + 一次性任务\n"
+    "#LPass开启全量签到 [HH:MM] —— 群内所有 LPass 账号每天依次自动签到（默认 08:45）\n"
     "#LPass日常 演练 —— 只读取任务进度，不提交任何请求\n"
     "#LPass状态 / #LPass解绑\n"
     f"Cookie 至少包含 lip_openid 与 lip_token；与 {command_prefix()}登录的 blablalink 账号互不影响。"
@@ -232,7 +234,52 @@ async def lpass_auto(bot: Bot, ev: Event):
         at_sender=True)
 
 
-@sv_lpass.on_command("#LPass解绑", prefix=False)
+@sv_lpass.on_command("#LPass开启全量签到", prefix=False)
+async def lpass_full_sign(bot: Bot, ev: Event):
+    """参考 #bla开启全量签到：为本人开启每日全量签到（默认 08:45，与 #bla 错峰）。"""
+    await ensure_ready()
+    argument = (ev.text or "").strip()
+    parts = [p for p in argument.split() if p]
+    option = parts[0] if parts else ""
+    bind = await LPassBind.get_bind(ev.user_id, ev.bot_id)
+    if bind is None:
+        await _reply(bot, ev, "还没有绑定。发送 #LPass绑定 查看绑定方式。", at_sender=True)
+        return
+    if option in ("关闭", "关", "停止"):
+        await LPassBind.set_auto(ev.user_id, ev.bot_id, enabled=False)
+        await _reply(bot, ev, "已关闭你的 LPass 全量签到。", at_sender=True)
+        return
+    if option in ("状态", "查询"):
+        days = max(0, (int(bind.expire_at or 0) - int(time.time())) // 86400) if bind.expire_at else 0
+        await _reply(bot, ev, render_auto_status(
+            enabled=bool(bind.auto_enabled),
+            at=bind.auto_time or FULL_SIGN_TIME,
+            last_day=bind.last_run_day or "",
+            last_result=bind.last_result or "",
+            expire_days=days), at_sender=True)
+        return
+    at = parts[0] if parts and _valid_time(parts[0]) else (
+        parts[1] if len(parts) > 1 and _valid_time(parts[1]) else FULL_SIGN_TIME)
+    if not _valid_time(str(at)):
+        await _reply(bot, ev, "时间格式应为 HH:MM，例如 #LPass开启全量签到 08:45。", at_sender=True)
+        return
+    ok = await LPassBind.set_auto(
+        ev.user_id, ev.bot_id, enabled=True, at=str(at),
+        ws=str(getattr(ev, "WS_BOT_ID", "") or ""),
+        self_id=str(getattr(ev, "bot_self_id", "") or ""))
+    if not ok:
+        await _reply(bot, ev, "开启失败，请稍后重试。", at_sender=True)
+        return
+    await _reply(bot, ev,
+        "已为你本人开启全量签到（签到+好友请求/分享+全部领取），不影响其他用户。\n"
+        f"⏰ 此后每天北京时间 {at} 开始自动签到，按账号依次执行，完成后在本群汇总。\n"
+        "现在先执行一次今日签到。",
+        at_sender=True)
+    # 参考 #bla开启全量签到：开启后立即执行一次
+    await lpass_daily(bot, ev)
+
+
+@sv_lpass.on_command("#LPass解绑", prefix=False)@sv_lpass.on_command("#LPass解绑", prefix=False)
 async def lpass_unbind(bot: Bot, ev: Event):
     bind = await LPassBind.get_bind(ev.user_id, ev.bot_id)
     if bind is None:
@@ -266,7 +313,7 @@ async def lpass_status(bot: Bot, ev: Event):
         at_sender=True)
 
 
-@sv_lpass.on_command("#LPass日常", prefix=False)
+@sv_lpass.on_command(("#LPass日常", "#LPass签到"), prefix=False)
 async def lpass_daily(bot: Bot, ev: Event):
     argument = (ev.text or "").strip()
     dry_run = argument in ("演练", "dry", "试运行", "测试")

@@ -19,6 +19,7 @@ from ..nikke_config.config import MAIN_PATH
 from .api import LPassCookie
 
 DEFAULT_AUTO_TIME = "08:30"
+FULL_SIGN_TIME = "08:45"
 
 
 class LPassBind(Bind, table=True):
@@ -139,6 +140,19 @@ class LPassBind(Bind, table=True):
             .values(last_run_day=day, last_result=summary[:1500])
         )
 
+
+    @classmethod
+    @with_session
+    async def migrate_auto_0830(cls, session: AsyncSession) -> int:
+        """把「#LPass自动任务 开启 08:30」的用户迁到全量签到（08:45）。"""
+        result = await session.execute(
+            cls.__table__.update()
+            .where(cls.auto_enabled == True, cls.auto_time == "08:30")  # noqa: E712
+            .values(auto_time=FULL_SIGN_TIME)
+        )
+        await session.commit()
+        return int(result.rowcount or 0)
+
     def revision(self) -> str:
         return hashlib.sha256((self.cookie_enc or "").encode()).hexdigest()[:16]
 
@@ -181,6 +195,7 @@ def mask_openid(openid: str) -> str:
 _ready = False
 
 
+
 async def ensure_ready() -> None:
     """老表补一次列；失败不阻断业务。"""
     global _ready
@@ -190,4 +205,10 @@ async def ensure_ready() -> None:
         await LPassBind.ensure_auto_columns()
     except Exception:
         pass
+    try:
+        await LPassBind.migrate_auto_0830()
+    except Exception:
+        pass
     _ready = True
+
+

@@ -411,18 +411,20 @@ MARK_ICON_JS = r"""
 """
 
 
-async def _click_add_buttons(page, count: int) -> list[str]:
+async def _click_add_buttons(page, count: int, skip: list[str] | None = None) -> list[str]:
     """点推荐好友每行右侧的加号图标（span.anticon）。
 
     先用坐标点（实测有效），再补一次 locator 点击兜底；
     每次点完重新枚举，避免列表刷新后索引错位。
     """
     clicked: list[str] = []
+    skip = list(skip or [])
     if count <= 0:
         return clicked
     for _ in range(count):
         items = await _await_buttons(page, 12)
-        pending = [i for i in items if i.get("name") not in clicked]
+        pending = [i for i in items
+                   if i.get("name") not in clicked and i.get("name") not in skip]
         if not pending:
             break
         item = pending[0]
@@ -531,6 +533,21 @@ async def send_friend_requests(cookie: LPassCookie, api: LPassAPI, *, count: int
                     result.clicked = len(result.names)
                 logger.info("[Lpass] 好友点击 names=%s clicked=%s",
                             result.names[:5], result.clicked)
+                if not dry_run:
+                    target = int(state.get("need") or 3) if state else 3
+                    for _ in range(3):
+                        cur = await _friend_state(api)
+                        got = cur["times"] if cur else 0
+                        if got >= target:
+                            break
+                        extra = max(1, min(target - got, 3))
+                        more = await _click_add_buttons(page, extra, skip=result.names)
+                        result.names.extend(more)
+                        result.clicked += len(more)
+                        logger.info("[Lpass] 好友补点 got=%s target=%s extra=%s", got, target, more[:3])
+                        if not more:
+                            break
+                        await page.wait_for_timeout(2500)
                 if not dry_run and result.clicked == 0:
                     buttons = await _add_buttons(page)
                     result.error = ("没找到可点的加号按钮（抽屉可能未加载完）"
