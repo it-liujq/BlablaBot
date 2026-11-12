@@ -91,7 +91,6 @@ def build_help_context(permission: int = 6, *, login_mode='browser') -> dict:
             {'command': '#LPass绑定 邮箱 密码', 'description': '由 Bot 打开网页登录并保存登录态；触发人机验证时改用 Cookie'},
             {'command': '#LPass签到 / #LPass签到 完整日志 / #LPass签到 演练', 'description': '默认回简要结果；完整日志返回逐项进度与奖励；演练只读'},
             {'command': '#LPass开启全量签到 08:45 / 关闭 / 状态', 'description': '为本人开启每日全量签到，按账号依次执行并在群内汇总（与 #bla 错峰）'},
-            {'command': '#LPass开启全量签到 08:45 / 关闭 / 状态', 'description': '为本人开启每日全量签到，按账号依次执行并在群内汇总'},
             {'command': '#LPass状态 / #LPass解绑', 'description': '查看金币与登录态剩余天数；解绑清除本地凭据'},
         ]}
     ]
