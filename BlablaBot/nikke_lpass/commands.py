@@ -1,6 +1,6 @@
 """LPass 命令：绑定 / 解绑 / 状态 / 日常。
 
-触发器名按用户要求写成 ``#LPass绑定``、``#LPass日常``：注册时 prefix=False，
+触发器名按用户要求写成 ``#LPass绑定``、``#LPass签到``：注册时 prefix=False，
 所以不受插件级 ``nk`` 前缀影响；带 nk 的写法不会命中这两个命令。
 """
 from __future__ import annotations
@@ -44,6 +44,11 @@ def _lock(user_id: str, bot_id: str) -> asyncio.Lock:
     return _LOCKS.setdefault((str(user_id), str(bot_id)), asyncio.Lock())
 
 
+def _triggers(name: str) -> tuple[str, ...]:
+    """#LPass 命令不区分大小写：同时注册原样/全小写/全大写。"""
+    return (name, name.lower(), name.upper())
+
+
 
 async def _reply(bot: Bot, ev: Event, text: str, *, title: str = "LPass", **_ignored) -> None:
     """LPass 的回复统一用合并转发；失败或关闭开关时回退普通消息。"""
@@ -70,9 +75,10 @@ HELP = (
     "#LPass绑定 —— 发一个网页登录链接（推荐，账号密码只在浏览器输入）\n"
     "#LPass绑定 cookie内容 —— 粘贴浏览器里 pass.levelinfinite.com 的 Cookie\n"
     "#LPass绑定 邮箱 密码 —— 由 Bot 打开网页登录并保存登录态\n"
-    "#LPass日常 / #LPass签到 —— 签到 + 常规任务 + 一次性任务\n"
-    "#LPass开启全量签到 [HH:MM] —— 群内所有 LPass 账号每天依次自动签到（默认 08:45）\n"
-    "#LPass日常 演练 —— 只读取任务进度，不提交任何请求\n"
+    "#LPass签到 —— 签到 + 好友请求/分享 + 领取，默认回简要结果\n"
+    "#LPass签到 完整日志 —— 返回原来的完整任务日志\n"
+    "#LPass签到 演练 —— 只读取任务进度，不提交任何请求\n"
+    "#LPass开启全量签到 [HH:MM] —— 为本人开启每日全量签到（默认 08:45）\n"
     "#LPass状态 / #LPass解绑\n"
     f"Cookie 至少包含 lip_openid 与 lip_token；与 {command_prefix()}登录的 blablalink 账号互不影响。"
 )
@@ -99,7 +105,7 @@ async def _load_api(user_id: str, bot_id: str) -> tuple[Optional[LPassBind], Opt
     return bind, cookie
 
 
-@sv_lpass.on_command("#LPass绑定", prefix=False)
+@sv_lpass.on_command(_triggers("#LPass绑定"), prefix=False)
 async def lpass_bind(bot: Bot, ev: Event):
     text = (ev.text or "").strip()
     if not text:
@@ -118,7 +124,8 @@ async def lpass_bind(bot: Bot, ev: Event):
             "请在浏览器打开下面的链接登录 LEVEL INFINITE PASS（10 分钟内有效）：\n"
             f"{url}\n\n"
             "登录成功后 Bot 会自动保存登录态；也可以用私聊发 "
-            "「#LPass绑定 Cookie内容」或「#LPass绑定 邮箱 密码」。",
+            "「#LPass绑定 Cookie内容」或「#LPass绑定 邮箱 密码」。\n\n"
+            "绑定成功后推荐发送 #LPass开启全量签到，每天自动签到。",
             at_sender=True)
         return
     # Cookie 与密码都是登录态，只允许私聊提交，避免在群里泄露。
@@ -185,57 +192,7 @@ def _valid_time(value: str) -> bool:
     return re.fullmatch(r"(?:[01][0-9]|2[0-3]):[0-5][0-9]", value) is not None
 
 
-@sv_lpass.on_command("#LPass自动任务", prefix=False)
-async def lpass_auto(bot: Bot, ev: Event):
-    await ensure_ready()
-    argument = (ev.text or "").strip()
-    parts = [p for p in argument.split() if p]
-    option = parts[0] if parts else "状态"
-    bind = await LPassBind.get_bind(ev.user_id, ev.bot_id)
-    if bind is None:
-        await _reply(bot, ev, "还没有绑定。发送 #LPass绑定 查看绑定方式。", at_sender=True)
-        return
-    if option in ("开启", "开", "打开"):
-        at = parts[1] if len(parts) > 1 else (bind.auto_time or DEFAULT_AUTO_TIME)
-        if not _valid_time(at):
-            await _reply(bot, ev, "时间格式应为 HH:MM（北京时间），例如 #LPass自动任务 开启 08:30。",
-                           at_sender=True)
-            return
-        ws = str(getattr(ev, "WS_BOT_ID", "") or "")
-        self_id = str(getattr(ev, "bot_self_id", "") or "")
-        ok = await LPassBind.set_auto(ev.user_id, ev.bot_id, enabled=True, at=at,
-                                      ws=ws, self_id=self_id)
-        if not ok:
-            await _reply(bot, ev, "自动任务开启失败，请稍后重试。", at_sender=True)
-            return
-        await _reply(bot, ev, 
-            f"已开启 LPass 自动任务：每天北京时间 {at} 自动执行签到、好友请求/分享与领取，"
-            "执行完会把结果推给你。\n关闭：#LPass自动任务 关闭；查看：#LPass自动任务 状态。",
-            at_sender=True)
-        return
-    if option in ("关闭", "关", "停止"):
-        ok = await LPassBind.set_auto(ev.user_id, ev.bot_id, enabled=False)
-        await _reply(bot, ev, "已关闭 LPass 自动任务。" if ok else "关闭失败，请稍后重试。",
-                       at_sender=True)
-        return
-    if option in ("状态", "查询", ""):
-        days = max(0, (int(bind.expire_at or 0) - int(time.time())) // 86400) \
-            if bind.expire_at else 0
-        await _reply(bot, ev, 
-            render_auto_status(enabled=bool(bind.auto_enabled),
-                               at=bind.auto_time or DEFAULT_AUTO_TIME,
-                               last_day=bind.last_run_day or "",
-                               last_result=bind.last_result or "",
-                               expire_days=days),
-            at_sender=True)
-        return
-    await _reply(bot, ev, 
-        "用法：#LPass自动任务 开启 [HH:MM] / 关闭 / 状态。\n"
-        "开启后每天北京时间到点自动执行一次，结果私聊推送。",
-        at_sender=True)
-
-
-@sv_lpass.on_command("#LPass开启全量签到", prefix=False)
+@sv_lpass.on_command(_triggers("#LPass开启全量签到"), prefix=False)
 async def lpass_full_sign(bot: Bot, ev: Event):
     """参考 #bla开启全量签到：为本人开启每日全量签到（默认 08:45，与 #bla 错峰）。"""
     await ensure_ready()
@@ -311,7 +268,7 @@ async def lpass_full_sign(bot: Bot, ev: Event):
         await bot.send("[LPass] 本轮全量签到执行异常，请稍后重试。", at_sender=True)
 
 
-@sv_lpass.on_command("#LPass解绑", prefix=False)
+@sv_lpass.on_command(_triggers("#LPass解绑"), prefix=False)
 async def lpass_unbind(bot: Bot, ev: Event):
     bind = await LPassBind.get_bind(ev.user_id, ev.bot_id)
     if bind is None:
@@ -321,7 +278,7 @@ async def lpass_unbind(bot: Bot, ev: Event):
     await _reply(bot, ev, "LPass 绑定已解除。" if count else "解绑未完成，请稍后重试。", at_sender=True)
 
 
-@sv_lpass.on_command("#LPass状态", prefix=False)
+@sv_lpass.on_command(_triggers("#LPass状态"), prefix=False)
 async def lpass_status(bot: Bot, ev: Event):
     bind, cookie = await _load_api(ev.user_id, ev.bot_id)
     if bind is None or cookie is None:
@@ -345,10 +302,11 @@ async def lpass_status(bot: Bot, ev: Event):
         at_sender=True)
 
 
-@sv_lpass.on_command(("#LPass日常", "#LPass签到"), prefix=False)
+@sv_lpass.on_command(_triggers("#LPass签到"), prefix=False)
 async def lpass_daily(bot: Bot, ev: Event):
     argument = (ev.text or "").strip()
     dry_run = argument in ("演练", "dry", "试运行", "测试")
+    full = argument in ("完整日志", "完整", "full", "日志")
     async with _lock(ev.user_id, ev.bot_id):
         bind, cookie = await _load_api(ev.user_id, ev.bot_id)
         if bind is None or cookie is None:
@@ -357,14 +315,10 @@ async def lpass_daily(bot: Bot, ev: Event):
         if cookie.expired:
             await _reply(bot, ev, "登录态已过期，请重新发送 #LPass绑定。", at_sender=True)
             return
-        await _reply(bot, ev, 
-            "开始执行日常：签到 → 好友请求/分享 → 领取。"
-            "动作完成会先回一次结果，奖励到账复查最多再等 5 分钟。", at_sender=True)
         try:
             async with LPassAPI(cookie) as api:
                 friend = None
                 if not dry_run:
-                    # 好友请求/分享要在页面里由 SDK 签名，先尽力跑一次；失败不影响后面
                     try:
                         friend = await send_friend_requests(cookie, api, count=3,
                                                             headless=True, timeout_s=90)
@@ -373,17 +327,16 @@ async def lpass_daily(bot: Bot, ev: Event):
                             f"[Lpass] 好友自动化跳过 error_type={type(exc).__name__}")
                 runner = DailyRunner(api, dry_run=dry_run)
                 result = await runner.run(settle=False)
-                # 好友/分享是在浏览器里做的，run 里的任务快照可能是动作前的
                 await runner.refresh_tasks(result)
                 if friend is not None:
                     if friend.share_link:
                         result.friend_link = friend.share_link
-                    prefix = "⚠ " if friend.error else ""
-                    result.notes.append(f"{prefix}好友/分享：{friend.summary()}")
-
-                # 先出动作结果，别让人干等
-                await _reply(bot, ev, render(result))
-
+                    if friend.error:
+                        result.notes.append(f"⚠ 好友/分享：{friend.summary()}")
+                if full:
+                    await _reply(bot, ev, render(result))
+                else:
+                    await bot.send(render_compact(result, friend), at_sender=True)
                 if not dry_run:
                     before = result.today_earned
                     try:
@@ -391,15 +344,18 @@ async def lpass_daily(bot: Bot, ev: Event):
                     except Exception as exc:  # noqa: BLE001
                         logger.warning(f"[Lpass] 结算复查失败 error_type={type(exc).__name__}")
                     if result.today_earned != before:
-                        await _reply(bot, ev, render(result) + "\n\n（以上为结算后更新）",
-                                     at_sender=True)
+                        if full:
+                            await _reply(bot, ev, render(result) + "\n\n（以上为结算后更新）",
+                                         at_sender=True)
+                        else:
+                            await bot.send(render_compact(result, friend), at_sender=True)
         except LPassAuthError:
             await _reply(bot, ev, "登录态已失效，请重新发送 #LPass绑定。", at_sender=True)
             return
         except LPassError as exc:
-            await _reply(bot, ev, f"日常执行中断：{exc}", at_sender=True)
+            await _reply(bot, ev, f"签到执行中断：{exc}", at_sender=True)
             return
         except Exception as exc:  # noqa: BLE001
-            logger.error(f"[Lpass] 日常执行异常 error_type={type(exc).__name__}")
-            await _reply(bot, ev, "日常执行出现内部异常，未确认完成，请稍后重试。", at_sender=True)
+            logger.error(f"[Lpass] 签到执行异常 error_type={type(exc).__name__}")
+            await _reply(bot, ev, "签到执行出现内部异常，未确认完成，请稍后重试。", at_sender=True)
             return

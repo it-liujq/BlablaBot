@@ -141,7 +141,7 @@ class LPassAutoScheduler:
             text = render(result)
         except Exception as exc:  # noqa: BLE001
             logger.warning("LPass auto error_type=%s", type(exc).__name__)
-            text = "LPass 自动任务执行异常，未确认完成，请稍后手动发送 #LPass日常。"
+            text = "LPass 自动任务执行异常，未确认完成，请稍后手动发送 #LPass签到。"
         await LPassBind.mark_ran(bind.user_id, bind.bot_id, day=day, summary=text)
         if notify:
             await self.notify(bind, text)

@@ -143,7 +143,7 @@ PAGE = """<!DOCTYPE html>
   </form>
 
   <div class="status" id="status"></div>
-  <p class="foot">绑定成功后可直接在群里发送 #LPass日常。</p>
+  <p class="foot">绑定成功后推荐发送 #LPass开启全量签到，每天自动签到。</p>
 </div>
 
 <script>
@@ -316,7 +316,7 @@ def _success_payload(nickname: str, points: int, days: int, openid: str) -> dict
     """与 #bla登录 一致：明确告知已绑定，并给出账号、金币与剩余天数。"""
     lines = ["绑定成功", f"账号：{nickname or 'LI PASS 账号'}", f"金币：{points}"]
     lines.append(f"登录态剩余约 {days} 天" if days else "登录态有效期未知，失效后需重新绑定")
-    lines.append("已在群内发送 #LPass日常 开始每日任务")
+    lines.append("推荐发送 #LPass开启全量签到，每天自动签到")
     return {"ok": True, "status": "success", "nickname": nickname, "points": points,
             "days": days, "masked": _mask(openid), "message": "\n".join(lines)}
 
