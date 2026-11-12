@@ -207,7 +207,7 @@ def render_status(nickname: str, points: int, points_earned: int = 0, *,
 def render_auto_status(*, enabled: bool, at: str, last_day: str = "",
                        last_result: str = "", expire_days: int = 0) -> str:
     lines = [
-        "LPass 自动任务",
+        "LPass 全量签到",
         f"状态：{'已开启' if enabled else '已关闭'}",
         f"时间：每天北京时间 {at}",
     ]
