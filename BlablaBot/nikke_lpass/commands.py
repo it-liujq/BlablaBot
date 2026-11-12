@@ -279,7 +279,7 @@ async def lpass_full_sign(bot: Bot, ev: Event):
     await lpass_daily(bot, ev)
 
 
-@sv_lpass.on_command("#LPass解绑", prefix=False)@sv_lpass.on_command("#LPass解绑", prefix=False)
+@sv_lpass.on_command("#LPass解绑", prefix=False)
 async def lpass_unbind(bot: Bot, ev: Event):
     bind = await LPassBind.get_bind(ev.user_id, ev.bot_id)
     if bind is None:
