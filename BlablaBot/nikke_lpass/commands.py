@@ -49,6 +49,15 @@ def _triggers(name: str) -> tuple[str, ...]:
     return (name, name.lower(), name.upper())
 
 
+def _register(sv, names):
+    """逐个注册触发器（避免部分 Core 版本对 tuple + prefix=False 支持不一致）。"""
+    def deco(func):
+        for name in names:
+            sv.on_command(name, prefix=False)(func)
+        return func
+    return deco
+
+
 
 async def _reply(bot: Bot, ev: Event, text: str, *, title: str = "LPass", **_ignored) -> None:
     """LPass 的回复统一用合并转发；失败或关闭开关时回退普通消息。"""
@@ -105,7 +114,7 @@ async def _load_api(user_id: str, bot_id: str) -> tuple[Optional[LPassBind], Opt
     return bind, cookie
 
 
-@sv_lpass.on_command(_triggers("#LPass绑定"), prefix=False)
+@_register(sv_lpass, _triggers("#LPass绑定"))
 async def lpass_bind(bot: Bot, ev: Event):
     text = (ev.text or "").strip()
     if not text:
@@ -192,7 +201,7 @@ def _valid_time(value: str) -> bool:
     return re.fullmatch(r"(?:[01][0-9]|2[0-3]):[0-5][0-9]", value) is not None
 
 
-@sv_lpass.on_command(_triggers("#LPass开启全量签到"), prefix=False)
+@_register(sv_lpass, _triggers("#LPass开启全量签到"))
 async def lpass_full_sign(bot: Bot, ev: Event):
     """参考 #bla开启全量签到：为本人开启每日全量签到（默认 08:45，与 #bla 错峰）。"""
     await ensure_ready()
@@ -268,7 +277,7 @@ async def lpass_full_sign(bot: Bot, ev: Event):
         await bot.send("[LPass] 本轮全量签到执行异常，请稍后重试。", at_sender=True)
 
 
-@sv_lpass.on_command(_triggers("#LPass解绑"), prefix=False)
+@_register(sv_lpass, _triggers("#LPass解绑"))
 async def lpass_unbind(bot: Bot, ev: Event):
     bind = await LPassBind.get_bind(ev.user_id, ev.bot_id)
     if bind is None:
@@ -278,7 +287,7 @@ async def lpass_unbind(bot: Bot, ev: Event):
     await _reply(bot, ev, "LPass 绑定已解除。" if count else "解绑未完成，请稍后重试。", at_sender=True)
 
 
-@sv_lpass.on_command(_triggers("#LPass状态"), prefix=False)
+@_register(sv_lpass, _triggers("#LPass状态"))
 async def lpass_status(bot: Bot, ev: Event):
     bind, cookie = await _load_api(ev.user_id, ev.bot_id)
     if bind is None or cookie is None:
@@ -302,7 +311,7 @@ async def lpass_status(bot: Bot, ev: Event):
         at_sender=True)
 
 
-@sv_lpass.on_command(_triggers("#LPass签到"), prefix=False)
+@_register(sv_lpass, _triggers("#LPass签到"))
 async def lpass_daily(bot: Bot, ev: Event):
     argument = (ev.text or "").strip()
     dry_run = argument in ("演练", "dry", "试运行", "测试")
