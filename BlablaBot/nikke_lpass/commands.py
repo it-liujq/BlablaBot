@@ -21,7 +21,8 @@ from ..nikke_login.commands import get_base_url
 from ..nikke_login.session import sessions
 from .api import LPassAPI, LPassAuthError, LPassCookie, LPassError, parse_cookie
 from .auth import LoginError, login_with_password, verify
-from .report import render, render_auto_status, render_bind, render_status_detail
+from .report import (render, render_auto_status, render_bind, render_compact,
+                     render_status_detail)
 from .store import (
     DEFAULT_AUTO_TIME,
     FULL_SIGN_TIME,
@@ -270,13 +271,44 @@ async def lpass_full_sign(bot: Bot, ev: Event):
     if not ok:
         await _reply(bot, ev, "开启失败，请稍后重试。", at_sender=True)
         return
-    await _reply(bot, ev,
-        "已为你本人开启全量签到（签到+好友请求/分享+全部领取），不影响其他用户。\n"
-        f"⏰ 此后每天北京时间 {at} 开始自动签到，按账号依次执行，完成后在本群汇总。\n"
-        "现在先执行一次今日签到。",
+    await bot.send(
+        "[LPass] 已为你本人开启全量签到（签到、好友请求/分享、全部领取），不影响其他用户。\n"
+        "[LPass] 签到任务已受理⏳ 正在排队或执行，完成后会返回结果，请勿重复发送。",
         at_sender=True)
-    # 参考 #bla开启全量签到：开启后立即执行一次
-    await lpass_daily(bot, ev)
+    # 参考 #bla：开启后立即执行一次，并只回简要结果（不再发“开始执行日常”与长报告）
+    try:
+        bind, cookie = await _load_api(ev.user_id, ev.bot_id)
+        if cookie is None:
+            await bot.send("[LPass] 登录态已失效，请重新发送 #LPass绑定。", at_sender=True)
+            return
+        async with LPassAPI(cookie) as api:
+            friend = None
+            try:
+                friend = await send_friend_requests(cookie, api, count=3,
+                                                    headless=True, timeout_s=90)
+            except Exception as exc:  # noqa: BLE001
+                logger.warning(f"[Lpass] 全量签到好友步骤跳过 error_type={type(exc).__name__}")
+            runner = DailyRunner(api)
+            result = await runner.run(settle=False)
+            await runner.refresh_tasks(result)
+            if friend is not None and friend.share_link:
+                result.friend_link = friend.share_link
+            text = render_compact(result, friend) + f"\n⏰ 此后每天北京时间 {at} 开始自动签到，按账号依次执行。"
+            await bot.send(text, at_sender=True)
+            try:
+                before = result.today_earned
+                await runner.settle(result)
+                if result.today_earned != before:
+                    await bot.send(render_compact(result, friend)
+                                   + f"\n⏰ 此后每天北京时间 {at} 开始自动签到，按账号依次执行。",
+                                   at_sender=True)
+            except Exception as exc:  # noqa: BLE001
+                logger.warning(f"[Lpass] 全量签到结算复查失败 error_type={type(exc).__name__}")
+    except LPassAuthError:
+        await bot.send("[LPass] 登录态已失效，请重新发送 #LPass绑定。", at_sender=True)
+    except Exception as exc:  # noqa: BLE001
+        logger.error(f"[Lpass] 全量签到执行异常 error_type={type(exc).__name__}")
+        await bot.send("[LPass] 本轮全量签到执行异常，请稍后重试。", at_sender=True)
 
 
 @sv_lpass.on_command("#LPass解绑", prefix=False)

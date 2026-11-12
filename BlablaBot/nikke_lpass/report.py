@@ -257,3 +257,40 @@ def render_status_detail(result: DailyResult, *, nickname: str, points_earned: i
         lines.append("其他任务:")
         lines.extend(other_rows)
     return "\n".join(lines)
+
+
+def render_compact(result: DailyResult, friend=None) -> str:
+    """#LPass开启全量签到 的简要完成回复（样例 A，带 [LPass] 标识）。"""
+    def step_status(key):
+        step = next((s for s in result.steps if s.key == key), None)
+        return step is not None and step.status in ("done", "already")
+
+    signed = step_status("signin") or any(
+        str(i.get("name", "")) == "每日签到" for i in result.today_points)
+    head = "[LPass] 已完成本轮签到✅" if signed else "[LPass] 本轮签到未确认⚠️"
+
+    def task_progress(keyword: str) -> str:
+        task = next((t for t in result.tasks if keyword in str(t.get("task_name", ""))), None)
+        if task is None:
+            return ""
+        infos = task.get("reward_infos") or [{}]
+        first = infos[0] if isinstance(infos[0], dict) else {}
+        try:
+            times = int(first.get("completed_times", 0) or 0)
+            need = int(first.get("need_completed_times", 0) or 0)
+        except (TypeError, ValueError):
+            times, need = 0, 0
+        if not need:
+            return ""
+        ok = times >= need
+        return f"{keyword} {min(times, need)}/{need} {'✅' if ok else '⚠️'}"
+
+    parts = [x for x in (task_progress("好友请求"), task_progress("分享交友"),
+                         task_progress("游玩")) if x]
+    lines = [head]
+    if parts:
+        lines.append("　".join(parts))
+    earned = result.today_earned or result.delta
+    sign = f"+{earned}" if earned >= 0 else str(earned)
+    lines.append(f"今日金币🪙：{result.points_after}（本次 {sign}）")
+    return "\n".join(lines)
