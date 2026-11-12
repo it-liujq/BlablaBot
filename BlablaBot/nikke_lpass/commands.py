@@ -86,7 +86,6 @@ HELP = (
     "#LPass绑定 邮箱 密码 —— 由 Bot 打开网页登录并保存登录态\n"
     "#LPass签到 —— 签到 + 好友请求/分享 + 领取，默认回简要结果\n"
     "#LPass签到 完整日志 —— 返回原来的完整任务日志\n"
-    "#LPass签到 演练 —— 只读取任务进度，不提交任何请求\n"
     "#LPass开启全量签到 [HH:MM] —— 为本人开启每日全量签到（默认 08:45）\n"
     "#LPass状态 / #LPass解绑\n"
     f"Cookie 至少包含 lip_openid 与 lip_token；与 {command_prefix()}登录的 blablalink 账号互不影响。"
@@ -314,8 +313,10 @@ async def lpass_status(bot: Bot, ev: Event):
 @_register(sv_lpass, _triggers("#LPass签到"))
 async def lpass_daily(bot: Bot, ev: Event):
     argument = (ev.text or "").strip()
-    dry_run = argument in ("演练", "dry", "试运行", "测试")
     full = argument in ("完整日志", "完整", "full", "日志")
+    if argument and not full:
+        await _reply(bot, ev, "用法：#LPass签到 / #LPass签到 完整日志", at_sender=True)
+        return
     async with _lock(ev.user_id, ev.bot_id):
         bind, cookie = await _load_api(ev.user_id, ev.bot_id)
         if bind is None or cookie is None:
@@ -327,14 +328,13 @@ async def lpass_daily(bot: Bot, ev: Event):
         try:
             async with LPassAPI(cookie) as api:
                 friend = None
-                if not dry_run:
-                    try:
-                        friend = await send_friend_requests(cookie, api, count=3,
-                                                            headless=True, timeout_s=90)
-                    except Exception as exc:  # noqa: BLE001
-                        logger.warning(
-                            f"[Lpass] 好友自动化跳过 error_type={type(exc).__name__}")
-                runner = DailyRunner(api, dry_run=dry_run)
+                try:
+                    friend = await send_friend_requests(cookie, api, count=3,
+                                                        headless=True, timeout_s=90)
+                except Exception as exc:  # noqa: BLE001
+                    logger.warning(
+                        f"[Lpass] 好友自动化跳过 error_type={type(exc).__name__}")
+                runner = DailyRunner(api)
                 result = await runner.run(settle=False)
                 await runner.refresh_tasks(result)
                 if friend is not None:
@@ -346,18 +346,17 @@ async def lpass_daily(bot: Bot, ev: Event):
                     await _reply(bot, ev, render(result))
                 else:
                     await bot.send(render_compact(result, friend), at_sender=True)
-                if not dry_run:
-                    before = result.today_earned
-                    try:
-                        await runner.settle(result)
-                    except Exception as exc:  # noqa: BLE001
-                        logger.warning(f"[Lpass] 结算复查失败 error_type={type(exc).__name__}")
-                    if result.today_earned != before:
-                        if full:
-                            await _reply(bot, ev, render(result) + "\n\n（以上为结算后更新）",
-                                         at_sender=True)
-                        else:
-                            await bot.send(render_compact(result, friend), at_sender=True)
+                before = result.today_earned
+                try:
+                    await runner.settle(result)
+                except Exception as exc:  # noqa: BLE001
+                    logger.warning(f"[Lpass] 结算复查失败 error_type={type(exc).__name__}")
+                if result.today_earned != before:
+                    if full:
+                        await _reply(bot, ev, render(result) + "\n\n（以上为结算后更新）",
+                                     at_sender=True)
+                    else:
+                        await bot.send(render_compact(result, friend), at_sender=True)
         except LPassAuthError:
             await _reply(bot, ev, "登录态已失效，请重新发送 #LPass绑定。", at_sender=True)
             return
