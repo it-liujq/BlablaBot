@@ -144,10 +144,10 @@ PAGE = """<!DOCTYPE html>
 
   <div class="status" id="status"></div>
 
-  <div class="status info" id="remote" style="display:none">
+  <div class="status info" id="remote" style="display:none;position:fixed;inset:2vh 2vw;z-index:9999;width:96vw;height:96vh;max-height:96vh;background:#0b0d16;border:1px solid rgba(255,255,255,.25);border-radius:12px;padding:14px;overflow:auto">
     <div id="remote-tip">请在下方窗口中完成验证</div>
     <div id="remote-wrap" style="position:relative;margin-top:8px;border-radius:8px;overflow:auto;max-height:520px;border:1px solid rgba(255,255,255,.2)">
-      <img id="remote-img" style="width:680px;max-width:none;display:block;cursor:crosshair">
+      <img id="remote-img" style="width:100%;max-width:none;display:block;cursor:crosshair">
     </div>
   </div>
 
