@@ -144,13 +144,6 @@ PAGE = """<!DOCTYPE html>
 
   <div class="status" id="status"></div>
 
-  <div class="status info" id="remote" style="display:none;position:fixed;inset:2vh 2vw;z-index:9999;width:96vw;height:96vh;max-height:96vh;background:#0b0d16;border:1px solid rgba(255,255,255,.25);border-radius:12px;padding:14px;overflow:auto">
-    <div id="remote-tip">请在下方窗口中完成验证</div>
-    <div id="remote-wrap" style="position:relative;margin-top:8px;border-radius:8px;overflow:auto;max-height:520px;border:1px solid rgba(255,255,255,.2)">
-      <img id="remote-img" style="width:100%;max-width:none;display:block;cursor:crosshair">
-    </div>
-  </div>
-
   <div class="status info" id="challenge" style="display:none">
     <div id="challenge-tip"></div>
     <div id="challenge-img-wrap" style="display:none;position:relative;margin-top:8px">
@@ -166,6 +159,13 @@ PAGE = """<!DOCTYPE html>
     </div>
   </div>
   <p class="foot">绑定成功后推荐发送 #LPass开启全量签到，每天自动签到。</p>
+</div>
+
+<div class="status info" id="remote" style="display:none;position:fixed;left:2vw;top:2vh;width:96vw;height:96vh;z-index:9999;background:#0b0d16;border:1px solid rgba(255,255,255,.25);border-radius:12px;padding:14px;overflow:auto">
+  <div id="remote-tip">请在下方窗口中完成验证</div>
+  <div id="remote-wrap" style="position:relative;margin-top:8px;border-radius:8px;overflow:auto;max-height:calc(96vh - 80px);border:1px solid rgba(255,255,255,.2)">
+    <img id="remote-img" style="width:100%;max-width:none;display:block;cursor:crosshair">
+  </div>
 </div>
 
 <script>
