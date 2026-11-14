@@ -181,6 +181,14 @@ async def _captcha_present(page_or_ctx) -> bool:
                 return True
         except Exception:  # noqa: BLE001
             continue
+    # 兜底：复用 nikke_login 的 captcha frame 检测（部分版本验证码在独立 frame 中）
+    try:
+        from ..nikke_login.browser import _find_captcha
+        _, el, _ = await _find_captcha(page_or_ctx)
+        if el is not None:
+            return True
+    except Exception:  # noqa: BLE001
+        pass
     return False
 
 

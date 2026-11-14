@@ -146,8 +146,8 @@ PAGE = """<!DOCTYPE html>
 
   <div class="status info" id="remote" style="display:none">
     <div id="remote-tip">请在下方窗口中完成验证</div>
-    <div id="remote-wrap" style="position:relative;margin-top:8px;border-radius:8px;overflow:hidden;border:1px solid rgba(255,255,255,.2)">
-      <img id="remote-img" style="width:100%;display:block;cursor:crosshair">
+    <div id="remote-wrap" style="position:relative;margin-top:8px;border-radius:8px;overflow:auto;max-height:520px;border:1px solid rgba(255,255,255,.2)">
+      <img id="remote-img" style="width:680px;max-width:none;display:block;cursor:crosshair">
     </div>
   </div>
 
