@@ -12,6 +12,12 @@ import time
 from collections.abc import Callable
 from typing import Optional
 
+try:
+    from gsuid_core.logger import logger
+except Exception:  # 离线测试
+    import logging
+    logger = logging.getLogger('BlablaBot.lpass')
+
 from .api import LPassAPI, LPassAuthError, LPassCookie, LPassError, parse_cookie
 
 REWARDS_URL = "https://pass.levelinfinite.com/rewards?lang=zh&points=%2Fpoints%2Fsign-in"
@@ -181,12 +187,26 @@ async def _captcha_present(page_or_ctx) -> bool:
                 return True
         except Exception:  # noqa: BLE001
             continue
-    # 兜底：复用 nikke_login 的 captcha frame 检测（部分版本验证码在独立 frame 中）
+    # 兜底 1：任意 captcha frame（不限制尺寸，移动端验证码可能较小）
     try:
-        from ..nikke_login.browser import _find_captcha
-        _, el, _ = await _find_captcha(page_or_ctx)
-        if el is not None:
-            return True
+        for fr in page.frames:
+            if "captcha" not in (fr.url or "").lower():
+                continue
+            try:
+                el = await fr.frame_element()
+                box = await el.bounding_box()
+            except Exception:  # noqa: BLE001
+                continue
+            if box and box.get("width", 0) > 80 and box.get("height", 0) > 60:
+                return True
+    except Exception:  # noqa: BLE001
+        pass
+    # 兜底 2：页面文字出现安全验证类提示
+    try:
+        text = await page.evaluate("() => (document.body && document.body.innerText) || ''")
+        for kw in ("安全验证", "人机验证", "请完成验证", "拖动滑块", "最相似的图像", "请输入验证码"):
+            if kw in text:
+                return True
     except Exception:  # noqa: BLE001
         pass
     return False
@@ -455,10 +475,24 @@ class LoginFlow:
     async def _find_code_input(self):
         if self.page is None:
             return None
-        for placeholder in ("邮箱验证码", "验证码"):
+        candidates = []
+        for placeholder in ("邮箱验证码", "验证码", "请输入验证码", "邮件验证码"):
             try:
-                loc = self.page.get_by_placeholder(placeholder).first
-                if await loc.count() and await loc.is_visible():
+                candidates.append(self.page.get_by_placeholder(placeholder).first)
+            except Exception:  # noqa: BLE001
+                continue
+        try:
+            inputs = self.page.locator("input[type='text'],input[type='tel'],input[type='number'],input:not([type])")
+            for i in range(min(await inputs.count(), 8)):
+                candidates.append(inputs.nth(i))
+        except Exception:  # noqa: BLE001
+            pass
+        for loc in candidates:
+            try:
+                if not await loc.count() or not await loc.is_visible():
+                    continue
+                meta = await loc.evaluate("e => (e.placeholder||'') + ' ' + (e.getAttribute('aria-label')||'')")
+                if "验证" in meta or "码" in meta:
                     return loc
             except Exception:  # noqa: BLE001
                 continue
@@ -491,7 +525,14 @@ class LoginFlow:
             self.status = "email_code"
             self.message = "请输入邮箱收到的验证码"
             return
-        await self._fail("登录未完成：可能需要人机验证或邮箱验证码，请重试或改用 Cookie 绑定。")
+        try:
+            url = self.page.url if self.page else ""
+            frames = [f.url[:80] for f in self.page.frames] if self.page else []
+            text = await self.page.evaluate("() => (document.body && document.body.innerText || '').slice(0,400)") if self.page else ""
+            logger.warning("[Lpass] 登录未完成 url=%s frames=%s text=%s", url, frames, text.replace("\n", " "))
+        except Exception:  # noqa: BLE001
+            pass
+        await self._fail("登录未完成：未检测到验证码或验证码输入框，请重试或改用 Cookie 绑定。")
 
     async def _capture_captcha(self):
         page = self.page
