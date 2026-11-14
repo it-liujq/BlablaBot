@@ -340,6 +340,7 @@ class LoginFlow:
         self.captcha_png = ""            # data:image/png;base64,...
         self.captcha_width = 0
         self.viewport = {"width": 1500, "height": 950}
+        self._login_box = None
         self._last_shot = (0.0, b"")
         self.captcha_attempts = 0
         self._deadline = time.time() + max(120, int(timeout))
@@ -442,7 +443,8 @@ class LoginFlow:
             self._pw = await async_playwright().start()
             self.browser = await self._pw.chromium.launch(headless=True)
             self.context = await self.browser.new_context(
-                locale="zh-CN", viewport={"width": 1500, "height": 950})
+                locale="zh-CN", viewport={"width": 1500, "height": 950},
+                device_scale_factor=2)
             page = self.page = await self.context.new_page()
             await page.goto(REWARDS_URL, wait_until="domcontentloaded", timeout=60000)
             await page.wait_for_timeout(9000)
@@ -643,6 +645,39 @@ async def _quick_cookie(context):
     return parse_cookie(merged)
 
 
+LOGIN_BOX_JS = r"""
+() => {
+  const walk = (root, out) => {
+    for (const el of root.querySelectorAll('*')) { out.push(el); if (el.shadowRoot) walk(el.shadowRoot, out); }
+    return out;
+  };
+  const all = walk(document, []);
+  const leaf = all.find(e => e.children.length === 0 && ['密码登录','注册/登录','邮箱登录'].includes((e.textContent||'').trim()));
+  if (!leaf) return null;
+  let p = leaf.parentElement, fallback = null;
+  for (let i = 0; i < 12 && p; i++, p = p.parentElement) {
+    const r = p.getBoundingClientRect();
+    if (r.width >= 300 && r.width <= 800 && r.height >= 300 && r.height <= 1000) {
+      const box = {x: r.x, y: r.y, width: r.width, height: r.height};
+      if (r.height >= 450) return box;   // 含 logo 头部的完整弹窗
+      if (!fallback) fallback = box;
+    }
+  }
+  return fallback;
+}
+"""
+
+
+async def _login_modal_box(page):
+    try:
+        box = await page.evaluate(LOGIN_BOX_JS)
+        if box:
+            return box
+    except Exception:  # noqa: BLE001
+        pass
+    return None
+
+
 class BrowserLoginFlow(LoginFlow):
     """直接嵌入 LIP 官方登录页：用户在远程视图里操作，后台自动抓 Cookie。"""
 
@@ -659,7 +694,8 @@ class BrowserLoginFlow(LoginFlow):
             self._pw = await async_playwright().start()
             self.browser = await self._pw.chromium.launch(headless=True)
             self.context = await self.browser.new_context(
-                locale="zh-CN", viewport={"width": 1500, "height": 950})
+                locale="zh-CN", viewport={"width": 1500, "height": 950},
+                device_scale_factor=2)
             self.page = await self.context.new_page()
             await self.page.goto(REWARDS_URL, wait_until="domcontentloaded", timeout=60000)
             await self.page.wait_for_timeout(8000)
@@ -669,10 +705,62 @@ class BrowserLoginFlow(LoginFlow):
                     break
                 except Exception:  # noqa: BLE001
                     continue
+            # 直接打开登录弹窗，只展示登录框区域
+            self.status = "logging_in"
+            self.message = "正在打开 LIP 登录框…"
+            try:
+                await asyncio.wait_for(self._prepare_login_modal(), timeout=40)
+            except Exception:  # noqa: BLE001
+                pass
             self.status = "remote"
-            self.message = "请在下方窗口中登录 LEVEL INFINITE PASS，登录成功后会自动保存"
+            self.message = "请在下方登录框中完成 LIP 登录，成功后会自动保存"
         except Exception:  # noqa: BLE001
             await self._fail("打开 LIP 登录页失败，请稍后重试或改用 Cookie。")
+
+    async def snapshot(self) -> bytes:
+        if self._login_box and self.page is not None:
+            try:
+                return await self.page.screenshot(
+                    clip=self._login_box, type="jpeg", quality=85, timeout=8000)
+            except Exception:  # noqa: BLE001
+                pass
+        return await super().snapshot()
+
+    async def send_input(self, event: dict):
+        if self._login_box:
+            ev = dict(event)
+            ev["x"] = float(ev.get("x") or 0) + self._login_box["x"]
+            ev["y"] = float(ev.get("y") or 0) + self._login_box["y"]
+            if ev.get("type") == "drag":
+                ev["x2"] = float(event.get("x2") or 0) + self._login_box["x"]
+                ev["y2"] = float(event.get("y2") or 0) + self._login_box["y"]
+            return await super().send_input(ev)
+        return await super().send_input(event)
+
+    async def _prepare_login_modal(self):
+        """后台尝试打开登录弹窗并裁剪到登录框；失败则保持整页视图。"""
+        try:
+            for _ in range(4):
+                try:
+                    await _open_login_modal(self.page)
+                    break
+                except Exception:  # noqa: BLE001
+                    await self.page.wait_for_timeout(2000)
+            await self.page.wait_for_timeout(1500)
+            try:
+                await self.page.get_by_text("密码登录", exact=True).first.click(timeout=6000)
+            except Exception:  # noqa: BLE001
+                pass
+            for _ in range(3):
+                await self.page.wait_for_timeout(1500)
+                box = await _login_modal_box(self.page)
+                if box:
+                    self._login_box = box
+                    self.viewport = {"width": int(box["width"]), "height": int(box["height"])}
+                    break
+            self.message = "请在下方登录框中完成 LIP 登录，成功后会自动保存"
+        except Exception:  # noqa: BLE001
+            pass
 
     async def remote_check(self):
         if self.status != "remote" or self.context is None:

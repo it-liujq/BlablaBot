@@ -10,14 +10,14 @@ import asyncio
 import html
 import time
 
-from fastapi.responses import HTMLResponse, JSONResponse, Response
+from fastapi.responses import HTMLResponse, JSONResponse
 from gsuid_core.logger import logger
 from gsuid_core.web_app import app
 from pydantic import BaseModel
 
 from ..nikke_login.session import sessions
 from .api import LPassAuthError, LPassError, parse_cookie
-from .auth import LoginFlow, verify
+from .auth import BrowserLoginFlow, LoginFlow, verify
 from .store import LPassBind, encrypt_cookie
 
 PAGE = """<!DOCTYPE html>
@@ -161,16 +161,11 @@ PAGE = """<!DOCTYPE html>
   <p class="foot">绑定成功后推荐发送 #LPass开启全量签到，每天自动签到。</p>
 </div>
 
-<div class="status info" id="remote" style="display:none;position:fixed;left:2vw;top:2vh;width:96vw;height:96vh;z-index:9999;background:#0b0d16;border:1px solid rgba(255,255,255,.25);border-radius:12px;padding:14px;overflow:auto">
-  <div style="display:flex;align-items:center;justify-content:space-between;gap:12px">
-    <div id="remote-tip">请在下方窗口中完成验证</div>
-    <div style="display:flex;gap:8px;flex:none">
-      <button class="btn ghost" id="remote-ok" type="button" style="width:auto;height:34px;margin:0;padding:0 14px;font-size:13px">确定</button>
-      <button class="btn ghost" id="remote-close" type="button" style="width:auto;height:34px;margin:0;padding:0 14px;font-size:13px">关闭</button>
-    </div>
-  </div>
-  <div id="remote-wrap" style="position:relative;margin:8px auto 0;border-radius:8px;overflow:auto;max-height:calc(96vh - 110px);border:1px solid rgba(255,255,255,.2);text-align:center">
-    <img id="remote-img" style="max-width:100%;max-height:calc(96vh - 118px);width:auto;display:inline-block;cursor:default">
+<div id="remote" style="display:none;position:fixed;left:50%;top:50%;transform:translate(-50%,-50%);z-index:9999;width:max-content;max-width:96vw;background:transparent;border:0;padding:0;overflow:visible">
+  <textarea id="remote-clip" style="position:absolute;left:-9999px;top:0;width:10px;height:10px;opacity:0" aria-hidden="true"></textarea>
+  <div id="remote-tip" style="display:none"></div>
+  <div id="remote-wrap" style="position:relative;margin:0;border:0;padding:0">
+    <img id="remote-img" style="width:auto;height:auto;max-width:none;display:block;cursor:default">
   </div>
 </div>
 
@@ -251,6 +246,8 @@ function showRemote(data) {
   $("remote").style.display = "block";
   $("remote-tip").textContent = data.message || "请在下方窗口中完成验证";
   remoteSize = { w: data.width || 1500, h: data.height || 950 };
+  const img = $("remote-img");
+  if (data.width) { img.style.width = data.width + "px"; img.style.height = "auto"; }
   if (!remoteTimer) { refreshRemote(); remoteTimer = setInterval(refreshRemote, 900); }
 }
 function remoteCoords(e) {
@@ -265,18 +262,14 @@ async function sendInput(ev) {
     });
   } catch (e) {}
 }
-$("remote-close").addEventListener("click", () => {
-  $("remote").style.display = "none";
-  window.__remoteClosed = true;
-  stopRemote();
+$("remote-img").addEventListener("mousedown", (e) => { e.preventDefault(); $("remote-clip").focus(); dragFrom = remoteCoords(e); });
+$("remote-img").addEventListener("click", () => { $("remote-clip").focus(); });
+$("remote-clip").addEventListener("paste", async (e) => {
+  const text = (e.clipboardData || window.clipboardData).getData("text");
+  e.preventDefault();
+  if (text) await sendInput({ type: "text", text: text });
+  $("remote-clip").value = "";
 });
-$("remote-ok").addEventListener("click", async () => {
-  window.__remoteClosed = true;
-  $("remote").style.display = "none";
-  stopRemote();
-  await pollStatus();
-});
-$("remote-img").addEventListener("mousedown", (e) => { dragFrom = remoteCoords(e); });
 $("remote-img").addEventListener("mouseup", async (e) => {
   if (!dragFrom) return;
   const to = remoteCoords(e);
@@ -287,6 +280,14 @@ $("remote-img").addEventListener("mouseup", async (e) => {
 });
 document.addEventListener("keydown", async (e) => {
   if ($("remote").style.display !== "block") return;
+  if (e.ctrlKey || e.metaKey) {
+    if (e.key.toLowerCase() === "v") return;             // 交给 paste 事件
+    if (["a", "c", "x"].includes(e.key.toLowerCase())) {
+      e.preventDefault();
+      await sendInput({ type: "key", key: "Control+" + e.key.toLowerCase() });
+    }
+    return;
+  }
   if (e.key.length === 1) { e.preventDefault(); await sendInput({ type: "text", text: e.key }); }
   else if (["Backspace", "Enter", "Tab", "Delete", "ArrowLeft", "ArrowRight"].includes(e.key)) {
     e.preventDefault(); await sendInput({ type: "key", key: e.key });
@@ -385,6 +386,15 @@ async function pollStatus() {
   }
 }
 
+function openProxyLogin() {
+  fetch("/nikke/lpass/api/" + TOKEN + "/login", {
+    method: "POST", headers: { "Content-Type": "application/json" }, body: "{}"
+  });
+  setStatus("正在打开 LIP 登录框…（约 10~30 秒）", "info");
+  stopPoll();
+  pollTimer = setInterval(pollStatus, 1000);
+}
+
 $("mode-password").addEventListener("click", () => showMode("password"));
 $("mode-cookie").addEventListener("click", () => showMode("cookie"));
 
@@ -406,20 +416,8 @@ $("form").addEventListener("submit", async (e) => {
     }
 
     window.__remoteClosed = false;
-    setStatus("已提交登录，正在后台打开网页…", "info");
-    const resp = await fetch("/nikke/lpass/api/" + TOKEN + "/login", {
-      method: "POST",
-      headers: { "Content-Type": "application/json" },
-      body: JSON.stringify({
-        email: $("email").value.trim(),
-        password: $("password").value
-      })
-    });
-    const data = await readJson(resp);
-    if (!data.ok && data.status !== "logging_in") { onFailure(data); return; }
-    setStatus("正在登录中…（约 30~90 秒，请勿关闭页面）", "info");
-    stopPoll();
-    pollTimer = setInterval(pollStatus, 2500);
+    openProxyLogin();
+    $("submit").disabled = false;
   } catch (err) {
     setStatus("请求失败：" + err, "err");
     submit.disabled = false;
@@ -660,6 +658,15 @@ async def lpass_login_status(token: str):
                              "msg": session.error or "登录失败，请改用 Cookie 绑定。"})
     if session.status == "remote":
         flow = getattr(session, "login_flow", None)
+        if flow is not None:
+            try:
+                await flow.remote_check()
+            except Exception:  # noqa: BLE001
+                pass
+            if session.status == "success":
+                cached = _RESULTS.get(token)
+                if cached:
+                    return JSONResponse(cached)
         if flow is None:
             return JSONResponse({"ok": False, "status": "failed",
                                  "msg": "验证会话已失效，请重新发起登录或改用 Cookie。"})
