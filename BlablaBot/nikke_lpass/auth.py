@@ -226,3 +226,189 @@ async def login_with_password(email: str, password: str, *,
 
 
 __all__ = ["LPassAuthError", "LoginError", "login_with_password", "verify"]
+
+
+class LoginFlow:
+    """可交互的网页登录：遇到人机验证/邮箱验证码时把界面转交给绑定页。
+
+    生命周期由 routes 持有；挑战阶段浏览器保持打开，用户提交后继续登录。
+    """
+
+    def __init__(self, email: str, password: str, *, timeout: int = 600):
+        self.email, self.password = email, password
+        self.status = "logging_in"       # logging_in | captcha | email_code | success | failed
+        self.message = ""
+        self.error = ""
+        self.cookie: Optional[LPassCookie] = None
+        self.captcha_png = ""            # data:image/png;base64,...
+        self.captcha_attempts = 0
+        self._deadline = time.time() + max(120, int(timeout))
+        self._pw = None
+        self.browser = None
+        self.context = None
+        self.page = None
+        self._box = None
+        self._drag_from = None
+
+    async def close(self):
+        try:
+            if self.browser is not None:
+                await self.browser.close()
+        except Exception:  # noqa: BLE001
+            pass
+        try:
+            if self._pw is not None:
+                await self._pw.stop()
+        except Exception:  # noqa: BLE001
+            pass
+        self.browser = self.context = self.page = None
+        self._pw = None
+
+    async def start(self):
+        try:
+            from playwright.async_api import async_playwright
+        except Exception:  # noqa: BLE001
+            await self._fail("当前部署缺少 Playwright，请改用 Cookie 绑定。")
+            return
+        try:
+            self._pw = await async_playwright().start()
+            self.browser = await self._pw.chromium.launch(headless=True)
+            self.context = await self.browser.new_context(
+                locale="zh-CN", viewport={"width": 1500, "height": 950})
+            page = self.page = await self.context.new_page()
+            await page.goto(REWARDS_URL, wait_until="domcontentloaded", timeout=60000)
+            await page.wait_for_timeout(9000)
+            for label in ("接受所有可选 cookies", "接受全部", "Accept all"):
+                try:
+                    await page.get_by_role("button", name=label).first.click(timeout=2500)
+                    break
+                except Exception:  # noqa: BLE001
+                    continue
+            await _open_login_modal(page)
+            await page.get_by_text(MODAL_ENTRY, exact=True).first.click(timeout=15000)
+            await page.wait_for_timeout(2500)
+            await page.get_by_placeholder("邮箱地址").first.fill(self.email, timeout=15000)
+            await page.get_by_placeholder("密码").first.fill(self.password, timeout=15000)
+            if not await _submit(page):
+                raise LoginError("没找到登录提交按钮，请改用 Cookie 绑定。")
+            await page.wait_for_timeout(4000)
+            await self._after_submit()
+        except LoginError as exc:
+            await self._fail(str(exc))
+        except Exception as exc:  # noqa: BLE001
+            await self._fail("登录过程异常，请稍后重试或改用 Cookie。")
+            _ = exc
+
+    async def _fail(self, message: str):
+        self.status = "failed"
+        self.error = message
+        await self.close()
+
+    async def _find_code_input(self):
+        if self.page is None:
+            return None
+        for placeholder in ("邮箱验证码", "验证码"):
+            try:
+                loc = self.page.get_by_placeholder(placeholder).first
+                if await loc.count() and await loc.is_visible():
+                    return loc
+            except Exception:  # noqa: BLE001
+                continue
+        return None
+
+    async def _after_submit(self):
+        """提交后：优先处理验证码/邮箱码，否则等待登录态。"""
+        if self.status in ("success", "failed"):
+            return
+        if await _captcha_present(self.context):
+            await self._capture_captcha()
+            return
+        if await self._find_code_input() is not None:
+            self.status = "email_code"
+            self.message = "请输入邮箱收到的验证码"
+            return
+        remaining = max(10.0, min(120.0, self._deadline - time.time()))
+        cookie = await _wait_lip_cookie(self.context, timeout=remaining)
+        if cookie is not None:
+            self.cookie = cookie
+            self.status = "success"
+            await self.close()
+            return
+        if await _captcha_present(self.context):
+            await self._capture_captcha()
+            return
+        if await self._find_code_input() is not None:
+            self.status = "email_code"
+            self.message = "请输入邮箱收到的验证码"
+            return
+        await self._fail("登录未完成：可能需要人机验证或邮箱验证码，请重试或改用 Cookie 绑定。")
+
+    async def _capture_captcha(self):
+        try:
+            from ..nikke_login.browser import _analyze, _find_captcha
+        except Exception:  # noqa: BLE001
+            await self._fail("当前部署缺少验证码组件，请改用 Cookie 绑定。")
+            return
+        page, el, box = await _find_captcha(self.context)
+        if el is None or not box:
+            await self._fail("验证码窗口读取失败，请重试或改用 Cookie。")
+            return
+        try:
+            shot = await el.screenshot(scale="css")
+            _, target = _analyze(shot)
+        except Exception:  # noqa: BLE001
+            shot, target = b"", None
+        if not shot:
+            await self._fail("验证码截图失败，请重试或改用 Cookie。")
+            return
+        import base64
+        self.captcha_png = "data:image/png;base64," + base64.b64encode(shot).decode()
+        self._box = box
+        self._drag_from = target  # (dx, sy, sx) 或 None
+        self.status = "captcha"
+        self.message = "请拖动滑块完成人机验证"
+
+    async def submit_captcha(self, dx: float):
+        if self.status != "captcha" or self.page is None or not self._box:
+            return
+        self.captcha_attempts += 1
+        box = self._box
+        if self._drag_from:
+            _, sy, sx = self._drag_from
+        else:
+            sy, sx = box["height"] - 22, 40
+        try:
+            from ..nikke_login.browser import _human_drag
+            await _human_drag(self.page, box["x"] + sx, box["y"] + sy, float(dx))
+        except Exception:  # noqa: BLE001
+            await self._fail("验证码拖动失败，请重试或改用 Cookie。")
+            return
+        await self.page.wait_for_timeout(3000)
+        if await _captcha_present(self.context):
+            if self.captcha_attempts >= 4:
+                await self._fail("人机验证多次未通过，请改用 Cookie 绑定。")
+                return
+            await self._capture_captcha()
+            return
+        self.status = "logging_in"
+        await self._after_submit()
+
+    async def submit_email_code(self, code: str):
+        if self.status != "email_code" or self.page is None:
+            return
+        loc = await self._find_code_input()
+        if loc is None:
+            await self._fail("没有找到验证码输入框，请重试或改用 Cookie。")
+            return
+        try:
+            await loc.fill(code.strip(), timeout=8000)
+            await _submit(self.page)
+        except Exception:  # noqa: BLE001
+            await self._fail("验证码提交失败，请重试或改用 Cookie。")
+            return
+        await self.page.wait_for_timeout(4000)
+        self.status = "logging_in"
+        await self._after_submit()
+
+
+__all__ = ["LPassAuthError", "LoginError", "LoginFlow", "login_with_password", "verify"]

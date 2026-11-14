@@ -17,7 +17,7 @@ from pydantic import BaseModel
 
 from ..nikke_login.session import sessions
 from .api import LPassAuthError, LPassError, parse_cookie
-from .auth import LoginError, login_with_password, verify
+from .auth import LoginFlow, verify
 from .store import LPassBind, encrypt_cookie
 
 PAGE = """<!DOCTYPE html>
@@ -143,6 +143,19 @@ PAGE = """<!DOCTYPE html>
   </form>
 
   <div class="status" id="status"></div>
+
+  <div class="status info" id="challenge" style="display:none">
+    <div id="challenge-tip"></div>
+    <img id="challenge-img" alt="人机验证" style="display:none;max-width:100%;margin-top:8px;border-radius:8px">
+    <div id="challenge-slider" style="display:none;margin-top:10px">
+      <input type="range" id="challenge-dx" min="0" max="320" value="0" style="width:100%">
+      <button class="btn ghost" id="challenge-send" type="button" style="margin-top:8px">提交验证</button>
+    </div>
+    <div id="challenge-code-box" style="display:none;margin-top:10px">
+      <input id="challenge-code" placeholder="邮箱验证码" style="width:100%;height:42px;border-radius:8px;border:1px solid #bbb;padding:0 10px">
+      <button class="btn ghost" id="challenge-code-send" type="button" style="margin-top:8px">提交验证码</button>
+    </div>
+  </div>
   <p class="foot">绑定成功后推荐发送 #LPass开启全量签到，每天自动签到。</p>
 </div>
 
@@ -201,12 +214,53 @@ function onFailure(data) {
   stopPoll();
 }
 
+function showChallenge(data) {
+  const box = $("challenge");
+  box.style.display = "block";
+  $("challenge-tip").textContent = data.message || "请完成验证";
+  if (data.status === "captcha") {
+    $("challenge-img").src = data.image;
+    $("challenge-img").style.display = "block";
+    $("challenge-slider").style.display = "block";
+    $("challenge-code-box").style.display = "none";
+  } else {
+    $("challenge-img").style.display = "none";
+    $("challenge-slider").style.display = "none";
+    $("challenge-code-box").style.display = "block";
+  }
+}
+
+async function sendChallenge(url, body) {
+  const resp = await fetch(url, {
+    method: "POST",
+    headers: { "Content-Type": "application/json" },
+    body: JSON.stringify(body)
+  });
+  const data = await readJson(resp);
+  if (data.status === "success") { $("challenge").style.display = "none"; onSuccess(data); return; }
+  if (data.status === "failed") { $("challenge").style.display = "none"; onFailure(data); return; }
+  showChallenge(data);
+}
+
+$("challenge-send").addEventListener("click", () => {
+  const dx = Number($("challenge-dx").value);
+  sendChallenge("/nikke/lpass/api/" + TOKEN + "/captcha", { dx: dx });
+});
+$("challenge-code-send").addEventListener("click", () => {
+  sendChallenge("/nikke/lpass/api/" + TOKEN + "/email-code", { code: $("challenge-code").value });
+});
+
 async function pollStatus() {
   try {
     const resp = await fetch("/nikke/lpass/api/" + TOKEN + "/status");
     const data = await readJson(resp);
     if (data.status === "success") { onSuccess(data); return; }
     if (data.status === "failed") { onFailure(data); return; }
+    if (data.status === "captcha" || data.status === "email_code") {
+      setStatus("需要你完成验证", "info");
+      showChallenge(data);
+      return;
+    }
     if (data.status === "logging_in") {
       setStatus("正在登录中…（约 30~90 秒，请勿关闭页面）", "info");
       return;
@@ -274,6 +328,14 @@ class CookieBody(BaseModel):
     cookie: str = ""
 
 
+class CaptchaBody(BaseModel):
+    dx: float = 0
+
+
+class EmailCodeBody(BaseModel):
+    code: str = ""
+
+
 def _bad(msg: str, status: int = 410) -> HTMLResponse:
     return HTMLResponse(
         '<!doctype html><meta charset="utf-8">'
@@ -321,19 +383,13 @@ def _success_payload(nickname: str, points: int, days: int, openid: str) -> dict
             "days": days, "masked": _mask(openid), "message": "\n".join(lines)}
 
 
-async def _finish_login(token: str, email: str, password: str) -> None:
-    """后台任务：跑 Playwright 登录并落库，状态写在 session 上供页面轮询。"""
-    session = sessions.get(token)
-    if session is None:
-        return
+_FLOWS: dict[str, LoginFlow] = {}
+
+
+async def _complete_binding(token: str, session, cookie):
+    """登录成功后统一落库、更新会话并推送聊天。"""
     try:
-        cookie = await login_with_password(email, password, timeout=110)
         summary = await verify(cookie)
-    except LoginError as exc:
-        session.status = "failed"
-        session.error = str(exc) + "\n可切换到「粘贴 Cookie」完成绑定。"
-        await _notify_session(session, "LEVELINFINITEPASS绑定失败：" + str(exc)[:200])
-        return
     except LPassAuthError:
         session.status = "failed"
         session.error = "登录完成但未拿到有效 LIP 登录态，请改用 Cookie 绑定。"
@@ -344,13 +400,6 @@ async def _finish_login(token: str, email: str, password: str) -> None:
         session.error = f"登录态校验失败：{exc}"
         await _notify_session(session, f"LEVELINFINITEPASS绑定失败：{exc}")
         return
-    except Exception as exc:  # noqa: BLE001
-        session.status = "failed"
-        session.error = "登录过程异常，请稍后重试或改用 Cookie。"
-        logger.error(f"[Lpass] 网页登录异常 error_type={type(exc).__name__}")
-        await _notify_session(session, "LEVELINFINITEPASS绑定失败：登录过程异常，请改用 Cookie。")
-        return
-
     nickname = str(summary.get("nickname") or cookie.user_name or "")
     try:
         await LPassBind.save_bind(
@@ -371,8 +420,35 @@ async def _finish_login(token: str, email: str, password: str) -> None:
     payload = _success_payload(nickname, int(summary.get("points") or 0),
                                cookie.days_left, cookie.openid)
     _RESULTS[token] = payload
+    _FLOWS.pop(token, None)
     logger.info("[Lpass] 网页登录绑定成功")
     await _notify_session(session, "LEVELINFINITEPASS" + payload["message"])
+
+
+async def _finish_login(token: str, email: str, password: str) -> None:
+    """后台任务：启动可交互登录；遇到验证码/邮箱码时把控制权交给绑定页。"""
+    session = sessions.get(token)
+    if session is None:
+        return
+    flow = LoginFlow(email, password)
+    _FLOWS[token] = flow
+    session.login_flow = flow
+    try:
+        await flow.start()
+    except Exception as exc:  # noqa: BLE001
+        logger.error(f"[Lpass] 交互登录启动异常 error_type={type(exc).__name__}")
+        await flow._fail("登录启动异常，请稍后重试或改用 Cookie。")
+    if flow.status == "success" and flow.cookie is not None:
+        await _complete_binding(token, session, flow.cookie)
+        return
+    if flow.status in ("captcha", "email_code"):
+        session.status = flow.status
+        session.error = ""
+        return
+    session.status = "failed"
+    session.error = flow.error or "登录未完成，请稍后重试或改用 Cookie。"
+    _FLOWS.pop(token, None)
+    await _notify_session(session, "LEVELINFINITEPASS绑定失败：" + session.error[:200])
 
 
 @app.get("/nikke/lpass/{token}", response_class=HTMLResponse)
@@ -428,7 +504,56 @@ async def lpass_login_status(token: str):
     if session.status == "failed":
         return JSONResponse({"ok": False, "status": "failed",
                              "msg": session.error or "登录失败，请改用 Cookie 绑定。"})
+    if session.status in ("captcha", "email_code"):
+        flow = getattr(session, "login_flow", None)
+        if flow is None:
+            return JSONResponse({"ok": False, "status": "failed",
+                                 "msg": "验证会话已失效，请重新发起登录或改用 Cookie。"})
+        return JSONResponse({"ok": True, "status": session.status,
+                             "message": flow.message,
+                             "image": flow.captcha_png if session.status == "captcha" else ""})
     return JSONResponse({"ok": True, "status": "logging_in"})
+
+
+async def _challenge_result(token: str, session, flow):
+    if flow.status == "success" and flow.cookie is not None:
+        await _complete_binding(token, session, flow.cookie)
+        cached = _RESULTS.get(token)
+        if cached:
+            return JSONResponse(cached)
+        return JSONResponse({"ok": True, "status": "success",
+                             "nickname": session.nickname,
+                             "message": f"绑定成功\n账号：{session.nickname}"})
+    if flow.status == "failed":
+        session.status = "failed"
+        session.error = flow.error or "验证失败，请重试或改用 Cookie。"
+        return JSONResponse({"ok": False, "status": "failed", "msg": session.error})
+    session.status = flow.status
+    return JSONResponse({"ok": True, "status": flow.status,
+                         "message": flow.message,
+                         "image": flow.captcha_png if flow.status == "captcha" else ""})
+
+
+@app.post("/nikke/lpass/api/{token}/captcha")
+async def lpass_login_captcha(token: str, payload: CaptchaBody):
+    session = sessions.get(token)
+    flow = getattr(session, "login_flow", None) if session else None
+    if session is None or flow is None:
+        return JSONResponse({"ok": False, "status": "failed",
+                             "msg": "验证会话已失效，请重新发起登录或改用 Cookie。"}, status_code=410)
+    await flow.submit_captcha(payload.dx)
+    return await _challenge_result(token, session, flow)
+
+
+@app.post("/nikke/lpass/api/{token}/email-code")
+async def lpass_login_email_code(token: str, payload: EmailCodeBody):
+    session = sessions.get(token)
+    flow = getattr(session, "login_flow", None) if session else None
+    if session is None or flow is None:
+        return JSONResponse({"ok": False, "status": "failed",
+                             "msg": "验证会话已失效，请重新发起登录或改用 Cookie。"}, status_code=410)
+    await flow.submit_email_code(payload.code)
+    return await _challenge_result(token, session, flow)
 
 
 @app.post("/nikke/lpass/api/{token}/cookie")

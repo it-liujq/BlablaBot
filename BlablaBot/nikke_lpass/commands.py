@@ -24,7 +24,6 @@ from .auth import LoginError, login_with_password, verify
 from .report import (render, render_auto_status, render_bind, render_compact,
                      render_status_detail)
 from .store import (
-    DEFAULT_AUTO_TIME,
     FULL_SIGN_TIME,
     LPassBind,
     decrypt_cookie,
