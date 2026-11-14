@@ -202,6 +202,9 @@ async function readJson(resp) {
 }
 
 function onSuccess(data) {
+  $("challenge").style.display = "none";
+  document.querySelectorAll(".cap-dot").forEach(e => e.remove());
+  window.__points = [];
   setStatus(data.message || ("绑定成功，账号：" + (data.nickname || "LI PASS 账号")), "ok");
   $("submit").textContent = "已完成";
   $("submit").disabled = true;
@@ -210,6 +213,7 @@ function onSuccess(data) {
 }
 
 function onFailure(data) {
+  $("challenge").style.display = "none";
   setStatus(data.msg || "绑定失败", "err");
   $("submit").disabled = false;
   if (authMode === "password") $("mode-cookie").classList.add("suggest");
