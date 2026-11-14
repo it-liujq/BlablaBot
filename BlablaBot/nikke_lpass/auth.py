@@ -422,12 +422,31 @@ class LoginFlow:
         if not box:
             await self._fail("没有找到人机验证窗口，请重试或改用 Cookie。")
             return
-        try:
-            shot = await page.screenshot(clip={
-                "x": box["x"], "y": box["y"],
-                "width": box["width"], "height": box["height"]})
-        except Exception:  # noqa: BLE001
-            shot = b""
+        shot = b""
+        # 1) 元素截图最稳（iframe 元素可截到内部内容）
+        for sel in ("#tcaptcha_iframe", ".tcaptcha-transform", "iframe[src*='captcha']"):
+            try:
+                loc = page.locator(sel).first
+                if await loc.count():
+                    shot = await loc.screenshot(scale="css", timeout=15000)
+                    if shot:
+                        break
+            except Exception:  # noqa: BLE001
+                continue
+        # 2) 整页截图后按视口坐标裁剪
+        if not shot:
+            try:
+                full = await page.screenshot(timeout=20000)
+                from PIL import Image
+                import io
+                img = Image.open(io.BytesIO(full)).convert("RGB")
+                left, top = int(box["x"]), int(box["y"])
+                img = img.crop((left, top, left + int(box["width"]), top + int(box["height"])))
+                buf = io.BytesIO()
+                img.save(buf, format="PNG")
+                shot = buf.getvalue()
+            except Exception:  # noqa: BLE001
+                shot = b""
         if not shot:
             await self._fail("验证码截图失败，请重试或改用 Cookie。")
             return
