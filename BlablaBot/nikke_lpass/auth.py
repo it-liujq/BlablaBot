@@ -103,16 +103,85 @@ async def _open_login_modal(page) -> None:
     raise LoginError("没能打开登录弹窗（页面结构可能变化），请改用 Cookie 绑定。")
 
 
-async def _captcha_present(ctx) -> bool:
+CAPTCHA_BOX_JS = r"""
+() => {
+  const walk = (root, out) => {
+    for (const el of root.querySelectorAll('*')) { out.push(el); if (el.shadowRoot) walk(el.shadowRoot, out); }
+    return out;
+  };
+  const all = walk(document, []);
+  const sels = ['#tcaptcha_iframe', '.tcaptcha-transform', 'iframe[src*="captcha"]', '[id*="tcaptcha"]'];
+  for (const sel of sels) {
+    const el = all.find(e => { try { return e.matches && e.matches(sel); } catch (x) { return false; } });
+    if (el) {
+      const r = el.getBoundingClientRect();
+      if (r.width > 150 && r.height > 80) return {x: r.x, y: r.y, width: r.width, height: r.height};
+    }
+  }
+  const ifr = all.find(e => e.tagName === 'IFRAME' && (e.src || '').toLowerCase().includes('captcha'));
+  if (ifr) {
+    const r = ifr.getBoundingClientRect();
+    if (r.width > 150 && r.height > 80) return {x: r.x, y: r.y, width: r.width, height: r.height};
+  }
+  return null;
+}
+"""
+
+
+async def _captcha_box(page):
+    """返回验证码组件在页面上的实际矩形（CSS 像素）。"""
+    # 1) Playwright 定位器（可穿透 shadow DOM）
+    for sel in ("#tcaptcha_iframe", ".tcaptcha-transform", "iframe[src*='captcha']"):
+        try:
+            loc = page.locator(sel).first
+            if await loc.count():
+                box = await loc.bounding_box()
+                if box and 150 < box.get("width", 0) <= 900 and 80 < box.get("height", 0) <= 900:
+                    return {"x": box["x"], "y": box["y"],
+                            "width": box["width"], "height": box["height"]}
+        except Exception:  # noqa: BLE001
+            continue
+    # 2) DOM 选择器（最准确）
     try:
-        from ..nikke_login.browser import _find_captcha
+        box = await page.evaluate(CAPTCHA_BOX_JS)
+        if box and 150 < box.get("width", 0) <= 900 and 80 < box.get("height", 0) <= 900:
+            return box
     except Exception:  # noqa: BLE001
-        return False
+        pass
+    # 再试真正的 captcha 第三方 frame（排除 pass 主站自身）
     try:
-        _, el, box = await _find_captcha(ctx)
+        for fr in page.frames:
+            url = (fr.url or "").lower()
+            if "captcha" not in url or "pass.levelinfinite.com" in url:
+                continue
+            try:
+                el = await fr.frame_element()
+                box = await el.bounding_box()
+            except Exception:  # noqa: BLE001
+                box = None
+            if not box:
+                continue
+            w, h = box.get("width", 0), box.get("height", 0)
+            if 150 < w <= 900 and 80 < h <= 900:
+                return {"x": box["x"], "y": box["y"], "width": w, "height": h}
     except Exception:  # noqa: BLE001
-        return False
-    return el is not None and bool(box)
+        pass
+    return None
+
+
+async def _captcha_present(page_or_ctx) -> bool:
+    page = getattr(page_or_ctx, "page", page_or_ctx)
+    try:
+        pages = getattr(page_or_ctx, "pages", None) or [page]
+    except Exception:  # noqa: BLE001
+        pages = [page]
+    for p in pages:
+        try:
+            if await _captcha_box(p):
+                return True
+        except Exception:  # noqa: BLE001
+            continue
+    return False
 
 
 async def _solve_captcha(ctx, page, *, attempts: int = 4) -> bool:
@@ -241,6 +310,7 @@ class LoginFlow:
         self.error = ""
         self.cookie: Optional[LPassCookie] = None
         self.captcha_png = ""            # data:image/png;base64,...
+        self.captcha_width = 0
         self.captcha_attempts = 0
         self._deadline = time.time() + max(120, int(timeout))
         self._pw = None
@@ -344,44 +414,52 @@ class LoginFlow:
         await self._fail("登录未完成：可能需要人机验证或邮箱验证码，请重试或改用 Cookie 绑定。")
 
     async def _capture_captcha(self):
-        try:
-            from ..nikke_login.browser import _analyze, _find_captcha
-        except Exception:  # noqa: BLE001
-            await self._fail("当前部署缺少验证码组件，请改用 Cookie 绑定。")
-            return
-        page, el, box = await _find_captcha(self.context)
-        if el is None or not box:
+        page = self.page
+        if page is None:
             await self._fail("验证码窗口读取失败，请重试或改用 Cookie。")
             return
+        box = await _captcha_box(page)
+        if not box:
+            await self._fail("没有找到人机验证窗口，请重试或改用 Cookie。")
+            return
         try:
-            shot = await el.screenshot(scale="css")
-            _, target = _analyze(shot)
+            shot = await page.screenshot(clip={
+                "x": box["x"], "y": box["y"],
+                "width": box["width"], "height": box["height"]})
         except Exception:  # noqa: BLE001
-            shot, target = b"", None
+            shot = b""
         if not shot:
             await self._fail("验证码截图失败，请重试或改用 Cookie。")
             return
         import base64
         self.captcha_png = "data:image/png;base64," + base64.b64encode(shot).decode()
         self._box = box
-        self._drag_from = target  # (dx, sy, sx) 或 None
+        self.captcha_width = box["width"]
         self.status = "captcha"
-        self.message = "请拖动滑块完成人机验证"
+        self.message = "点选图中正确的位置（拼图类则拖动滑块），然后点「提交验证」"
 
-    async def submit_captcha(self, dx: float):
+    async def submit_captcha(self, dx: float, points=None):
         if self.status != "captcha" or self.page is None or not self._box:
             return
         self.captcha_attempts += 1
         box = self._box
-        if self._drag_from:
-            _, sy, sx = self._drag_from
-        else:
-            sy, sx = box["height"] - 22, 40
         try:
-            from ..nikke_login.browser import _human_drag
-            await _human_drag(self.page, box["x"] + sx, box["y"] + sy, float(dx))
+            if points:
+                # 点选类验证码：按比例点击用户选择的图片位置
+                for pt in points[:6]:
+                    x = box["x"] + float(pt.get("x", 0)) * box["width"]
+                    y = box["y"] + float(pt.get("y", 0)) * box["height"]
+                    await self.page.mouse.click(x, y)
+                    await self.page.wait_for_timeout(400)
+                # 点右下角「确定」
+                await self.page.mouse.click(box["x"] + box["width"] * 0.88,
+                                            box["y"] + box["height"] * 0.93)
+            else:
+                from ..nikke_login.browser import _human_drag
+                sy, sx = box["height"] - 24, 40
+                await _human_drag(self.page, box["x"] + sx, box["y"] + sy, float(dx))
         except Exception:  # noqa: BLE001
-            await self._fail("验证码拖动失败，请重试或改用 Cookie。")
+            await self._fail("验证码操作失败，请重试或改用 Cookie。")
             return
         await self.page.wait_for_timeout(3000)
         if await _captcha_present(self.context):

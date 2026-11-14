@@ -146,7 +146,9 @@ PAGE = """<!DOCTYPE html>
 
   <div class="status info" id="challenge" style="display:none">
     <div id="challenge-tip"></div>
-    <img id="challenge-img" alt="人机验证" style="display:none;max-width:100%;margin-top:8px;border-radius:8px">
+    <div id="challenge-img-wrap" style="display:none;position:relative;margin-top:8px">
+      <img id="challenge-img" alt="人机验证" style="width:100%;max-width:100%;border-radius:8px;display:block">
+    </div>
     <div id="challenge-slider" style="display:none;margin-top:10px">
       <input type="range" id="challenge-dx" min="0" max="320" value="0" style="width:100%">
       <button class="btn ghost" id="challenge-send" type="button" style="margin-top:8px">提交验证</button>
@@ -218,13 +220,15 @@ function showChallenge(data) {
   const box = $("challenge");
   box.style.display = "block";
   $("challenge-tip").textContent = data.message || "请完成验证";
+  window.__captchaWidth = data.captcha_width || 0;
   if (data.status === "captcha") {
     $("challenge-img").src = data.image;
     $("challenge-img").style.display = "block";
+    $("challenge-img-wrap").style.display = "block";
     $("challenge-slider").style.display = "block";
     $("challenge-code-box").style.display = "none";
   } else {
-    $("challenge-img").style.display = "none";
+    $("challenge-img-wrap").style.display = "none";
     $("challenge-slider").style.display = "none";
     $("challenge-code-box").style.display = "block";
   }
@@ -242,9 +246,26 @@ async function sendChallenge(url, body) {
   showChallenge(data);
 }
 
+$("challenge-img-wrap").addEventListener("click", (e) => {
+  const img = $("challenge-img");
+  const r = img.getBoundingClientRect();
+  if (e.clientX < r.left || e.clientX > r.right || e.clientY < r.top || e.clientY > r.bottom) return;
+  const x = (e.clientX - r.left) / r.width;
+  const y = (e.clientY - r.top) / r.height;
+  window.__points = window.__points || [];
+  window.__points.push({ x: x, y: y });
+  const dot = document.createElement("div");
+  dot.className = "cap-dot";
+  dot.style.cssText = "position:absolute;width:16px;height:16px;margin:-8px;border-radius:50%;background:#ff3b30;border:2px solid #fff;pointer-events:none;left:" + (e.clientX - r.left) + "px;top:" + (e.clientY - r.top) + "px";
+  $("challenge-img-wrap").appendChild(dot);
+});
+
 $("challenge-send").addEventListener("click", () => {
-  const dx = Number($("challenge-dx").value);
-  sendChallenge("/nikke/lpass/api/" + TOKEN + "/captcha", { dx: dx });
+  const img = $("challenge-img");
+  const shown = img.clientWidth || 1;
+  const scale = window.__captchaWidth ? window.__captchaWidth / shown : 1;
+  const dx = Number($("challenge-dx").value) * scale;
+  sendChallenge("/nikke/lpass/api/" + TOKEN + "/captcha", { dx: dx, points: window.__points || [] });
 });
 $("challenge-code-send").addEventListener("click", () => {
   sendChallenge("/nikke/lpass/api/" + TOKEN + "/email-code", { code: $("challenge-code").value });
@@ -328,8 +349,14 @@ class CookieBody(BaseModel):
     cookie: str = ""
 
 
+class CaptchaPoint(BaseModel):
+    x: float = 0
+    y: float = 0
+
+
 class CaptchaBody(BaseModel):
     dx: float = 0
+    points: list[CaptchaPoint] = []
 
 
 class EmailCodeBody(BaseModel):
@@ -511,7 +538,8 @@ async def lpass_login_status(token: str):
                                  "msg": "验证会话已失效，请重新发起登录或改用 Cookie。"})
         return JSONResponse({"ok": True, "status": session.status,
                              "message": flow.message,
-                             "image": flow.captcha_png if session.status == "captcha" else ""})
+                             "image": flow.captcha_png if session.status == "captcha" else "",
+                             "captcha_width": getattr(flow, "captcha_width", 0)})
     return JSONResponse({"ok": True, "status": "logging_in"})
 
 
@@ -531,7 +559,8 @@ async def _challenge_result(token: str, session, flow):
     session.status = flow.status
     return JSONResponse({"ok": True, "status": flow.status,
                          "message": flow.message,
-                         "image": flow.captcha_png if flow.status == "captcha" else ""})
+                         "image": flow.captcha_png if flow.status == "captcha" else "",
+                         "captcha_width": getattr(flow, "captcha_width", 0)})
 
 
 @app.post("/nikke/lpass/api/{token}/captcha")
@@ -541,7 +570,7 @@ async def lpass_login_captcha(token: str, payload: CaptchaBody):
     if session is None or flow is None:
         return JSONResponse({"ok": False, "status": "failed",
                              "msg": "验证会话已失效，请重新发起登录或改用 Cookie。"}, status_code=410)
-    await flow.submit_captcha(payload.dx)
+    await flow.submit_captcha(payload.dx, [p.model_dump() for p in payload.points])
     return await _challenge_result(token, session, flow)
 
 
