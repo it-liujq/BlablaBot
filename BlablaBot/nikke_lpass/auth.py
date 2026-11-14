@@ -311,6 +311,8 @@ class LoginFlow:
         self.cookie: Optional[LPassCookie] = None
         self.captcha_png = ""            # data:image/png;base64,...
         self.captcha_width = 0
+        self.viewport = {"width": 1500, "height": 950}
+        self._last_shot = (0.0, b"")
         self.captcha_attempts = 0
         self._deadline = time.time() + max(120, int(timeout))
         self._pw = None
@@ -319,6 +321,63 @@ class LoginFlow:
         self.page = None
         self._box = None
         self._drag_from = None
+
+    async def snapshot(self) -> bytes:
+        """返回当前浏览器视口的 JPEG 截图（用于远程视图）。"""
+        if self.page is None:
+            return b""
+        now = time.time()
+        if now - self._last_shot[0] < 0.25 and self._last_shot[1]:
+            return self._last_shot[1]
+        try:
+            shot = await self.page.screenshot(type="jpeg", quality=60, timeout=8000)
+        except Exception:  # noqa: BLE001
+            return self._last_shot[1]
+        self._last_shot = (now, shot)
+        return shot
+
+    async def remote_check(self):
+        """远程视图期间轮询验证码是否已消失，消失后继续登录。"""
+        if self.status != "remote" or self.page is None:
+            return
+        if not await _captcha_present(self.page):
+            self.status = "logging_in"
+            asyncio.create_task(self._after_submit())
+
+    async def send_input(self, event: dict):
+        """把前端远程视图上的鼠标/键盘事件转发到真实浏览器。"""
+        if self.page is None:
+            return
+        kind = str(event.get("type") or "")
+        x = float(event.get("x") or 0)
+        y = float(event.get("y") or 0)
+        try:
+            if kind == "click":
+                await self.page.mouse.click(x, y)
+            elif kind == "move":
+                await self.page.mouse.move(x, y)
+            elif kind == "down":
+                await self.page.mouse.move(x, y)
+                await self.page.mouse.down()
+            elif kind == "up":
+                await self.page.mouse.move(x, y)
+                await self.page.mouse.up()
+            elif kind == "drag":
+                x2 = float(event.get("x2") or x)
+                y2 = float(event.get("y2") or y)
+                await self.page.mouse.move(x, y)
+                await self.page.mouse.down()
+                await self.page.mouse.move(x2, y2, steps=20)
+                await self.page.mouse.up()
+            elif kind == "wheel":
+                await self.page.mouse.wheel(float(event.get("dx") or 0),
+                                           float(event.get("dy") or 0))
+            elif kind == "key":
+                await self.page.keyboard.press(str(event.get("key") or ""))
+            elif kind == "text":
+                await self.page.keyboard.type(str(event.get("text") or ""))
+        except Exception:  # noqa: BLE001
+            pass
 
     async def close(self):
         try:
@@ -391,7 +450,8 @@ class LoginFlow:
         if self.status in ("success", "failed"):
             return
         if await _captcha_present(self.context):
-            await self._capture_captcha()
+            self.status = "remote"
+            self.message = "请在下方窗口中完成验证"
             return
         if await self._find_code_input() is not None:
             self.status = "email_code"
@@ -405,7 +465,8 @@ class LoginFlow:
             await self.close()
             return
         if await _captcha_present(self.context):
-            await self._capture_captcha()
+            self.status = "remote"
+            self.message = "请在下方窗口中完成验证"
             return
         if await self._find_code_input() is not None:
             self.status = "email_code"

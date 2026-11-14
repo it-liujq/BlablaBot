@@ -10,7 +10,7 @@ import asyncio
 import html
 import time
 
-from fastapi.responses import HTMLResponse, JSONResponse
+from fastapi.responses import HTMLResponse, JSONResponse, Response
 from gsuid_core.logger import logger
 from gsuid_core.web_app import app
 from pydantic import BaseModel
@@ -144,6 +144,13 @@ PAGE = """<!DOCTYPE html>
 
   <div class="status" id="status"></div>
 
+  <div class="status info" id="remote" style="display:none">
+    <div id="remote-tip">请在下方窗口中完成验证</div>
+    <div id="remote-wrap" style="position:relative;margin-top:8px;border-radius:8px;overflow:hidden;border:1px solid rgba(255,255,255,.2)">
+      <img id="remote-img" style="width:100%;display:block;cursor:crosshair">
+    </div>
+  </div>
+
   <div class="status info" id="challenge" style="display:none">
     <div id="challenge-tip"></div>
     <div id="challenge-img-wrap" style="display:none;position:relative;margin-top:8px">
@@ -203,6 +210,7 @@ async function readJson(resp) {
 
 function onSuccess(data) {
   $("challenge").style.display = "none";
+  $("remote").style.display = "none"; stopRemote();
   document.querySelectorAll(".cap-dot").forEach(e => e.remove());
   window.__points = [];
   setStatus(data.message || ("绑定成功，账号：" + (data.nickname || "LI PASS 账号")), "ok");
@@ -214,11 +222,55 @@ function onSuccess(data) {
 
 function onFailure(data) {
   $("challenge").style.display = "none";
+  $("remote").style.display = "none"; stopRemote();
   setStatus(data.msg || "绑定失败", "err");
   $("submit").disabled = false;
   if (authMode === "password") $("mode-cookie").classList.add("suggest");
   stopPoll();
 }
+
+let remoteTimer = null, remoteSize = { w: 1500, h: 950 }, dragFrom = null;
+function stopRemote() { if (remoteTimer) { clearInterval(remoteTimer); remoteTimer = null; } }
+async function refreshRemote() {
+  try {
+    const r = await fetch("/nikke/lpass/api/" + TOKEN + "/screen", { cache: "no-store" });
+    if (!r.ok) return;
+    const blob = await r.blob();
+    $("remote-img").src = URL.createObjectURL(blob);
+  } catch (e) {}
+}
+function showRemote(data) {
+  $("challenge").style.display = "none";
+  $("remote").style.display = "block";
+  $("remote-tip").textContent = data.message || "请在下方窗口中完成验证";
+  remoteSize = { w: data.width || 1500, h: data.height || 950 };
+  if (!remoteTimer) { refreshRemote(); remoteTimer = setInterval(refreshRemote, 700); }
+}
+function remoteCoords(e) {
+  const img = $("remote-img"), r = img.getBoundingClientRect();
+  return { x: (e.clientX - r.left) / r.width * remoteSize.w,
+           y: (e.clientY - r.top) / r.height * remoteSize.h };
+}
+async function sendInput(ev) {
+  try {
+    await fetch("/nikke/lpass/api/" + TOKEN + "/input", {
+      method: "POST", headers: { "Content-Type": "application/json" }, body: JSON.stringify(ev)
+    });
+  } catch (e) {}
+}
+$("remote-img").addEventListener("mousedown", (e) => { dragFrom = remoteCoords(e); });
+$("remote-img").addEventListener("mouseup", async (e) => {
+  if (!dragFrom) return;
+  const to = remoteCoords(e);
+  const dist = Math.hypot(to.x - dragFrom.x, to.y - dragFrom.y);
+  if (dist < 6) await sendInput({ type: "click", x: to.x, y: to.y });
+  else await sendInput({ type: "drag", x: dragFrom.x, y: dragFrom.y, x2: to.x, y2: to.y });
+  dragFrom = null;
+});
+$("remote-img").addEventListener("wheel", async (e) => {
+  e.preventDefault();
+  await sendInput({ type: "wheel", dx: e.deltaX, dy: e.deltaY });
+}, { passive: false });
 
 function showChallenge(data) {
   const box = $("challenge");
@@ -288,6 +340,11 @@ async function pollStatus() {
     const data = await readJson(resp);
     if (data.status === "success") { onSuccess(data); return; }
     if (data.status === "failed") { onFailure(data); return; }
+    if (data.status === "remote") {
+      setStatus("需要你完成验证", "info");
+      showRemote(data);
+      return;
+    }
     if (data.status === "captcha" || data.status === "email_code") {
       setStatus("需要你完成验证", "info");
       showChallenge(data);
@@ -372,6 +429,18 @@ class CaptchaBody(BaseModel):
 
 class EmailCodeBody(BaseModel):
     code: str = ""
+
+
+class InputBody(BaseModel):
+    type: str = ""
+    x: float = 0
+    y: float = 0
+    x2: float = 0
+    y2: float = 0
+    dx: float = 0
+    dy: float = 0
+    key: str = ""
+    text: str = ""
 
 
 def _bad(msg: str, status: int = 410) -> HTMLResponse:
@@ -542,6 +611,14 @@ async def lpass_login_status(token: str):
     if session.status == "failed":
         return JSONResponse({"ok": False, "status": "failed",
                              "msg": session.error or "登录失败，请改用 Cookie 绑定。"})
+    if session.status == "remote":
+        flow = getattr(session, "login_flow", None)
+        if flow is None:
+            return JSONResponse({"ok": False, "status": "failed",
+                                 "msg": "验证会话已失效，请重新发起登录或改用 Cookie。"})
+        return JSONResponse({"ok": True, "status": "remote", "message": flow.message,
+                             "width": flow.viewport.get("width", 1500),
+                             "height": flow.viewport.get("height", 950)})
     if session.status in ("captcha", "email_code"):
         flow = getattr(session, "login_flow", None)
         if flow is None:
@@ -604,6 +681,30 @@ async def lpass_login_email_code(token: str, payload: EmailCodeBody):
         return JSONResponse({"ok": False, "status": "failed",
                              "msg": "验证码提交异常，请重试或改用 Cookie。"})
     return await _challenge_result(token, session, flow)
+
+
+@app.get("/nikke/lpass/api/{token}/screen")
+async def lpass_login_screen(token: str):
+    session = sessions.get(token)
+    flow = getattr(session, "login_flow", None) if session else None
+    if session is None or flow is None:
+        return JSONResponse({"ok": False, "msg": "会话已失效"}, status_code=410)
+    await flow.remote_check()
+    shot = await flow.snapshot()
+    if not shot:
+        return JSONResponse({"ok": False, "msg": "截图失败"}, status_code=503)
+    return Response(content=shot, media_type="image/jpeg",
+                    headers={"Cache-Control": "no-store"})
+
+
+@app.post("/nikke/lpass/api/{token}/input")
+async def lpass_login_input(token: str, payload: InputBody):
+    session = sessions.get(token)
+    flow = getattr(session, "login_flow", None) if session else None
+    if session is None or flow is None:
+        return JSONResponse({"ok": False, "msg": "会话已失效"}, status_code=410)
+    await flow.send_input(payload.model_dump())
+    return JSONResponse({"ok": True})
 
 
 @app.post("/nikke/lpass/api/{token}/cookie")
