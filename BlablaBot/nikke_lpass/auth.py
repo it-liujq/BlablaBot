@@ -355,10 +355,10 @@ class LoginFlow:
         if self.page is None:
             return b""
         now = time.time()
-        if now - self._last_shot[0] < 0.25 and self._last_shot[1]:
+        if now - self._last_shot[0] < 0.5 and self._last_shot[1]:
             return self._last_shot[1]
         try:
-            shot = await self.page.screenshot(type="jpeg", quality=60, timeout=8000)
+            shot = await self.page.screenshot(type="jpeg", quality=45, timeout=8000)
         except Exception:  # noqa: BLE001
             return self._last_shot[1]
         self._last_shot = (now, shot)

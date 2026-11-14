@@ -162,9 +162,15 @@ PAGE = """<!DOCTYPE html>
 </div>
 
 <div class="status info" id="remote" style="display:none;position:fixed;left:2vw;top:2vh;width:96vw;height:96vh;z-index:9999;background:#0b0d16;border:1px solid rgba(255,255,255,.25);border-radius:12px;padding:14px;overflow:auto">
-  <div id="remote-tip">请在下方窗口中完成验证</div>
-  <div id="remote-wrap" style="position:relative;margin-top:8px;border-radius:8px;overflow:auto;max-height:calc(96vh - 80px);border:1px solid rgba(255,255,255,.2)">
-    <img id="remote-img" style="width:100%;max-width:none;display:block;cursor:crosshair">
+  <div style="display:flex;align-items:center;justify-content:space-between;gap:12px">
+    <div id="remote-tip">请在下方窗口中完成验证</div>
+    <div style="display:flex;gap:8px;flex:none">
+      <button class="btn ghost" id="remote-ok" type="button" style="width:auto;height:34px;margin:0;padding:0 14px;font-size:13px">确定</button>
+      <button class="btn ghost" id="remote-close" type="button" style="width:auto;height:34px;margin:0;padding:0 14px;font-size:13px">关闭</button>
+    </div>
+  </div>
+  <div id="remote-wrap" style="position:relative;margin:8px auto 0;border-radius:8px;overflow:auto;max-height:calc(96vh - 110px);border:1px solid rgba(255,255,255,.2);text-align:center">
+    <img id="remote-img" style="max-width:100%;max-height:calc(96vh - 118px);width:auto;display:inline-block;cursor:default">
   </div>
 </div>
 
@@ -240,11 +246,12 @@ async function refreshRemote() {
   } catch (e) {}
 }
 function showRemote(data) {
+  if (window.__remoteClosed) return;
   $("challenge").style.display = "none";
   $("remote").style.display = "block";
   $("remote-tip").textContent = data.message || "请在下方窗口中完成验证";
   remoteSize = { w: data.width || 1500, h: data.height || 950 };
-  if (!remoteTimer) { refreshRemote(); remoteTimer = setInterval(refreshRemote, 700); }
+  if (!remoteTimer) { refreshRemote(); remoteTimer = setInterval(refreshRemote, 900); }
 }
 function remoteCoords(e) {
   const img = $("remote-img"), r = img.getBoundingClientRect();
@@ -258,6 +265,17 @@ async function sendInput(ev) {
     });
   } catch (e) {}
 }
+$("remote-close").addEventListener("click", () => {
+  $("remote").style.display = "none";
+  window.__remoteClosed = true;
+  stopRemote();
+});
+$("remote-ok").addEventListener("click", async () => {
+  window.__remoteClosed = true;
+  $("remote").style.display = "none";
+  stopRemote();
+  await pollStatus();
+});
 $("remote-img").addEventListener("mousedown", (e) => { dragFrom = remoteCoords(e); });
 $("remote-img").addEventListener("mouseup", async (e) => {
   if (!dragFrom) return;
@@ -387,6 +405,7 @@ $("form").addEventListener("submit", async (e) => {
       return;
     }
 
+    window.__remoteClosed = false;
     setStatus("已提交登录，正在后台打开网页…", "info");
     const resp = await fetch("/nikke/lpass/api/" + TOKEN + "/login", {
       method: "POST",
