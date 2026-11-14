@@ -5,3 +5,6 @@ __pycache__/
 
 # Windows 设备名残留
 /CON
+
+# 上游临时克隆
+_upstream/

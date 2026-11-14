@@ -68,6 +68,7 @@ if os.environ.get("BLABLABOT_STANDALONE") != "1":
     from .nikke_roster.commands import setup as setup_roster  # noqa: E402
     from .nikke_union import commands as _union_commands  # noqa: E402
     from .nikke_solo import commands as _solo_commands  # noqa: E402,F401
+    from .nikke_privacy.commands import setup as setup_privacy  # noqa: E402
     from .nikke_status import commands as _status_commands  # noqa: E402,F401
     # LPass 奖励中心：先导入模型建表，再注册 Lpass* 命令（prefix=False，不带 nk）
     # 独立 try：LPass 任一模块出错时，不影响后续日历/数据库/社区/阵容等命令注册。
@@ -88,6 +89,7 @@ if os.environ.get("BLABLABOT_STANDALONE") != "1":
         return await policy.query_allowed(getattr(ev, "group_id", None)) and policy.user_allowed(getattr(ev, "user_id", None))
 
     setup_calendar()
+    setup_privacy()
     from .nikke_raid_guide.commands import setup as setup_raid_guide
     setup_raid_guide(policy)
     setup_database_commands(_database_config)

@@ -10,7 +10,8 @@ _queue_locks = {}
 _profile_locks = {}
 _profile_failures = {}
 _refresh_locks = {}
-DETAIL_BATCH_SIZE = 20
+_refresh_versions = {}
+DETAIL_BATCH_SIZE = 30
 MAX_OWNED_CHARACTERS = 500
 
 
@@ -176,14 +177,20 @@ class _RefreshReads:
         self.region = client.region
         self.roster_checked_at = 0
         self.outpost_checked_at = 0
+        from .pacing import panel_interval
+        self.interval = panel_interval()
+        self.calls = 0
 
     def __getattr__(self, name):
         if not name.startswith('get_'):
             raise AttributeError(name)
         async def request(*args, **kwargs):
+            self.calls += 1
+            if self.calls > 5 + (MAX_OWNED_CHARACTERS + DETAIL_BATCH_SIZE - 1) // DETAIL_BATCH_SIZE:
+                raise ValueError('全量面板请求预算已用尽')
             await self.check()
             async with self.reads.transaction(self.client, self.bind, wait=self.wait if self.first else True,
-                                               background=True) as paced:
+                                               background=True, panel_interval=self.interval, batch_start=self.first) as paced:
                 self.first = False
                 await self.check()
                 result = await getattr(paced, name)(*args, **kwargs)
@@ -227,9 +234,19 @@ async def refresh_panel(client, bind, *, actor=None, bot=None, only_missing=Fals
                 raise CharacterDataError('权限已变化，已停止更新资料。')
 
     # Serialize full refresh jobs, never hold the foreground character lock over I/O.
+    arrived_version = _refresh_versions.get(expected, 0)
     async with _refresh_locks.setdefault(expected, asyncio.Lock()):
         await check_current()
         store = character_queries.store()
+        # Login/manual/export callers that overlapped consume the successful
+        # collection they just waited for, rather than collecting it again.
+        if _refresh_versions.get(expected, 0) != arrived_version and store is not None:
+            completed = store.read(expected)
+            from ..nikke_export.snapshot import ready as export_ready
+            saved_profile = cached_profile(bind)
+            if (completed.get('complete') and saved_profile is not None
+                    and (attribute_prepare is None or export_ready(completed))):
+                return saved_profile
         if only_missing:
             snapshot = store.read(expected) if store is not None else {}
             codes = character_queries.roster_codes(snapshot.get('roster', []))
@@ -268,6 +285,10 @@ async def refresh_panel(client, bind, *, actor=None, bot=None, only_missing=Fals
             batch = codes[start:start+DETAIL_BATCH_SIZE]
             payload = await paced.get_character_details(batch)
             details.update(character_queries.detail_entries(payload, batch))
+            from ..nikke_logs.store import event as diagnostic_event
+            diagnostic_event('全量面板', '角色详情', 'OK', batch_index=start//DETAIL_BATCH_SIZE+1,
+                             batch_total=(len(codes)+DETAIL_BATCH_SIZE-1)//DETAIL_BATCH_SIZE,
+                             batch_size=len(batch), interval_ms=int(paced.interval*1000))
         attribute_snapshot = dict(roster=data['chars'], details=details, profile=data,
                                   profile_checked_at=profile_checked_at, outpost_checked_at=paced.outpost_checked_at)
         if attribute_prepare is not None:
@@ -317,12 +338,19 @@ async def refresh_panel(client, bind, *, actor=None, bot=None, only_missing=Fals
                 from ..nikke_export.snapshot import mark_current
                 mark_current(snapshot)
             character_queries.publish_snapshot(bind, snapshot)
+            _refresh_versions[expected] = _refresh_versions.get(expected, 0) + 1
             get_roster_service().invalidate_binding(bind, actor, bot, clear_image=False)
             profile._cache.pop(profile._cache_key(bind), None)
         return cached_profile(bind) or data
 
 
-async def refresh_worker(bot, ev, policy, *, expected=None, automatic=False):
+async def refresh_worker(bot, ev, policy, *, expected=None, automatic=False, notification_ready=None):
+    from ..nikke_logs.store import request_scope
+    with request_scope('全量面板'):
+        return await _refresh_worker(bot, ev, policy, expected=expected, automatic=automatic, notification_ready=notification_ready)
+
+
+async def _refresh_worker(bot, ev, policy, *, expected=None, automatic=False, notification_ready=None):
     from gsuid_core.logger import logger
     from ..nikke_api.client import NikkeApiError, NikkeLoginRequired
     from ..nikke_character.service import CharacterDataError
@@ -334,7 +362,15 @@ async def refresh_worker(bot, ev, policy, *, expected=None, automatic=False):
     committed = False
     key = str(ev.user_id), str(ev.bot_id)
 
-    def notification_target():
+    async def notification_target():
+        # Login collection can finish before its two-second result watcher.
+        # Keep the successful login notice ahead of its card or refresh error.
+        if notification_ready is not None:
+            try:
+                await asyncio.wait_for(notification_ready.wait(), timeout=60)
+            except asyncio.TimeoutError:
+                logger.warning('[BlablaBot] login completion target unavailable; data retained')
+                return None, ev, policy
         return _manual_requests.get(key, (bot, ev, policy))
 
     try:
@@ -342,7 +378,7 @@ async def refresh_worker(bot, ev, policy, *, expected=None, automatic=False):
             return False
         client, bind = await load_client(ev.user_id, ev.bot_id)
         if client is None:
-            bot, ev, policy = notification_target()
+            bot, ev, policy = await notification_target()
             if bot is not None:
                 await bot.send(unavailable_message(bind), at_sender=True)
             return False
@@ -353,7 +389,7 @@ async def refresh_worker(bot, ev, policy, *, expected=None, automatic=False):
             data = await refresh_panel(client, bind, actor=ev.user_id, bot=ev.bot_id,
                                        wait=automatic, policy=policy, event=ev, attribute_prepare=prepare_snapshot)
         committed = True
-        notify_bot, notify_ev, notify_policy = notification_target()
+        notify_bot, notify_ev, notify_policy = await notification_target()
         if notify_bot is not None:
             from ..nikke_profile.commands import send_profile_image
             # Render exactly one information card from the data just committed.
@@ -367,25 +403,25 @@ async def refresh_worker(bot, ev, policy, *, expected=None, automatic=False):
                 await notify_bot.send('资料、全部角色练度与皮肤缓存已刷新，但信息图生成或发送失败；请使用信息命令重试。', at_sender=True)
         return True
     except (RosterCooldown, CharacterDataError) as exc:
-        bot, ev, policy = notification_target()
+        bot, ev, policy = await notification_target()
         if bot is not None:
             await bot.send(str(exc), at_sender=True)
         else:
             logger.warning(f'[BlablaBot] background refresh stopped error_type={type(exc).__name__}')
     except NikkeLoginRequired:
-        bot, ev, policy = notification_target()
+        bot, ev, policy = await notification_target()
         if bot is not None:
             await bot.send(RELOGIN, at_sender=True)
         else:
             logger.warning('[BlablaBot] background refresh stopped: login required')
     except NikkeApiError as exc:
-        bot, ev, policy = notification_target()
+        bot, ev, policy = await notification_target()
         if bot is not None:
             await bot.send(RELOGIN if is_login_error(exc) else f'更新失败（{exc.code}），已停止请求；未替换原缓存。', at_sender=True)
         else:
             logger.warning(f'[BlablaBot] background refresh stopped code={exc.code}')
     except Exception as exc:
-        bot, ev, policy = notification_target()
+        bot, ev, policy = await notification_target()
         logger.error(f'[BlablaBot] account prefetch failed error_type={type(exc).__name__}')
         if bot is not None:
             await bot.send('资料已缓存，但完成通知失败，请使用信息命令查询。' if committed else
@@ -422,7 +458,7 @@ def cancel_prefetch(bind):
             task.cancel()
 
 
-def schedule_login_prefetch(bind, group_id=None):
+def schedule_login_prefetch(bind, group_id=None, *, notification=None):
     from ..nikke_permissions.runtime import get_policy
     key, revision = _owner(bind), _revision(bind)
     current = _tasks.get(key)
@@ -432,7 +468,12 @@ def schedule_login_prefetch(bind, group_id=None):
         current.cancel()
     _manual_requests.pop(key, None)
     event = SimpleNamespace(user_id=key[0], bot_id=key[1], group_id=group_id)
-    return _track(key, revision, refresh_worker(None, event, get_policy(), expected=revision, automatic=True))
+    target = getattr(notification, 'completion_target', None)
+    bot = target[0] if target else None
+    event = target[1] if target else event
+    ready = notification.notification_ready if target else None
+    return _track(key, revision, refresh_worker(bot, event, get_policy(), expected=revision,
+                                              automatic=True, notification_ready=ready))
 
 
 def schedule_silent_refresh(bind, ev, policy):
