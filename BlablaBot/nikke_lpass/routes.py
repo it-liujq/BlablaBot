@@ -267,6 +267,13 @@ $("remote-img").addEventListener("mouseup", async (e) => {
   else await sendInput({ type: "drag", x: dragFrom.x, y: dragFrom.y, x2: to.x, y2: to.y });
   dragFrom = null;
 });
+document.addEventListener("keydown", async (e) => {
+  if ($("remote").style.display !== "block") return;
+  if (e.key.length === 1) { e.preventDefault(); await sendInput({ type: "text", text: e.key }); }
+  else if (["Backspace", "Enter", "Tab", "Delete", "ArrowLeft", "ArrowRight"].includes(e.key)) {
+    e.preventDefault(); await sendInput({ type: "key", key: e.key });
+  }
+});
 $("remote-img").addEventListener("wheel", async (e) => {
   e.preventDefault();
   await sendInput({ type: "wheel", dx: e.deltaX, dy: e.deltaY });

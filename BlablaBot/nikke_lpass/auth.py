@@ -342,7 +342,18 @@ class LoginFlow:
             return
         if not await _captcha_present(self.page):
             self.status = "logging_in"
-            asyncio.create_task(self._after_submit())
+            self.message = "验证已完成，正在登录…"
+            asyncio.create_task(self._finish_after_remote())
+
+    async def _finish_after_remote(self):
+        """验证码消失后：若登录弹窗仍在，补点一次登录，再等待登录态。"""
+        try:
+            await self.page.wait_for_timeout(1500)
+            if await self.page.get_by_text(SUBMIT_TEXT, exact=True).count():
+                await _submit(self.page)
+        except Exception:  # noqa: BLE001
+            pass
+        await self._after_submit()
 
     async def send_input(self, event: dict):
         """把前端远程视图上的鼠标/键盘事件转发到真实浏览器。"""
@@ -457,7 +468,7 @@ class LoginFlow:
             self.status = "email_code"
             self.message = "请输入邮箱收到的验证码"
             return
-        remaining = max(10.0, min(120.0, self._deadline - time.time()))
+        remaining = max(10.0, min(180.0, self._deadline - time.time()))
         cookie = await _wait_lip_cookie(self.context, timeout=remaining)
         if cookie is not None:
             self.cookie = cookie
