@@ -748,8 +748,12 @@ async def lpass_login_screen(token: str):
     flow = getattr(session, "login_flow", None) if session else None
     if session is None or flow is None:
         return JSONResponse({"ok": False, "msg": "会话已失效"}, status_code=410)
-    await flow.remote_check()
-    shot = await flow.snapshot()
+    try:
+        await flow.remote_check()
+        shot = await flow.snapshot()
+    except Exception:  # noqa: BLE001
+        logger.exception("[Lpass] screen 截图异常")
+        return JSONResponse({"ok": False, "msg": "截图异常"}, status_code=503)
     if not shot:
         return JSONResponse({"ok": False, "msg": "截图失败"}, status_code=503)
     return Response(content=shot, media_type="image/jpeg",
