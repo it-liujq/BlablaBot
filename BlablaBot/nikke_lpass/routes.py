@@ -380,6 +380,11 @@ async function pollStatus() {
       setStatus("正在登录中…（约 30~90 秒，请勿关闭页面）", "info");
       return;
     }
+    if (!data.status) {
+      // 网关临时返回 HTML（502/524）时继续重试，不当作绑定失败
+      setStatus("服务暂时不可用，正在重试…", "info");
+      return;
+    }
     onFailure(data);
   } catch (err) {
     setStatus("查询进度失败：" + err, "err");
