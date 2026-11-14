@@ -480,15 +480,16 @@ class LoginFlow:
         except Exception:  # noqa: BLE001
             await self._fail("验证码操作失败，请重试或改用 Cookie。")
             return
-        await self.page.wait_for_timeout(3000)
+        await self.page.wait_for_timeout(2500)
         if await _captcha_present(self.context):
             if self.captcha_attempts >= 4:
                 await self._fail("人机验证多次未通过，请改用 Cookie 绑定。")
                 return
             await self._capture_captcha()
             return
+        # 验证已提交：先返回，让页面继续轮询，后台等待登录态
         self.status = "logging_in"
-        await self._after_submit()
+        asyncio.create_task(self._after_submit())
 
     async def submit_email_code(self, code: str):
         if self.status != "email_code" or self.page is None:
@@ -503,9 +504,9 @@ class LoginFlow:
         except Exception:  # noqa: BLE001
             await self._fail("验证码提交失败，请重试或改用 Cookie。")
             return
-        await self.page.wait_for_timeout(4000)
+        await self.page.wait_for_timeout(2500)
         self.status = "logging_in"
-        await self._after_submit()
+        asyncio.create_task(self._after_submit())
 
 
 __all__ = ["LPassAuthError", "LoginError", "LoginFlow", "login_with_password", "verify"]

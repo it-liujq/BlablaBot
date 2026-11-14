@@ -243,7 +243,14 @@ async function sendChallenge(url, body) {
   const data = await readJson(resp);
   if (data.status === "success") { $("challenge").style.display = "none"; onSuccess(data); return; }
   if (data.status === "failed") { $("challenge").style.display = "none"; onFailure(data); return; }
-  showChallenge(data);
+  if (data.status === "logging_in") {
+    $("challenge").style.display = "none";
+    setStatus("验证已提交，正在登录…（约 30~90 秒，请勿关闭页面）", "info");
+    return;
+  }
+  if (data.status === "captcha" || data.status === "email_code") { showChallenge(data); return; }
+  $("challenge").style.display = "none";
+  setStatus(data.msg || "验证提交失败，请重试或改用 Cookie", "err");
 }
 
 $("challenge-img-wrap").addEventListener("click", (e) => {
@@ -570,7 +577,12 @@ async def lpass_login_captcha(token: str, payload: CaptchaBody):
     if session is None or flow is None:
         return JSONResponse({"ok": False, "status": "failed",
                              "msg": "验证会话已失效，请重新发起登录或改用 Cookie。"}, status_code=410)
-    await flow.submit_captcha(payload.dx, [p.model_dump() for p in payload.points])
+    try:
+        await flow.submit_captcha(payload.dx, [p.model_dump() for p in payload.points])
+    except Exception as exc:  # noqa: BLE001
+        logger.error(f"[Lpass] 验证码提交异常 error_type={type(exc).__name__}")
+        return JSONResponse({"ok": False, "status": "failed",
+                             "msg": "验证码提交异常，请重试或改用 Cookie。"})
     return await _challenge_result(token, session, flow)
 
 
@@ -581,7 +593,12 @@ async def lpass_login_email_code(token: str, payload: EmailCodeBody):
     if session is None or flow is None:
         return JSONResponse({"ok": False, "status": "failed",
                              "msg": "验证会话已失效，请重新发起登录或改用 Cookie。"}, status_code=410)
-    await flow.submit_email_code(payload.code)
+    try:
+        await flow.submit_email_code(payload.code)
+    except Exception as exc:  # noqa: BLE001
+        logger.error(f"[Lpass] 邮箱验证码提交异常 error_type={type(exc).__name__}")
+        return JSONResponse({"ok": False, "status": "failed",
+                             "msg": "验证码提交异常，请重试或改用 Cookie。"})
     return await _challenge_result(token, session, flow)
 
 
