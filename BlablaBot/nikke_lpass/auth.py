@@ -631,3 +631,54 @@ class LoginFlow:
 
 
 __all__ = ["LPassAuthError", "LoginError", "LoginFlow", "login_with_password", "verify"]
+
+
+async def _quick_cookie(context):
+    """从浏览器上下文读取 lip_* Cookie（登录成功后）。"""
+    try:
+        station = await context.cookies("https://pass.levelinfinite.com")
+    except Exception:  # noqa: BLE001
+        return None
+    merged = "; ".join(f"{c['name']}={c['value']}" for c in station)
+    return parse_cookie(merged)
+
+
+class BrowserLoginFlow(LoginFlow):
+    """直接嵌入 LIP 官方登录页：用户在远程视图里操作，后台自动抓 Cookie。"""
+
+    def __init__(self, *, timeout: int = 900):
+        super().__init__("", "", timeout=timeout)
+
+    async def start(self):
+        try:
+            from playwright.async_api import async_playwright
+        except Exception:  # noqa: BLE001
+            await self._fail("当前部署缺少 Playwright，请改用 Cookie 绑定。")
+            return
+        try:
+            self._pw = await async_playwright().start()
+            self.browser = await self._pw.chromium.launch(headless=True)
+            self.context = await self.browser.new_context(
+                locale="zh-CN", viewport={"width": 1500, "height": 950})
+            self.page = await self.context.new_page()
+            await self.page.goto(REWARDS_URL, wait_until="domcontentloaded", timeout=60000)
+            await self.page.wait_for_timeout(8000)
+            for label in ("接受所有可选 cookies", "接受全部", "Accept all"):
+                try:
+                    await self.page.get_by_role("button", name=label).first.click(timeout=2500)
+                    break
+                except Exception:  # noqa: BLE001
+                    continue
+            self.status = "remote"
+            self.message = "请在下方窗口中登录 LEVEL INFINITE PASS，登录成功后会自动保存"
+        except Exception:  # noqa: BLE001
+            await self._fail("打开 LIP 登录页失败，请稍后重试或改用 Cookie。")
+
+    async def remote_check(self):
+        if self.status != "remote" or self.context is None:
+            return
+        cookie = await _quick_cookie(self.context)
+        if cookie is not None:
+            self.cookie = cookie
+            self.status = "success"
+            await self.close()

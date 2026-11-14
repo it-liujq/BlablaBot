@@ -126,11 +126,11 @@ PAGE = """<!DOCTYPE html>
     </div>
 
     <div id="password-fields">
-      <label for="email">邮箱地址</label>
-      <input id="email" type="email" autocomplete="username" placeholder="you@example.com">
-      <label for="password">密码</label>
-      <input id="password" type="password" autocomplete="current-password" placeholder="LI PASS 密码">
-      <p class="hint">登录在后台进行，页面会自动刷新进度（约 30~90 秒）。若出现人机验证，请改用「粘贴 Cookie」。</p>
+      <div style="display:none">
+        <input id="email" type="email" autocomplete="username">
+        <input id="password" type="password" autocomplete="current-password">
+      </div>
+      <p class="hint">点击「打开 LIP 登录页」，在下方远程窗口中完成登录（账号密码、验证码、邮箱验证码都支持），成功后自动保存。</p>
     </div>
 
     <div id="cookie-fields" hidden>
@@ -139,7 +139,7 @@ PAGE = """<!DOCTYPE html>
       <p class="hint">已登录 pass.levelinfinite.com 时，从开发者工具复制整段 Cookie；至少包含 lip_openid 与 lip_token。</p>
     </div>
 
-    <button class="btn" id="submit" type="submit">登录并绑定</button>
+    <button class="btn" id="submit" type="submit">打开 LIP 登录页</button>
   </form>
 
   <div class="status" id="status"></div>
@@ -190,7 +190,7 @@ function showMode(mode) {
   $("cookie-input").disabled = mode !== "cookie";
   $("mode-password").setAttribute("aria-selected", String(mode === "password"));
   $("mode-cookie").setAttribute("aria-selected", String(mode === "cookie"));
-  $("submit").textContent = mode === "cookie" ? "校验 Cookie 并绑定" : "登录并绑定";
+  $("submit").textContent = mode === "cookie" ? "校验 Cookie 并绑定" : "打开 LIP 登录页";
   statusBox.className = "status";
   stopPoll();
 }
@@ -539,12 +539,12 @@ async def _complete_binding(token: str, session, cookie):
     await _notify_session(session, "LEVELINFINITEPASS" + payload["message"])
 
 
-async def _finish_login(token: str, email: str, password: str) -> None:
-    """后台任务：启动可交互登录；遇到验证码/邮箱码时把控制权交给绑定页。"""
+async def _finish_login(token: str, email: str = "", password: str = "") -> None:
+    """后台任务：直接打开 LIP 官方登录页，用户远程操作，后台抓 Cookie。"""
     session = sessions.get(token)
     if session is None:
         return
-    flow = LoginFlow(email, password)
+    flow = BrowserLoginFlow()
     _FLOWS[token] = flow
     session.login_flow = flow
     try:
@@ -555,6 +555,11 @@ async def _finish_login(token: str, email: str, password: str) -> None:
     if flow.status == "success" and flow.cookie is not None:
         await _complete_binding(token, session, flow.cookie)
         return
+    if flow.status == "remote":
+        session.status = "remote"
+        session.error = ""
+        asyncio.create_task(_watch_browser_login(token, session, flow))
+        return
     if flow.status in ("captcha", "email_code"):
         session.status = flow.status
         session.error = ""
@@ -563,6 +568,25 @@ async def _finish_login(token: str, email: str, password: str) -> None:
     session.error = flow.error or "登录未完成，请稍后重试或改用 Cookie。"
     _FLOWS.pop(token, None)
     await _notify_session(session, "LEVELINFINITEPASS绑定失败：" + session.error[:200])
+
+
+async def _watch_browser_login(token: str, session, flow) -> None:
+    """等待用户在远程视图登录完成，成功后落库。"""
+    deadline = time.time() + 900
+    while time.time() < deadline and session.status == "remote":
+        await asyncio.sleep(2)
+        if flow.status == "success" and flow.cookie is not None:
+            await _complete_binding(token, session, flow.cookie)
+            return
+        if flow.status == "failed":
+            session.status = "failed"
+            session.error = flow.error or "登录未完成，请重试或改用 Cookie。"
+            await _notify_session(session, "LEVELINFINITEPASS绑定失败：" + session.error[:200])
+            return
+    if session.status == "remote":
+        session.status = "failed"
+        session.error = "登录超时，请重试或改用 Cookie。"
+        await flow.close()
 
 
 @app.get("/nikke/lpass/{token}", response_class=HTMLResponse)
@@ -591,9 +615,6 @@ async def lpass_login_submit(token: str, payload: LoginBody):
                              "message": f"绑定成功\n账号：{session.nickname}"})
     email = payload.email.strip()
     password = payload.password
-    if not email or not password:
-        return JSONResponse({"ok": False, "status": "failed",
-                             "msg": "请填写邮箱和密码。"}, status_code=400)
     if session.status == "logging_in":
         return JSONResponse({"ok": True, "status": "logging_in"})
     session.status = "logging_in"
