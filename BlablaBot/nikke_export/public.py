@@ -88,8 +88,12 @@ async def fetch_public(client, bind, share, check, notice=None):
     if share.split('-')[0] != str(bind.game_id):
         raise ExportError('跨游戏版本的公开查询需要登录对应国际版或港澳台版账号。')
     reader = PublicReader(client, share, check)
+    from ..nikke_user.pacing import panel_interval
+    interval, first = panel_interval(), True
     async def read(name, *args):
-        async with account_reads.transaction(reader, bind, wait=True) as paced:
+        nonlocal first
+        async with account_reads.transaction(reader, bind, wait=True, panel_interval=interval, batch_start=first) as paced:
+            first = False
             return await getattr(paced, name)(*args)
     privacy = await read('get_privacy')
     role = await read('get_role')

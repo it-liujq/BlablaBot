@@ -103,3 +103,25 @@ python -m unittest discover -s tests
 - `#LPass` 绑定链接有效期 10 分钟，过期需重新发送命令。
 - 帮助图片缓存 30 天，改动帮助内容后需提升 `CACHE_VERSION`。
 - 真实腾讯验证码需在远程视图中人工完成，无法离线自动化。
+## 13. 合并上游 1.2.08 → 1.2.14（2026-11-16）
+
+- **问题/需求**：继续同步 dddada123/AliceUID 最新代码，并保持 `#bla` / `#LPass` 全部命令可用。
+- **上游内容**：
+  - 1.2.08 优化各类卡片美术效果；
+  - 1.2.09 修复 nk 卡片生成延迟、优化美术；
+  - 1.2.10/1.2.11 资源查询卡片 CSS、会战出刀卡片优化；
+  - 1.2.12 资源查询接口速度与卡片排版；
+  - 1.2.13 增加四档可选风控策略、优化信息返回速度；
+  - 1.2.14 移除极速档位确保稳定性。
+  - 新增 `nikke_resource/display.py`、`identity_card.py`、`nikke_roster/finish.py`、`nikke_union/progression.py` 及多个模板（avatar_glass、commander_header、squad_badges）。
+- **处理**：
+  - 新增文件整包复制并做品牌替换（AliceUID→BlablaBot）；
+  - 冲突文件：`config_default.py` 保留本项目自定义键（LPass、签到通知黑白名单）并合并上游键；`nikke_user/pacing.py`、`templates/roster.html`、`templates/status.html`、`README.md` 取上游后重套品牌/`#bla`；
+  - 去重合并产生的重复配置键，补回被误删的 `AliceUID_AutoCDKEnabled`；
+  - 修正上游代码中被品牌替换误伤的 `BlablaBotConfig` → `AliceUIDConfig`（`nikke_user/pacing.py`）。
+- **验证**：
+  - `compileall` 全包通过；
+  - `ruff F821/F822/F823/E9` 全包通过；
+  - 31 项单元测试通过；
+  - 配置键对比：上游 51 个键全部存在，本项目额外保留 3 个 LPass/签到通知键；
+  - 触发器 77 个、无重名；`#LPass绑定/签到/开启全量签到/状态/解绑` 与 `#bla` 前缀均在。

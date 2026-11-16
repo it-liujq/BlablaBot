@@ -131,7 +131,9 @@ async def ensure_profile(client, bind, *, refresh=False):
             return saved
         _check_profile_failure(expected)
         try:
-            async with account_reads.transaction(client, bind, wait=not refresh) as paced:
+            from .pacing import panel_interval
+            async with account_reads.transaction(client, bind, wait=not refresh,
+                                                 panel_interval=panel_interval(), batch_start=True) as paced:
                 data = await _fetch(paced)
                 import time
                 checked_at = time.time()

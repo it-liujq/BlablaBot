@@ -74,10 +74,12 @@ class UnionService:
         return response['data']
 
     async def _fetch(self, client, bind, account, season, *, refresh=False):
+        from ..nikke_user.pacing import panel_interval
+        interval = panel_interval()
         async def remote(endpoint, body):
             last = self._last_remote.get(account)
             if last is not None:
-                delay = self.cooldown - (self.clock() - last)
+                delay = interval - (self.clock() - last)
                 if delay > 0:
                     await self.sleeper(delay)
             self._last_remote[account] = self.clock()
