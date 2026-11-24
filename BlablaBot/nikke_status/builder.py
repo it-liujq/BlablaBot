@@ -10,10 +10,25 @@ class StatusDataError(ValueError):
 
 
 CURRENCIES = (
-    ('钻石',(98,99)), ('信用点',(2000,)), ('黄金积分券',(12000,)),
-    ('白银积分券',(11000,)), ('战斗数据辑',(1000,)), ('芯尘',(3000,)),
-    ('招募券',(5100,)), ('高级招募券',(5200,)),
+    ('钻石',(98,99)),
+    ('芯尘',(3000,)),
+    ('高级招募券',(5200,)),
+    ('招募券',(5100,)),
+    ('信用点',(2000,)),
+    ('战斗数据辑',(1000,)),
+    ('黄金积分券',(12000,)),
+    ('白银积分券',(11000,)),
 )
+CURRENCY_ICONS = {
+    '钻石': 'icon-res-pic1.png',
+    '信用点': 'icon-res-pic2.png',
+    '黄金积分券': 'icon-res-pic3.png',
+    '白银积分券': 'icon-res-pic4.png',
+    '战斗数据辑': 'icon-res-pic5.png',
+    '芯尘': 'icon-res-pic6.png',
+    '招募券': 'icon-res-pic7.png',
+    '高级招募券': 'icon-res-pic8.png',
+}
 HIDDEN = {-1,-99,-9999}
 
 
@@ -78,12 +93,12 @@ def build_resources(basic, daily, *, bind, region, fetched_at, ttl):
         value=sum(values) if known else None
         items.append(dict(name=name,value=compact_number(value) if known else '—',
                           exact=f'{value:,}' if known else '未提供或已隐藏',known=known,
-                          icon_name=f'icon-res-pic{index}.png'))
+                          icon_name=CURRENCY_ICONS.get(name, f'icon-res-pic{index}.png')))
     return dict(identity(bind,region,fetched_at,ttl),kind='resources',title='我的资源',items=items,
                 fetched_at_epoch=fetched_at,
                 **storage_fields(daily, fetched_at),
                 notes=['钻石合计付费与免费钻石；缺失或隐藏的资源显示「—」。',
-                       '保管箱按24小时回满线性估算，北京时间；实际收取、游戏加成或社区同步延迟会影响结果。'])
+                       '保管箱按24时回满线性估算。'])
 
 
 def storage_fields(daily, fetched_at):

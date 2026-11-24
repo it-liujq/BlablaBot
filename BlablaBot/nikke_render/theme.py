@@ -42,38 +42,155 @@ def card_theme(theme: str | None = None) -> dict:
     return dict(resolved['theme'], card_theme=resolved['card_theme'])
 
 
-CHARACTER_THEMES=('compact_light','compact_dark','wide_light','wide_dark')
+CHARACTER_THEMES = ('纵版亮色', '纵版暗色', '横版亮色', '横版暗色')
+LEGACY_STYLE_MAP = {
+    'compact_light': '纵版亮色',
+    'compact_dark': '纵版暗色',
+    'wide_light': '横版亮色',
+    'wide_dark': '横版暗色',
+}
+STYLE_LAYOUT_THEME = {
+    '纵版亮色': ('compact', 'light'),
+    '纵版暗色': ('compact', 'dark'),
+    '横版亮色': ('wide', 'light'),
+    '横版暗色': ('wide', 'dark'),
+}
+CHARACTER_RANDOM_MODES = ('关闭随机', '横版随机', '纵版随机', '全部随机')
+LEGACY_RANDOM_MAP = {
+    'off': '关闭随机',
+    'wide': '横版随机',
+    'compact': '纵版随机',
+    'all': '全部随机',
+}
+
+
+def normalize_character_style(value: object, *, default: str = '横版亮色') -> str:
+    text = str(value or '').strip()
+    if text in STYLE_LAYOUT_THEME:
+        return text
+    return LEGACY_STYLE_MAP.get(text, default)
+
+
+def normalize_character_random(value: object, *, default: str = '关闭随机') -> str:
+    text = str(value or '').strip()
+    if text in CHARACTER_RANDOM_MODES:
+        return text
+    return LEGACY_RANDOM_MAP.get(text, default)
 
 
 def character_presentation_mode():
-    return dict(fixed=_configured('AliceUID_CharacterCardStyle',CHARACTER_THEMES,'wide_light'),
-                random=_configured('AliceUID_CharacterRandomTheme',('off','wide','compact','all'),'off'))
+    try:
+        from ..nikke_config.config import AliceUIDConfig
+        fixed_raw = AliceUIDConfig.get_config('AliceUID_CharacterCardStyle').data
+        random_raw = AliceUIDConfig.get_config('AliceUID_CharacterRandomTheme').data
+    except (ImportError, AttributeError, KeyError, RuntimeError):
+        fixed_raw, random_raw = '横版亮色', '关闭随机'
+    return dict(
+        fixed=normalize_character_style(fixed_raw),
+        random=normalize_character_random(random_raw),
+    )
 
 
 def get_character_style(default='wide'):
-    return character_presentation_mode()['fixed'].split('_')[0]
+    fixed = character_presentation_mode()['fixed']
+    return STYLE_LAYOUT_THEME.get(fixed, (default, 'light'))[0]
 
 
-def resolve_character_presentation(style=None,theme=None):
+def resolve_character_presentation(style=None, theme=None):
     """Choose once per new paint; the image cache keys the stable mode, not a random draw."""
     import random
     from .layouts import character_layout_keys
-    mode=character_presentation_mode()
-    if style in CHARACTER_THEMES:
-        layout,color=style.split('_')
+    mode = character_presentation_mode()
+    if style in STYLE_LAYOUT_THEME:
+        layout, color = STYLE_LAYOUT_THEME[style]
+    elif style in LEGACY_STYLE_MAP:
+        layout, color = STYLE_LAYOUT_THEME[LEGACY_STYLE_MAP[style]]
     elif style in character_layout_keys():
-        layout,color=style,mode['fixed'].split('_')[1]
+        layout = style
+        color = STYLE_LAYOUT_THEME[mode['fixed']][1]
     elif style:
-        layout,color='compact',mode['fixed'].split('_')[1]
+        layout = 'compact'
+        color = STYLE_LAYOUT_THEME[mode['fixed']][1]
     else:
-        choices=CHARACTER_THEMES
-        if mode['random']=='wide':choices=tuple(x for x in choices if x.startswith('wide_'))
-        elif mode['random']=='compact':choices=tuple(x for x in choices if x.startswith('compact_'))
-        selected=mode['fixed'] if mode['random']=='off' else random.choice(choices)
-        layout,color=selected.split('_')
-    if theme in ('light','dark'):color=theme
-    elif theme=='random':color=random.choice(('light','dark'))
-    return layout,color
+        choices = CHARACTER_THEMES
+        if mode['random'] == '横版随机':
+            choices = ('横版亮色', '横版暗色')
+        elif mode['random'] == '纵版随机':
+            choices = ('纵版亮色', '纵版暗色')
+        selected = mode['fixed'] if mode['random'] == '关闭随机' else random.choice(choices)
+        layout, color = STYLE_LAYOUT_THEME[selected]
+    if theme in ('light', 'dark'):
+        color = theme
+    elif theme == 'random':
+        color = random.choice(('light', 'dark'))
+    return layout, color
+
+
+V2_UNIFIED_ACCENTS = {
+    'light': '#D43D51',
+    'dark': '#F6C15C',
+    'soft_light': 'rgba(212,61,81,0.12)',
+    'soft_dark': 'rgba(246,193,92,0.16)',
+    'border_light': 'rgba(212,61,81,0.32)',
+    'border_dark': 'rgba(246,193,92,0.38)',
+}
+
+V2_PALETTES = {
+    'light': {
+        'page_bg': '#E9EFF6',
+        'ink': '#152233',
+        'muted': '#4A5E78',
+        'line': 'rgba(30,52,82,0.14)',
+        'glass_bg': 'rgba(252,254,255,0.78)',
+        'glass_border': 'rgba(255,255,255,0.92)',
+        'glass_shadow': '0 6px 20px rgba(15,35,62,0.11)',
+        'inner_top': 'rgba(255,255,255,0.75)',
+        'slot_bg': 'rgba(18,38,68,0.055)',
+        'empty_slot_bg': 'rgba(18,38,68,0.025)',
+        'icon_stage_bg': 'rgba(255,255,255,0.62)',
+        'portrait_stage_bg': 'rgba(252,254,255,0.52)',
+        'sub_border': 'rgba(25,50,82,0.11)',
+        'pill_bg': 'rgba(252,254,255,0.82)',
+        'pill_inner_bg': 'rgba(255,255,255,0.78)',
+        'line_normal_bg': 'rgba(255,255,255,0.58)',
+        'line_normal_border': 'rgba(25,50,82,0.09)',
+        'stage_tag': '#1C304A',
+        'credit_ink': '#364A63',
+    },
+    'dark': {
+        'page_bg': '#0B1320',
+        'ink': '#F1F6FD',
+        'muted': '#A6BCD4',
+        'line': 'rgba(170,200,235,0.18)',
+        'glass_bg': 'rgba(8,16,30,0.78)',
+        'glass_border': 'rgba(166,198,232,0.28)',
+        'glass_shadow': '0 8px 24px rgba(2,6,14,0.42)',
+        'inner_top': 'rgba(255,255,255,0.14)',
+        'slot_bg': 'rgba(255,255,255,0.06)',
+        'empty_slot_bg': 'rgba(255,255,255,0.025)',
+        'icon_stage_bg': 'rgba(255,255,255,0.075)',
+        'portrait_stage_bg': 'rgba(8,16,30,0.56)',
+        'sub_border': 'rgba(170,200,235,0.16)',
+        'pill_bg': 'rgba(8,16,30,0.76)',
+        'pill_inner_bg': 'rgba(255,255,255,0.08)',
+        'line_normal_bg': 'rgba(255,255,255,0.055)',
+        'line_normal_border': 'rgba(170,200,235,0.12)',
+        'stage_tag': '#DCE8F7',
+        'credit_ink': '#BDCCE0',
+    },
+}
+
+
+def v2_theme_tokens(element_key: str | None = None, theme: str = 'light') -> dict:
+    """Return unified Bento v2 palette and theme accent tokens (gold on dark, crimson on light)."""
+    color = 'dark' if theme == 'dark' else 'light'
+    acc = V2_UNIFIED_ACCENTS
+    return {
+        'palette': V2_PALETTES[color],
+        'element_accent': acc[color],
+        'element_accent_soft': acc[f'soft_{color}'],
+        'element_accent_border': acc[f'border_{color}'],
+    }
 
 
 @lru_cache(maxsize=1)
@@ -118,3 +235,44 @@ def apply_theme(context: dict, theme: str | None = None, *, scene_width=1000, sc
     return dict(context, command_prefix=command_prefix(), card_theme=theme, theme=tokens, texture_uri=tokens['texture_uri'],
                 frost_scene_uri=photo_uri, frost_panel_uri='',
                 background_source='local-card-bg',background_scene_width=scene_width,background_scene_height=scene_height)
+
+
+WIDE_ART_BASE_SCALE = 0.825
+WIDE_ART_SCALE_KEY = 'AliceUID_WideArtScaleOffset'
+
+
+def parse_wide_art_scale_offset(value) -> int:
+    """Parse a wide-card portrait scale offset percentage in [-100, 100]."""
+    import re
+    if isinstance(value, bool):
+        raise ValueError('缩放微调不能为布尔值')
+    if isinstance(value, int):
+        offset = value
+    elif isinstance(value, str):
+        text = value.strip()
+        if text.endswith('%'):
+            text = text[:-1].strip()
+        if not re.fullmatch(r'[+-]?\d+', text):
+            raise ValueError('请输入 -100 到 +100 之间的整数百分比')
+        offset = int(text)
+    else:
+        raise ValueError('请输入 -100 到 +100 之间的整数百分比')
+    if not -100 <= offset <= 100:
+        raise ValueError('缩放微调范围须在 -100 到 +100 之间')
+    return offset
+
+
+def normalize_wide_art_scale_offset(value) -> str:
+    try:
+        return str(parse_wide_art_scale_offset(value))
+    except ValueError:
+        return '0'
+
+
+def get_wide_art_scale_offset() -> int:
+    try:
+        from ..nikke_config.config import AliceUIDConfig
+        raw = AliceUIDConfig.get_config(WIDE_ART_SCALE_KEY).data
+        return parse_wide_art_scale_offset(raw)
+    except (ImportError, AttributeError, KeyError, TypeError, ValueError):
+        return 0

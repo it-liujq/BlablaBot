@@ -109,10 +109,21 @@ CONFIG_DEFAULT: Dict[str, GSC] = {
         "全局卡片主题", "默认random随机亮暗；dark暗色、light亮色。只在新渲染时随机，已有缓存图片直接复用，保留已有自定义值", "random", options=["dark", "light", "random"],
     ),
     'AliceUID_CharacterCardStyle': GsStrConfig(
-        "角色练度卡片主题", "compact_light=窄版亮色；compact_dark=窄版暗色；wide_light=宽版亮色；wide_dark=宽版暗色。默认宽版亮色；仅影响角色练度卡", "wide_light", options=["compact_light", "compact_dark", "wide_light", "wide_dark"],
+        "角色练度卡片主题", "默认横版亮色；可选横版亮色、横版暗色、纵版亮色、纵版暗色（兼容旧英文配置自动迁移）。", "横版亮色", options=["横版亮色", "横版暗色", "纵版亮色", "纵版暗色"],
     ),
     'AliceUID_CharacterRandomTheme': GsStrConfig(
-        "角色练度卡随机主题", "off=关闭随机（使用上方固定主题）；wide=宽版亮暗随机；compact=窄版亮暗随机；all=四种全部随机。默认关闭，仅新渲染时选择，缓存命中直接复用", "off", options=["off", "wide", "compact", "all"],
+        "角色练度卡随机主题", "关闭随机=使用上方固定样式；横版随机=横版亮暗随机；纵版随机=纵版亮暗随机；全部随机=四种全部随机。默认关闭随机，仅新渲染时选择，缓存命中直接复用。", "关闭随机", options=["关闭随机", "横版随机", "纵版随机", "全部随机"],
+    ),
+    'AliceUID_WideArtScaleOffset': GsStrConfig(
+        "横版角色大立绘缩放微调（%）",
+        "以新版默认比例为 0 基准，支持填写 -100 到 +100（可带 %，如 -10、+15、-20%），正数放大、负数缩小；仅影响横版角色练度卡片大立绘，保存后新查询自动生效。",
+        "0",
+    ),
+    'AliceUID_NoticeStyle': GsStrConfig(
+        "通知与提示文案风格",
+        "控制收菜提醒、社区签到、兑换码回执、群播报及等待提示的说话口吻；登录说明、安全提示、报错与管理命令始终保持清晰说明文。默认爱丽丝风格，保存后立即生效。",
+        "爱丽丝风格",
+        options=["爱丽丝风格", "默认说明文"],
     ),
     'AliceUID_SoloCardTheme': GsStrConfig(
         "个人突袭推荐卡片主题（独立）", "只影响个人突袭推荐卡片，默认暗色；可选亮色或随机，不跟随其他卡片主题。查询时可用亮色/暗色/随机参数临时指定。毛玻璃强度仍使用全局设置。", "dark", options=["light","dark","random"],
@@ -161,6 +172,11 @@ CONFIG_DEFAULT: Dict[str, GSC] = {
     'AliceUID_AutoCDKEnabled': GsBoolConfig(
         '自动兑换码系统总开关',
         '默认启用；成员与官方/GameWith新码跨来源去重，库存更新后处理；新绑定仅核对本人，不每分钟扫描。停用不修改个人开关、不补跑停用期间新增的码；仍需开启CDK兑换写操作。', True,
+    ),
+    'AliceUID_SignNoticeForward': GsBoolConfig(
+        "每日签到异常名单用转发消息",
+        "默认开启。当每日自动签到出现报错或异常人员时，合并相同报错原因的人员列表并以合并转发消息发送；关闭或转发不可用时回退普通消息。",
+        True,
     ),
     'AliceUID_CDKForward': GsBoolConfig(
         "兑换码查询详情用转发消息",

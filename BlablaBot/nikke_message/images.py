@@ -17,6 +17,25 @@ class ForwardImageError(ValueError):
     pass
 
 
+def _save_jpeg(image, quality: int, *, subsampling: int, metadata: dict) -> bytes:
+    for optimize in (True, False):
+        output = BytesIO()
+        try:
+            image.save(
+                output,
+                format='JPEG',
+                quality=quality,
+                subsampling=subsampling,
+                optimize=optimize,
+                progressive=False,
+                **metadata,
+            )
+            return output.getvalue()
+        except OSError:
+            if not optimize:
+                raise
+
+
 def encode_forward_pages(data, quality=JPEG_QUALITY):
     if type(quality) is not int or not 0 <= quality <= 100:
         quality = JPEG_QUALITY
@@ -42,26 +61,24 @@ def encode_forward_pages(data, quality=JPEG_QUALITY):
         transparent = ('transparency' in source.info or
                        ('A' in source.getbands() and source.getchannel('A').getextrema()[0] < 255))
         image = source.convert('RGBA' if transparent else 'RGB')
-        output = BytesIO()
         if transparent:
+            output = BytesIO()
             image.save(output, format='PNG', optimize=True, **metadata)
+            encoded = output.getvalue()
         else:
             if width > 65500 or height > 65500:
                 raise ForwardImageError('complete image exceeds JPEG dimensions')
-            image.save(output, format='JPEG', quality=quality, subsampling=0,
-                       optimize=True, progressive=False, **metadata)
-        encoded = output.getvalue()
+            encoded = _save_jpeg(image, quality, subsampling=0, metadata=metadata)
         if len(encoded) > MAX_OUTPUT_BYTES:
             raise ForwardImageError('complete image exceeds transport bounds')
         return [encoded]
 
 
 def prepare_forward_content(content):
-    """Snapshot inline cards before standard nodes; preserve original bytes by default."""
-    from gsuid_core.segment import MessageSegment
+    """Snapshot inline cards before standard nodes, honoring GsCore forward JPEG settings only."""
     from gsuid_core.logger import logger
-    from ..nikke_config.config import AliceUIDConfig
-    from ..nikke_config.config import CACHE_PATH
+    from gsuid_core.segment import MessageSegment
+    from ..nikke_config.config import AliceUIDConfig, CACHE_PATH
     from .outbox import snapshot
     quality = AliceUIDConfig.get_config('AliceUID_ForwardJpegQuality').data
     reencode = AliceUIDConfig.get_config('AliceUID_ForwardReencode').data is True
@@ -78,7 +95,6 @@ def prepare_forward_content(content):
         if reencode:
             pages = encode_forward_pages(raw, quality=quality)
         else:
-            # The old roster path read a cached JPG straight into image(data).
             # Keep the exact bytes for PNG/JPEG/WEBP alike, including metadata.
             if not raw or len(raw) > min(MAX_INPUT_BYTES, MAX_OUTPUT_BYTES):
                 raise ForwardImageError('original image size out of bounds')

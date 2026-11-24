@@ -48,8 +48,10 @@ class CommunityCommands:
             if str(binding.actor_id) != str(actor_id) or str(binding.bot_id) != str(bot_id):
                 return "仅能操作本人当前绑定账号。"
             state = self.service.status(client, actor_id, bot_id, binding.revision)
+            from ..nikke_message.persona import community_enable_text, titled
             if option == "状态":
-                return (f"自动社区：{'开启' if state['enabled'] else '关闭'}\n"
+                return titled('自动社区',
+                        f"自动社区：{'开启' if state['enabled'] else '关闭'}\n"
                         f"连续失败：{state.get('fail_count',0)}/3个签到周期\n"
                         f"系统停用：{'连续三天失败' if state.get('auto_disabled') else '无'}\n"
                         f"点赞：{'开启' if state['likes'] else '关闭'}\n"
@@ -60,23 +62,22 @@ class CommunityCommands:
                         f"命令：{command_prefix()}自动社区 开启/关闭/状态；点赞开启/点赞关闭。")
             if option in {"关闭", "关"}:
                 self.service.configure(client, actor_id, bot_id, binding.revision, enabled=False)
-                return "自动社区已关闭（签到、浏览及点赞均关闭）。"
+                return titled('自动社区', "自动社区已关闭（签到、浏览及点赞均关闭）。")
             if option == '点赞关闭':
                 self.service.disable_likes(client, actor_id, bot_id, binding.revision)
-                return '自动点赞已关闭；已有暂停状态保持不变。'
+                return titled('自动社区', '自动点赞已关闭；已有暂停状态保持不变。')
             if not self.enabled():
-                return "社区模块处于全局紧急暂停，请联系管理员。"
+                return titled('自动社区', "社区模块处于全局紧急暂停，请联系管理员。")
             if option in {"开启", "开"}:
                 self.service.configure(client, actor_id, bot_id, binding.revision, enabled=True)
-                return (f"已授权当前账号每日自动签到及浏览；每天北京时间{normalized_time(self.sign_time())}开始按账号依次执行。"
-                        "社区周期从08:00开始；点赞关闭，不自动评论。短期异常后台有限重试，连续三个签到周期失败后自动关闭。")
+                return community_enable_text(normalized_time(self.sign_time()), command_prefix())
             if not state["enabled"]:
-                return f"请先发送 {command_prefix()}自动社区 开启，授权当前账号。"
+                return titled('自动社区', f"请先发送 {command_prefix()}自动社区 开启，授权当前账号。")
             if state["paused"]:
-                return f"任务已暂停，请人工检查后发送 {command_prefix()}自动社区 开启。"
+                return titled('自动社区', f"任务已暂停，请人工检查后发送 {command_prefix()}自动社区 开启。")
             self.service.configure(client, actor_id, bot_id, binding.revision, enabled=True,
                                    likes=option == "点赞开启")
-            return "已授权每日最多点赞5帖。" if option == "点赞开启" else "自动点赞已关闭。"
+            return titled('自动社区', "已授权每日最多点赞5帖。" if option == "点赞开启" else "自动点赞已关闭。")
         except CommunityError as exc:
             return str(exc)
         finally:
@@ -90,15 +91,16 @@ class CommunityCommands:
         client = binding.client
         configured = False
         def finish(text):
+            from ..nikke_message.persona import titled
             if not full or not configured:
-                return text
+                return titled('社区签到', text)
             state = self.service.status(client,actor_id,bot_id,binding.revision)
             at = normalized_time(self.sign_time())
             if not state['enabled']:
-                return text + '\n自动签到授权已变更，请查看自动社区状态。'
+                return titled('社区签到', text + '\n自动签到授权已变更，请查看自动社区状态。')
             if state['paused'] or not self.enabled() or not self.service.user_allowed(str(actor_id)):
-                return text + f'\n⏰ 自动签到时间为北京时间{at}；当前任务暂停或权限受限，恢复后生效。'
-            return text + f'\n⏰ 此后每天北京时间{at}开始自动签到，按账号依次执行，请稍候完成。'
+                return titled('社区签到', text + f'\n⏰ 自动签到时间为北京时间{at}；当前任务暂停或权限受限，恢复后生效。')
+            return titled('社区签到', text + f'\n⏰ 此后每天北京时间{at}开始自动签到，按账号依次执行，请稍候完成。')
         try:
             if (str(binding.actor_id),str(binding.bot_id)) != (str(actor_id),str(bot_id)):
                 return '仅能操作本人当前绑定账号。'
@@ -114,13 +116,17 @@ class CommunityCommands:
             elif stored.get('owner') != owner:
                 self.service.configure(client,actor_id,bot_id,binding.revision,enabled=False)
             state = self.service.status(client,actor_id,bot_id,binding.revision)
-            prefix = '已为你本人开启全量签到（签到、浏览及点赞），不影响其他用户。\n' if full else ''
+            from ..nikke_message.persona import is_alice_style
+            alice = is_alice_style()
+            prefix = (('已为兔子先生本人开启全量签到（签到、浏览及点赞）。\n' if alice else
+                       '已为你本人开启全量签到（签到、浏览及点赞）。\n') if full else '')
             if self.service.store.signin_status(account,owner,day)['confirmed']:
-                return finish(prefix + '本周期已签到✅ 本次未重复请求。')
+                return finish(prefix + ('嘿嘿，兔子先生，您本周期已签到✅ 不用再跑一趟啦～' if alice else '本周期已签到✅'))
             if state['paused']:
                 return finish('社区任务已暂停：' + state['paused'] + '。请人工检查后重新开启。')
             if notify:
-                await notify(prefix + '签到任务已受理⏳ 正在排队或执行，完成后会返回结果，请勿重复发送。')
+                await notify(prefix + ('遵命！兔子先生的签到任务已受理⏳ 爱丽丝办妥后马上回来向您汇报～' if alice else
+                                       '签到任务已受理⏳ 正在排队或执行，完成后会返回结果。'))
             result = await self.service.run(client,actor_id,bot_id,binding.revision,
                                             manual=True,signin_only=not bool(state['likes'] and state['enabled']))
             if self.service.binding_current is not None and not await self.service.binding_current(actor_id,bot_id,binding.revision):
@@ -147,17 +153,19 @@ def register_commands(commands: CommunityCommands):
 
     @sv.on_command("自动社区")
     async def community_command(bot, ev):
+        from ..nikke_message.persona import send_reply
         reply = await commands.handle(str(ev.user_id), str(ev.bot_id), ev.text or "状态")
-        await bot.send(reply, at_sender=True)
+        await send_reply(bot, ev, reply, at_sender=True)
 
     async def immediate(bot, ev, full):
+        from ..nikke_message.persona import send_reply
         if (ev.text or '').strip():
-            await bot.send(f'用法：{command_prefix()}签到 / {command_prefix()}开启全量签到（仅操作本人账号）。',at_sender=True)
+            await send_reply(bot, ev, f'用法：{command_prefix()}签到 / {command_prefix()}开启全量签到（仅操作本人账号）。', at_sender=True)
             return
         reply = await commands.execute(str(ev.user_id),str(ev.bot_id),full=full,
-                                       notify=lambda text: bot.send(text,at_sender=True))
+                                       notify=lambda text: send_reply(bot, ev, text, at_sender=True))
         if reply is not None:
-            await bot.send(reply,at_sender=True)
+            await send_reply(bot, ev, reply, at_sender=True)
 
     @sv.on_fullmatch('签到')
     async def immediate_signin(bot, ev):
@@ -171,23 +179,24 @@ def register_commands(commands: CommunityCommands):
 
     @admin.on_command('签到查询')
     async def signin_query(bot, ev):
+        from ..nikke_message.persona import send_reply, titled
         if type(getattr(ev, 'user_pm', None)) is not int or ev.user_pm != 0:
-            await bot.send('仅Bot主可以查询本群签到记录。',at_sender=True)
+            await send_reply(bot, ev, '仅Bot主可以查询本群签到记录。', at_sender=True)
             return
         if not getattr(ev, 'group_id', None):
-            await bot.send(f'请在群内使用 {command_prefix()}签到查询。',at_sender=True)
+            await send_reply(bot, ev, f'请在群内使用 {command_prefix()}签到查询。', at_sender=True)
             return
         arg = (ev.text or '').strip()
         if arg and (len(arg)>5 or not arg.isascii() or not arg.isdecimal() or not 1<=int(arg)<=10000):
-            await bot.send(f'用法：{command_prefix()}签到查询 [页码]，仅查询当前群的本插件记录。',at_sender=True)
+            await send_reply(bot, ev, f'用法：{command_prefix()}签到查询 [页码]，仅查询当前群的本插件记录。', at_sender=True)
             return
         if commands.group_report is None:
-            await bot.send('本地签到记录查询尚未初始化。',at_sender=True)
+            await send_reply(bot, ev, '本地签到记录查询尚未初始化。', at_sender=True)
             return
         try:
-            reply = await commands.group_report(bot,ev,int(arg or '1'))
+            reply = titled('签到记录', await commands.group_report(bot,ev,int(arg or '1')))
         except Exception:
             reply = '本地签到记录读取失败，请稍后重试或检查日志。'
-        await bot.send(reply,at_sender=True)
+        await send_reply(bot, ev, reply, at_sender=True)
 
     return sv

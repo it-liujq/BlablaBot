@@ -39,7 +39,7 @@ def listing(report, prefix, *, include_summary=True):
 
 
 def quick_listing(report, prefix):
-    lines = ['[BlablaBot]兑换码速查']
+    lines = ['[BlablaBot·兑换码速查]']
     lines.extend(item['code'] for item in report['items'])
     if not report['items']:
         lines.append('当前暂无可用兑换码' if report.get('complete') else '暂时没有可用兑换码，请稍后再查')
@@ -47,8 +47,23 @@ def quick_listing(report, prefix):
     return '\n'.join(lines)
 
 
-def result_text(results):
-    lines = ['兑换结果']
+def alice_redeemed_time_text(updated) -> str:
+    if isinstance(updated, (int, float)) and updated > 0:
+        try:
+            return datetime.fromtimestamp(updated, SHANGHAI).strftime('%Y年%m月%d日 %H:%M')
+        except (OverflowError, OSError, ValueError):
+            pass
+    return '此前'
+
+
+def alice_already_redeemed_text(code: str, updated, *, style: str | None = None) -> str:
+    from ..nikke_message.persona import cdk_already_redeemed_text
+    when = alice_redeemed_time_text(updated)
+    return cdk_already_redeemed_text(code, when, style=style)
+
+
+def result_text(results, *, all_claimed_note: bool = False):
+    lines = ['[BlablaBot·兑换结果]']
     for row in results:
         label = {'success': '兑换成功✅', 'claimed': '已领取✅'}.get(row['status'], row['result'])
         if row['status'] != 'claimed':
@@ -60,8 +75,19 @@ def result_text(results):
         elif row.get('pool_status') == 'blocked':
             lines.append('共享缓存：已存在停用标记，未重新入池')
     counts = Counter(r['status'] for r in results)
-    lines.append('｜'.join(f'{label}{counts[key]}' for key, label in
-        [('success', '成功'), ('claimed', '已领取'), ('skipped', '跳过'), ('failed', '失败'), ('uncertain', '未确认')]))
+    lines.append('｜'.join(
+        f'{label}{counts[key]}{emoji if counts[key] > 0 else ""}'
+        for key, label, emoji in [
+            ('success', '成功', '✅'),
+            ('claimed', '已领取', '✅'),
+            ('skipped', '跳过', '❗'),
+            ('failed', '失败', '❌'),
+            ('uncertain', '未确认', '❓'),
+        ]
+    ))
+    if all_claimed_note and results and counts['success'] == 0 and counts['claimed'] > 0 and counts['failed'] == 0 and counts['uncertain'] == 0:
+        from ..nikke_message.persona import cdk_all_claimed_note
+        lines.append(cdk_all_claimed_note())
     return '\n'.join(lines)
 
 
@@ -79,7 +105,7 @@ def detail_header(kind, bind):
     name = label(getattr(bind, 'nickname', ''), '未知指挥官' if bind else '未绑定')
     area = region.label if region else ('未知区服' if bind else '未绑定')
     uid = label(getattr(bind, 'uid', ''), '未取得' if bind else '未绑定')
-    return f'[BlablaBot]{kind}\n指挥官：{name}\n区服：{area}｜UID：{uid}'
+    return f'[BlablaBot·{kind}]\n指挥官：{name}\n区服：{area}｜UID：{uid}'
 
 
 class _DeliveryBot:
@@ -179,10 +205,11 @@ class Commands:
         return result is not False
 
     async def send(self, bot, ev, text, bind=None, *, at_sender=True):
+        from ..nikke_message.persona import send_reply
         for page in pages(text):
             if not await self.allowed(ev) or (bind is not None and not await self.current(ev, bind)):
                 return False
-            if await bot.send(page, at_sender=at_sender) is False:
+            if await send_reply(bot, ev, page, at_sender=at_sender) is False:
                 return False
         return True
 
@@ -266,6 +293,11 @@ class Commands:
                 return
             if not await self.current(ev, bind):
                 return
+            if mode == 'redeem' and argument:
+                existing = self.redemptions.store.receipt(identity(bind), items[0]['code'])
+                if existing and existing.get('state') in ('success', 'claimed'):
+                    await self.send(bot, ev, alice_already_redeemed_text(items[0]['code'], existing.get('updated')), bind)
+                    return
             if mode == 'official':
                 await self.redemptions.role_matches(client, bind)
                 rows = await api.recommendation(client)
@@ -322,11 +354,12 @@ class Commands:
                         results.append(dict(code='', status='info', result=reason))
             if contribute and not any(r.get('pool_status') in ('added', 'existing', 'blocked') for r in results):
                 results.append(dict(code='', status='info', result='无本次或48小时内成功/官方明确已领取记录，未新增共享码；已有缓存记录保留'))
+            text = result_text(results, all_claimed_note=not contribute)
             if detailed_result(results) and self.result_forward_enabled():
-                await self.send_detail(bot, ev, result_text(results), '兑换结果详情', bind,
+                await self.send_detail(bot, ev, text, '兑换结果详情', bind,
                                        config_key='AliceUID_CDKResultForward')
             else:
-                await self.send(bot, ev, result_text(results), bind)
+                await self.send(bot, ev, text, bind)
         except Exception:
             try:
                 await self.send(bot, ev, '兑换任务中断；提交记录已保留，未自动重试，请稍后核对官方记录', bind)

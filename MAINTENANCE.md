@@ -1,3 +1,40 @@
+﻿# 1.2.19 · 2026-11-22
+
+- 新增 `nikke_message/persona.py` 统一管理 `AliceUID_NoticeStyle`（`爱丽丝风格` 默认 / `默认说明文`）双文风渲染，接入 `nikke_harvest`、`nikke_cdk`、`nikke_community`、`nikke_roster`、`nikke_export`。
+- `nikke_status/commands.py` 移除 `nk资源查询` 出图后附带的冗余缓存规则文本（保留单元素 `[MessageSegment.image(...)]` 列表）。
+- `nikke_community/notifications.py` 的 `messages()` 按 `(reason, attempts, signed, stopped, streak)` 合并同原因异常人员列表（每批最多 10 人共用一条原因与处理说明）；`nikke_community/runtime.py` `_send_summary` 新增 `AliceUID_SignNoticeForward`（默认 `True`）合并转发支持与普通发送回退。
+
+# 1.2.18 · 2026-11-22
+
+- 全量剩余卡片（`help.html`、`aliases.html`、`status.html` bosses 分支、`union.html`、`solo.html`、`roster.html`）接入 `alice_v2_tokens.css` 与 `v2_theme_tokens`（暗版 `#F6C15C`、亮版 `#D43D51`）及 `apply_font_html(..., embed=False)`。
+- `nikke_status/builder.py` 的 `CURRENCIES` 重排并显式绑定图标文件名；`nikke_status/draw.py` 配置 8 色条纹（`blue`/`red`/`gold`/`silver`/`rainbow`）与 `_chevron_pattern_uri()` 保管箱充能纹理，`bosses` 渲染宽度收窄至 `800px`，`render_version` 升级为 `alice-v1218-bento-status-1`。
+- `roster.html` 采用方案 A 平直无缝一体卡（`border-radius:14px` 整卡、`game-avatar` 仅上圆角、`.card-info` 亮 `0.52`/暗 `0.56` 半透明底），严格保留 `WIDTH=1400 / HEADER=176 / FOOTER=32 / ROW=160` 尺寸契约。
+- `tools_alice/build_release.py` `REQUIRED_TEMPLATES` 补充 `help_v2.css`、`aliases_v2.css`、`status_bosses_v2.css`、`union_v2.css`、`solo_v2.css`。
+- 迭代归档约定：打包发布后，根 `dist/` 仅保留最新两代安装包，根目录旧版代码工作区移入 `回收站/` 仅保留最新版。
+
+# 1.2.17 · 2026-11-22
+
+- `nikke_render/theme.py` 移除属性自适应变色 `V2_ELEMENT_ACCENTS`，改为 `V2_UNIFIED_ACCENTS`（暗版 `#F6C15C`、亮版 `#D43D51`）；`nikke_profile/draw.py` 同步采用统一主题色。
+- `WIDE_ART_BASE_SCALE` 调整为 `0.825`（等效 1.2.16 下 `-3%` 比例），`nikke_character/draw.py` `render_version` 升级为 `alice-v1217-bento-1`。
+- `profile.html` 与 `profile_v2.css` 复用 `card_badges.html`（`progression`、`role_corners`）与 `squad_badges.css`，消除 `.lead-core-badge b` 黑底方框并使右下角 4 名妮姬角标与 `union.html` 一致；`nikke_resource/service.py` `render_version` 升级为 `alice-profile-v1217-bento`。
+
+# 1.2.16 · 2026-11-22
+
+- 横版角色练度大立绘默认缩放基准 `WIDE_ART_BASE_SCALE` 调整为 `0.85`（在 1.2.15 `0.90` 基础上再缩 5%）；新增 `AliceUID_WideArtScaleOffset`（`GsStrConfig`，默认 `"0"`，接受 `-100`~`+100` 可带 `%` 整数）并在 `ValidatedStringConfig` 校验归一化、在 `draw_character` 缓存键加入 `wide_art_scale` 并升级 `render_version='alice-v1216-bento-1'`。
+- `profile.html` 主推角色 `.lead-role-icon` 改用 `.icon-stack` + `icon-shadow` + `alpha-effect` 双层阴影，`nikke_resource/service.py` `render_version` 升级为 `alice-profile-v1216-bento`。
+- `nikke_status/builder.py` 保管箱估算注记精简为 `保管箱按24时回满线性估算。`，`nikke_status/draw.py` `render_version` 升级为 `alice-v1216-bento-status-1`。
+- `nikke_cdk/commands.py` `result_text()` 汇总行仅对数量 `> 0` 的状态追加 Emoji（`✅`/`✅`/`❗`/`❌`/`❓`）。
+
+# 1.2.15 · 2026-11-22
+
+角色练度（横版 1280×820 / 纵版 570×1048）、指挥官名片（1280×740）与资源查询（730px）正式切换为 Bento 战术玻璃 v2 视觉体系；1.2.14 旧版模板与样式已备份至工作区 HistoryDoc/legacy_card_styles_1.2.14/，生产包内不再保留旧版样式。
+
+- AliceUID_CharacterCardStyle 与 AliceUID_CharacterRandomTheme 选项中文化（横版亮色/横版暗色/纵版亮色/纵版暗色、关闭随机/横版随机/纵版随机/全部随机），write_config 与 	heme.py 自动兼容旧英文值。
+- 
+ikke_cdk 单码命令命中本地 
+eceipts 时直接返回爱丽丝方案 A 提醒（北京时间 YYYY年MM月DD日 HH:MM），旧库记录默认视作插件已兑换。
+- 常规卡片由 GsCore 原生引擎（pytakumi）渲染，新增/修改样式须遵守无 	ransform、无 ::before/::after 关键视觉、无 ackdrop-filter 依赖与 .ui-pill 光学居中规则。
+
 # 1.2.14 · 2026-11-15
 
 用户反馈极速下角色更新出现212000；未获得官方码表，不能将该码确定解释为账号风控。移除极速、4路并发、0.8秒波次、ContextVar传输绕锁及所有批量并发读取分支。七个核心请求文件以已核验1.2.12源码为串行基线，再接入既有调速键；全局共享读槽恢复2个，同账号按事务与HTTP锁串行。保留1.2.13的收菜storage-only复核、登录文案和后台排序。

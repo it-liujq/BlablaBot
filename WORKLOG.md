@@ -125,3 +125,26 @@ python -m unittest discover -s tests
   - 31 项单元测试通过；
   - 配置键对比：上游 51 个键全部存在，本项目额外保留 3 个 LPass/签到通知键；
   - 触发器 77 个、无重名；`#LPass绑定/签到/开启全量签到/状态/解绑` 与 `#bla` 前缀均在。
+## 14. 合并上游 1.2.15 → 1.3.04（2026-11-24）
+
+- **上游内容**：
+  - 1.2.15 卡片美术优化、兑换码提示调整；1.2.16 角色练度左侧大立绘比例可调；
+  - 1.2.17/1.2.18 卡片风格统一与信息卡显示优化；
+  - 1.2.19 新增默认「爱丽丝风格」通知，可后台切回说明文风格；
+  - 1.2.20 卡片显示优化、补全爱丽丝风格文案；
+  - 1.2.21 转发失效 BUG 修复；1.2.22 卡片显示修复；
+  - 1.2.23 别名系统优化并预置妮姬别名（新增 `AliceUID_nk_alias.md`）；
+  - 1.3.0/1.3.01 nk 卡片只显示主力妮姬、新增 nk 图鉴（显示全部妮姬解锁状态）及报错修复；
+  - 1.3.02 收菜提醒物资卡片渲染与其它 BUG 修复；
+  - 1.3.03 宽版角色卡半透蒙版问题；1.3.04 nk 信息卡样式优化。
+- **新增文件**：`nikke_message/persona.py`、`nikke_character/AliceUID_nk_alias.md`、多套 v2 模板/样式（aliases/character_compact/character_wide/help/profile/solo/status/union、alice_v2_tokens、profile_classic 等），以及 assets 两张 NIKKE 背景图。
+- **处理**：
+  - 新文件整包复制并做品牌替换；二进制图片原样复制；
+  - `config_default.py` 冲突采用「双方键合并」：保留本项目 `AliceUID_AutoCDKEnabled`，同时加入上游新增 `AliceUID_SignNoticeForward`，并做全量去重；
+  - `nikke_login/commands.py`、`nikke_message/__init__.py`、`nikke_message/images.py`、`templates/solo.html`、`version.py`、`README.md` 冲突取上游内容后重新套用 BlablaBot 品牌与 `#bla` 前缀；
+  - 全局修正新代码中被品牌替换误伤的 `BlablaBotConfig` → `AliceUIDConfig`（`nikke_render/theme.py`、`nikke_message/images.py`、`nikke_message/persona.py`、`nikke_message/__init__.py` 等）。
+- **验证**：
+  - `compileall` 全包通过；`ruff F821/F822/F823/E9` 全包通过；
+  - 31 项单元测试通过；
+  - 配置键：上游 51 个全部存在，本项目额外保留 LPass/签到通知等键，无重复；
+  - 触发器无重名；`#bla` 前缀与 `#LPass绑定/签到/开启全量签到/状态/解绑` 均在。

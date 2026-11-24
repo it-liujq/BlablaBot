@@ -20,20 +20,20 @@ async def allowed(policy, event):
     return bool(await result if inspect.isawaitable(result) else result)
 
 
-async def current_before_send(policy, event, bind, prepared, model):
+async def current_before_send(policy, event, bind, prepared, model, *, mode='main'):
     current = await model.get_bind(event.user_id, event.bot_id)
-    if current is None or identity(event.user_id, event.bot_id, current)[0] != prepared.key:
+    if current is None or identity(event.user_id, event.bot_id, current, mode=mode)[0] != prepared.key:
         return False
     return await allowed(policy, event)
 
 
-async def roster_worker(bot,event,policy):
+async def roster_worker(bot, event, policy, *, mode='main'):
     from ..nikke_logs.store import request_scope
-    with request_scope('完整卡片'):
-        return await _roster_worker(bot,event,policy)
+    with request_scope('主力卡片' if mode == 'main' else '图鉴卡片'):
+        return await _roster_worker(bot, event, policy, mode=mode)
 
 
-async def _roster_worker(bot, event, policy):
+async def _roster_worker(bot, event, policy, *, mode='main'):
     from gsuid_core.logger import logger
     from gsuid_core.segment import MessageSegment
     from ..nikke_api.client import NikkeApiError, NikkeLoginRequired
@@ -43,47 +43,54 @@ async def _roster_worker(bot, event, policy):
     client, bind = None, None
     service = get_roster_service()
     try:
+        from ..nikke_message.persona import send_reply as _send_reply
+    except ImportError:
+        async def _send_reply(b, e, p, *, at_sender=True, newline=False, sep=None):
+            return await b.send(p, at_sender=at_sender)
+    try:
         if not await allowed(policy, event):
-            await bot.send('当前权限已关闭，已停止生成卡片。', at_sender=True)
+            await _send_reply(bot, event, '当前权限已关闭，已停止生成卡片。', at_sender=True)
             return
         client, bind = await load_client(event.user_id, event.bot_id)
         if client is None:
-            await bot.send(unavailable_message(bind), at_sender=True)
+            await _send_reply(bot, event, unavailable_message(bind), at_sender=True)
             return
         from ..nikke_logs.store import event as diagnostic_event
         async with asyncio.timeout(120):
-            prepared = await service.prepare(client, bind, event.user_id, event.bot_id)
+            prepared = await service.prepare(client, bind, event.user_id, event.bot_id, mode=mode)
         # Binding mutations use this same lock. Prevent revoke/rebind between the
         # final revision check and send, and verify permissions again after work.
         async with binding_lock(event.user_id, event.bot_id):
-            if not await current_before_send(policy, event, bind, prepared, AliceBind):
+            if not await current_before_send(policy, event, bind, prepared, AliceBind, mode=mode):
                 service.cache.invalidate_key(prepared.key)
-                await bot.send('绑定或权限已变化，已停止发送旧账号卡片。', at_sender=True)
+                await _send_reply(bot, event, '绑定或权限已变化，已停止发送旧账号卡片。', at_sender=True)
                 return
             data = prepared.path.read_bytes()
             from ..nikke_message import send_with_forward, display_name
-            diagnostic_event('完整卡片','发送','START',bytes=len(data))
+            log_label = '主力卡片' if mode == 'main' else '图鉴卡片'
+            title_kind = '主力妮姬' if mode == 'main' else '图鉴展示'
+            diagnostic_event(log_label, '发送', 'START', bytes=len(data))
             result = await send_with_forward(bot, event, MessageSegment.image(data),
                                              config_key='AliceUID_RosterForward',
-                                             title=f'BlablaBot·{display_name(getattr(bind, "nickname", ""), "未知指挥官")}·图鉴展示')
-            diagnostic_event('完整卡片','发送','OK' if result is not False else 'FAILED')
+                                             title=f'[BlablaBot·{title_kind}·{display_name(getattr(bind, "nickname", ""), "未知指挥官")}]')
+            diagnostic_event(log_label, '发送', 'OK' if result is not False else 'FAILED')
             if result is not False:
                 service.mark_sent(prepared)
     except TimeoutError:
-        await bot.send('完整卡片生成等待超时，已结束本次任务；资料缓存保留，请稍后重试。',at_sender=True)
+        await _send_reply(bot, event, '完整卡片生成等待超时，已结束本次任务；资料缓存保留，请稍后重试。', at_sender=True)
     except RosterCooldown as exc:
-        await bot.send(str(exc), at_sender=True)
+        await _send_reply(bot, event, str(exc), at_sender=True)
     except NikkeLoginRequired:
         if bind is not None:
             service.invalidate_binding(bind, event.user_id, event.bot_id)
-        await bot.send(RELOGIN, at_sender=True)
+        await _send_reply(bot, event, RELOGIN, at_sender=True)
     except NikkeApiError as exc:
         if bind is not None and exc.code in (401, 403, 300001):
             service.invalidate_binding(bind, event.user_id, event.bot_id)
-        await bot.send(RELOGIN if is_login_error(exc) else f'查询失败（{exc.code}），已停止请求，请稍后再试。', at_sender=True)
+        await _send_reply(bot, event, RELOGIN if is_login_error(exc) else f'查询失败（{exc.code}），已停止请求，请稍后再试。', at_sender=True)
     except Exception as exc:
         logger.error(f'[BlablaBot] roster failed error_type={type(exc).__name__}')
-        await bot.send('无法安全生成或发送完整卡片，请稍后重试；不会发送截断图片。', at_sender=True)
+        await _send_reply(bot, event, '无法安全生成或发送完整卡片，请稍后重试；不会发送截断图片。', at_sender=True)
     finally:
         if client is not None:
             try:
@@ -92,17 +99,25 @@ async def _roster_worker(bot, event, policy):
                 pass
 
 
-async def queue_roster(bot, event, policy):
+async def queue_roster(bot, event, policy, *, mode='main'):
+    try:
+        from ..nikke_message.persona import send_reply, wait_roster_generating
+    except ImportError:
+        async def send_reply(b, e, p, *, at_sender=True, newline=False, sep=None):
+            return await b.send(p, at_sender=at_sender)
+        def wait_roster_generating(*, merged=False, mode='main', style=None):
+            tag = '主力妮姬' if mode == 'main' else '图鉴展示'
+            return f'[BlablaBot·{tag}]\n' + ('正在合并重复请求，卡片生成中，请稍候。' if merged else '正在准备卡片，请稍候。')
     if not await allowed(policy, event):
-        await bot.send('当前用户或群未开放妮姬查询，请联系管理员。', at_sender=True)
+        await send_reply(bot, event, '当前用户或群未开放妮姬查询，请联系管理员。', at_sender=True)
         return
-    key = (str(event.user_id), str(event.bot_id))
+    key = (str(event.user_id), str(event.bot_id)) if mode == 'main' else (str(event.user_id), str(event.bot_id), mode)
     async with _queue_locks.setdefault(key, asyncio.Lock()):
         if key in _tasks and not _tasks[key].done():
-            await bot.send('你的完整卡片正在生成，请稍候；已合并重复请求。', at_sender=True)
+            await send_reply(bot, event, wait_roster_generating(merged=True, mode=mode), at_sender=True)
             return
-        await bot.send('正在核对本人阵容并生成完整卡片，首次准备肖像可能稍久。', at_sender=True)
-        task = asyncio.create_task(roster_worker(bot, event, policy))
+        await send_reply(bot, event, wait_roster_generating(merged=False, mode=mode), at_sender=True)
+        task = asyncio.create_task(roster_worker(bot, event, policy, mode=mode))
         _tasks[key] = task
     def done(completed):
         if _tasks.get(key) is completed:
@@ -124,7 +139,10 @@ def setup(policy=None, scheduler=None):
     sv = SV('妮姬完整阵容卡片', priority=3)
     @sv.on_fullmatch(('卡片', '阵容卡片', '妮姬卡片'))
     async def card(bot, ev):
-        await queue_roster(bot, ev, policy)
+        await queue_roster(bot, ev, policy, mode='main')
+    @sv.on_fullmatch(('图鉴', '妮姬图鉴', '完整图鉴'))
+    async def codex(bot, ev):
+        await queue_roster(bot, ev, policy, mode='codex')
     @sv.on_fullmatch(('刷新面板',))
     async def refresh(bot, ev):
         from ..nikke_user.panel_refresh import queue_refresh

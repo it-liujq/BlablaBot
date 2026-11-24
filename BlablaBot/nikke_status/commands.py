@@ -58,11 +58,12 @@ async def _query(bot,ev,kind):
                     prepared=await resource_status.prepare_image(client,bind,refresh=text=='刷新',
                         actor=(ev.user_id,ev.bot_id),still_current=lambda:_current(ev,bind),
                         on_snapshot=lambda context:_observe_harvest(bind,context))
-                    result=[MessageSegment.image(prepared.image),
-                            '成功出图后5分钟内复用缓存图片；没有可用缓存图时重新同步并生成。']
+                    result=[MessageSegment.image(prepared.image)]
                 else:
                     context=await union_queries.query_bosses(client,bind,refresh=text=='刷新')
                     if not await _current(ev,bind):return
+                    from ..nikke_resource.identity_card import decorate_identity
+                    await decorate_identity(context,bind)
                     from .draw import draw_status
                     result=MessageSegment.image(await draw_status(context,owner_key=(str(ev.user_id),str(ev.bot_id),*binding_key(bind))))
     except NikkeLoginRequired:
@@ -80,11 +81,12 @@ async def _query(bot,ev,kind):
             try:await client.close()
             except Exception as exc:logger.warning(f'[BlablaBot] status close error_type={type(exc).__name__}')
     if result is not None and await _allowed(ev):
+        from ..nikke_message.persona import send_reply
         if bind is None:
-            await bot.send(result,at_sender=True)
+            await send_reply(bot, ev, result, at_sender=True)
         else:
             async with binding_lock(ev.user_id,ev.bot_id):
-                if await _current(ev,bind):await bot.send(result,at_sender=True)
+                if await _current(ev,bind):await send_reply(bot, ev, result, at_sender=True)
 
 
 @sv_status.on_command('会战血量')

@@ -53,12 +53,13 @@ def build_help_context(permission: int = 6, *, login_mode='browser') -> dict:
             {'command': f'{command_prefix()}妮姬隐藏', 'description': '隐藏官网妮姬资料，持续生效'},
             {'command': f'{command_prefix()}妮姬公开状态', 'description': '查看官网实际公开范围和待恢复状态'},
         ]},
-        {'title': '个人查询', 'tag': '本人功能', 'description': '资料、角色练度、收菜与个人突袭；日历和别名查询无需绑定。', 'items': [
+        {'title': '个人查询', 'tag': '本人功能', 'description': '资料、主力卡片、全量图鉴、练度导出与收菜提醒；日历和别名查询无需绑定。', 'items': [
             {'command': f'{command_prefix()}信息 / {command_prefix()}名片', 'description': '读取本人资料缓存；展示战役爬塔、主立绘与当前皮肤'},
-            {'command': f'{command_prefix()}爱丽丝练度 / {command_prefix()}爱丽丝面板', 'description': '本人立绘、装备与技能；已有本地数据和图片优先复用'},
+            {'command': f'{command_prefix()}爱丽丝练度 / {command_prefix()}爱丽丝面板', 'description': '本人立绘、装备与技能；宽版含别名胶囊，优先复用本地缓存'},
             {'command': f'{command_prefix()}信息刷新 / {command_prefix()}刷新信息', 'description': '轻量更新本人名片资料并回图，不读取全部角色装备详情'},
             {'command': f'{command_prefix()}刷新爱丽丝面板', 'description': '替换角色名，更新该角色数据并渲染卡片；至少间隔5秒'},
-            {'command': f'{command_prefix()}卡片', 'description': '读取本人角色与皮肤缓存；每行10个头像，含星级/核心角标'},
+            {'command': f'{command_prefix()}卡片 / {command_prefix()}阵容卡片', 'description': '主力妮姬卡片（任一技能 ≥ Lv.7）；按人数自动 7 / 8 / 10 列排布'},
+            {'command': f'{command_prefix()}图鉴 / {command_prefix()}妮姬图鉴', 'description': '完整图鉴：10列已持有妮姬 + 换行灰阶未解锁妮姬（右下角起）'},
             {'command': f'{command_prefix()}练度全量导出', 'description': '原始练度Excel；支持筛选、编号/原始战力排序及公开链接'},
             {'command': f'{command_prefix()}400练度全量导出[json] [链接]', 'description': '原始与指定等级模拟对照；400可替换为成长资料支持的等级'},
             {'command': f'{command_prefix()}练度全量导出json / JSON', 'description': '实际等级JSON，便于AI分析；可追加公开练度链接'},
@@ -114,8 +115,10 @@ def build_help_context(permission: int = 6, *, login_mode='browser') -> dict:
                 {'command': '后台：BlablaBot 用户绑定管理', 'description': '查看绑定摘要与脱敏导出；修改凭据需通过登录流程，解绑走专用接口'},
                 {'command': f'{command_prefix()}红莲：暗影新增别名黑莲', 'description': f'添加全局角色别名；可省略符号，如 {command_prefix()}红莲暗影新增别名黑莲'},
                 {'command': f'{command_prefix()}红莲暗影注册别名黑莲', 'description': '与新增别名相同；旧的「角色名别名别名」写法已停用'},
-                {'command': '后台：主题与卡片语言', 'description': '亮色/暗色/随机毛玻璃，简繁可选；出刀缓存按秒调整'},
-                {'command': '后台：全局毛玻璃强度', 'description': '0～100%，默认20%；只模糊背景，修改后下次出图生效'},
+                {'command': f'{command_prefix()}注销别名 皇玛', 'description': '移除本地别名或屏蔽内置默认别名表中的指定别名；支持删除别名写法'},
+                {'command': f'{command_prefix()}别名导出', 'description': '导出当前生效的全部角色别名为 AliceUID_nk_alias.md'},
+                {'command': '后台：角色练度样式与缩放', 'description': '横版亮暗/纵版亮暗及随机模式；横版大立绘支持 -100%～+100% 微调'},
+                {'command': '后台：主题与卡片语言', 'description': 'Bento 亮红/暗金玻璃风格，简繁可选；出刀缓存按秒调整'},
             ]},
             {'title': '群组查询与管理', 'tag': '仅 Bot 主', 'description': '群查询、签到通知、自动兑换与群名单维护。', 'items': [
                 {'command': f'{command_prefix()}群查询 状态', 'description': '查看本群实际查询权限，不能绕过Bot主名单'},
@@ -186,10 +189,17 @@ def section_bands(sections: list[dict]) -> list[list[dict]]:
 
 
 def render_help_html(context: dict) -> str:
+    from datetime import datetime, timedelta, timezone
+    from ..nikke_render.fonts import apply_font_html
+    from ..nikke_render.theme import v2_theme_tokens
     items=sum(len(section.get('items',[])) for section in context.get('sections',[]))
     scene_height=max(2200,900+items*90)
     prepared = dict(context, section_bands=section_bands(context['sections']))
-    return _ENV.get_template('help.html').render(**apply_theme(prepared, context.get("card_theme"),scene_height=scene_height))
+    themed = apply_theme(prepared, context.get("card_theme"),scene_height=scene_height)
+    themed.update(v2_theme_tokens(None, themed['card_theme']))
+    themed['font_family'] = 'MiSans'
+    themed['credit_timestamp'] = datetime.now(timezone(timedelta(hours=8))).strftime('%Y-%m-%d·%H:%M')
+    return apply_font_html(_ENV.get_template('help.html').render(**themed), embed=False)
 
 
 async def draw_help(context: dict) -> bytes:

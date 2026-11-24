@@ -382,7 +382,8 @@ async def _refresh_worker(bot, ev, policy, *, expected=None, automatic=False, no
         if client is None:
             bot, ev, policy = await notification_target()
             if bot is not None:
-                await bot.send(unavailable_message(bind), at_sender=True)
+                from ..nikke_message.persona import send_reply
+                await send_reply(bot, ev, unavailable_message(bind), at_sender=True)
             return False
         if expected is not None and _revision(bind) != expected:
             return False
@@ -399,35 +400,41 @@ async def _refresh_worker(bot, ev, policy, *, expected=None, automatic=False, no
             try:
                 sent = await send_profile_image(notify_bot, notify_ev, client, bind, data, policy=notify_policy)
                 if not sent:
-                    await notify_bot.send('绑定、权限或资料已变化，已停止发送旧信息图，请重新查询。', at_sender=True)
+                    from ..nikke_message.persona import send_reply
+                    await send_reply(notify_bot, notify_ev, '绑定、权限或资料已变化，已停止发送旧信息图，请重新查询。', at_sender=True)
             except Exception as exc:
                 logger.warning(f'[BlablaBot] refresh completion image failed error_type={type(exc).__name__}')
-                await notify_bot.send('资料、全部角色练度与皮肤缓存已刷新，但信息图生成或发送失败；请使用信息命令重试。', at_sender=True)
+                from ..nikke_message.persona import send_reply
+                await send_reply(notify_bot, notify_ev, '资料、全部角色练度与皮肤缓存已刷新，但信息图生成或发送失败；请使用信息命令重试。', at_sender=True)
         return True
     except (RosterCooldown, CharacterDataError) as exc:
         bot, ev, policy = await notification_target()
         if bot is not None:
-            await bot.send(str(exc), at_sender=True)
+            from ..nikke_message.persona import send_reply
+            await send_reply(bot, ev, str(exc), at_sender=True)
         else:
             logger.warning(f'[BlablaBot] background refresh stopped error_type={type(exc).__name__}')
     except NikkeLoginRequired:
         bot, ev, policy = await notification_target()
         if bot is not None:
-            await bot.send(RELOGIN, at_sender=True)
+            from ..nikke_message.persona import send_reply
+            await send_reply(bot, ev, RELOGIN, at_sender=True)
         else:
             logger.warning('[BlablaBot] background refresh stopped: login required')
     except NikkeApiError as exc:
         bot, ev, policy = await notification_target()
         if bot is not None:
-            await bot.send(RELOGIN if is_login_error(exc) else f'更新失败（{exc.code}），已停止请求；未替换原缓存。', at_sender=True)
+            from ..nikke_message.persona import send_reply
+            await send_reply(bot, ev, RELOGIN if is_login_error(exc) else f'更新失败（{exc.code}），已停止请求；未替换原缓存。', at_sender=True)
         else:
             logger.warning(f'[BlablaBot] background refresh stopped code={exc.code}')
     except Exception as exc:
         bot, ev, policy = await notification_target()
         logger.error(f'[BlablaBot] account prefetch failed error_type={type(exc).__name__}')
         if bot is not None:
-            await bot.send('资料已缓存，但完成通知失败，请使用信息命令查询。' if committed else
-                           '资料缓存更新失败，未替换原缓存，请稍后重试。', at_sender=True)
+            from ..nikke_message.persona import send_reply
+            await send_reply(bot, ev, '资料已缓存，但完成通知失败，请使用信息命令查询。' if committed else
+                             '资料缓存更新失败，未替换原缓存，请稍后重试。', at_sender=True)
     finally:
         if client is not None:
             try:
@@ -493,25 +500,26 @@ def schedule_silent_refresh(bind, ev, policy):
 
 async def queue_refresh(bot, ev, policy):
     from ..nikke_roster.commands import allowed
+    from ..nikke_message.persona import send_reply, wait_panel_refresh
     from .models import AliceBind
     if not await allowed(policy, ev):
-        await bot.send('当前用户或群未开放妮姬查询，请联系管理员。', at_sender=True)
+        await send_reply(bot, ev, '当前用户或群未开放妮姬查询，请联系管理员。', at_sender=True)
         return
     key = str(ev.user_id), str(ev.bot_id)
     async with _queue_locks.setdefault(key, asyncio.Lock()):
         bind = await AliceBind.get_bind(*key)
         if bind is None:
             from .auth_state import unavailable_message
-            await bot.send(unavailable_message(None), at_sender=True)
+            await send_reply(bot, ev, unavailable_message(None), at_sender=True)
             return
         revision = _revision(bind) if bind is not None else ''
         current = _tasks.get(key)
         if current is not None and not current.done():
             if _task_revisions.get(key) == revision:
                 _manual_requests.setdefault(key, (bot, ev, policy))
-                await bot.send('本人资料与角色数据正在缓存，请稍候；已合并重复请求。', at_sender=True)
+                await send_reply(bot, ev, wait_panel_refresh(merged=True), at_sender=True)
                 return
             current.cancel()
         _manual_requests[key] = (bot, ev, policy)
-        await bot.send('正在刷新本人资料、全部角色练度与皮肤缓存；完成后发送最新信息图。', at_sender=True)
+        await send_reply(bot, ev, wait_panel_refresh(merged=False), at_sender=True)
         _track(key, revision, refresh_worker(bot, ev, policy, expected=revision))

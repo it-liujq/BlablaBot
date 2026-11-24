@@ -88,6 +88,13 @@ def bedtime(now, full_at, value):
     return 0 <= begin - now <= 3600 and begin <= full_at < begin + length
 
 
+def in_pre_quiet_window(now, value):
+    if not value or quiet(now, value):
+        return False
+    start, _ = map(minutes, value.split('-'))
+    return 0 <= at_next(now, start) - now <= 3600
+
+
 def snapshot(context):
     if not context.get('storage_known'):
         raise ValueError('社区未提供有效保管箱容量，暂不能安排收菜提醒。')
@@ -115,22 +122,15 @@ def moment(value, now):
 
 
 def title(kind):
-    return '[BlablaBot]' + {'normal':'收菜提醒', 'full':'满仓提醒', 'bed':'睡前收菜提醒',
-                           'stop':'收菜提醒已自动关闭'}[kind]
+    return '[BlablaBot·' + {'normal':'收菜提醒', 'full':'满仓提醒', 'bed':'睡前收菜提醒',
+                           'stop':'收菜提醒已自动关闭'}[kind] + ']'
 
 
-def body(kind, snap, now):
-    if kind == 'stop':
-        return '指挥官，您的资源保管箱在连续两天23点检查时均为MAX，已自动关闭该账号在所有会话中的收菜提醒，并停止后台检查。'
-    if kind == 'full':
-        return '指挥官，您的资源保管箱容量已达到MAX，请及时上线收取资源。'
-    text = f'指挥官，您的资源保管箱{"当前容量为" if kind == "bed" else "容量已达到"}{percent(snap)}%，预计{moment(snap["full"], now)}达到MAX'
-    return text + ('。' if kind == 'bed' else '，请及时上线收取资源。')
+def body(kind, snap, now, *, style=None):
+    from ..nikke_message.persona import harvest_body
+    return harvest_body(kind, percent(snap), moment(snap["full"], now), style=style)
 
 
-def footer(kind, quiet_period, prefix):
-    if kind == 'stop':
-        return f'如需恢复，请在需要接收提醒的群聊或私聊中发送“{prefix}开启收菜提醒”。'
-    if kind == 'bed':
-        return f'收菜提醒免打扰时段：北京时间{quiet_period.replace("-", "—")}。\n建议睡前上线收取资源。'
-    return ''
+def footer(kind, quiet_period, prefix, *, style=None):
+    from ..nikke_message.persona import harvest_footer
+    return harvest_footer(kind, quiet_period, prefix, style=style)
