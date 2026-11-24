@@ -37,6 +37,7 @@ class LPassBind(Bind, table=True):
     auto_time: str = Field(default=DEFAULT_AUTO_TIME, title="自动执行时间 HH:MM")
     last_run_day: str = Field(default="", title="最近自动执行日期")
     last_result: str = Field(default="", title="最近一次执行结果")
+    fail_streak: int = Field(default=0, title="连续失败天数")
     notify_ws: str = Field(default="", title="推送用的 WS 标识")
     notify_self: str = Field(default="", title="推送用的 bot self id")
 
@@ -81,6 +82,7 @@ class LPassBind(Bind, table=True):
             ("auto_time", "VARCHAR(8) NOT NULL DEFAULT '08:30'"),
             ("last_run_day", "VARCHAR(16) NOT NULL DEFAULT ''"),
             ("last_result", "TEXT"),
+            ("fail_streak", "INTEGER NOT NULL DEFAULT 0"),
             ("notify_ws", "VARCHAR(64) NOT NULL DEFAULT ''"),
             ("notify_self", "VARCHAR(64) NOT NULL DEFAULT ''"),
         )
@@ -132,12 +134,25 @@ class LPassBind(Bind, table=True):
 
     @classmethod
     @with_session
+    async def group_all(cls, session: AsyncSession, bot_id, group_id):
+        rows = await session.scalars(
+            select(cls).where(cls.bot_id == str(bot_id), cls.group_id == str(group_id))
+        )
+        return list(rows.all())
+
+    @classmethod
+    @with_session
     async def mark_ran(cls, session: AsyncSession, user_id, bot_id, *,
-                       day: str, summary: str) -> None:
+                       day: str, summary: str, success=None) -> None:
+        values = {"last_run_day": day, "last_result": summary[:1500]}
+        if success is True:
+            values["fail_streak"] = 0
+        elif success is False:
+            values["fail_streak"] = cls.fail_streak + 1
         await session.execute(
             cls.__table__.update()
             .where(cls.user_id == str(user_id), cls.bot_id == str(bot_id))
-            .values(last_run_day=day, last_result=summary[:1500])
+            .values(**values)
         )
 
 

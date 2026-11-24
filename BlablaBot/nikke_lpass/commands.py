@@ -59,23 +59,12 @@ def _register(sv, names):
 
 
 async def _reply(bot: Bot, ev: Event, text: str, *, title: str = "LPass", **_ignored) -> None:
-    """LPass 的回复统一用合并转发；失败或关闭开关时回退普通消息。"""
-    from gsuid_core.segment import MessageSegment
-
-    from ..nikke_config.config import AliceUIDConfig
-
+    """LPass 回复统一直接 @ 发命令的人，不再使用合并转发。"""
     try:
-        enabled = bool(AliceUIDConfig.get_config("AliceUID_LPassForward").data)
-    except Exception:  # noqa: BLE001
-        enabled = True
-    if enabled:
-        try:
-            node = MessageSegment.node(
-                [MessageSegment.text(str(title)), MessageSegment.text(text)])
-            return await bot.send(node, at_sender=False)
-        except Exception as exc:  # noqa: BLE001
-            logger.warning(f"[Lpass] 合并转发失败，回退普通消息 error_type={type(exc).__name__}")
-    await bot.send(text, at_sender=True)
+        await bot.send(str(text), at_sender=True)
+    except Exception as exc:  # noqa: BLE001
+        logger.warning(f"[Lpass] 回复失败 error_type={type(exc).__name__}")
+        raise
 
 
 HELP = (

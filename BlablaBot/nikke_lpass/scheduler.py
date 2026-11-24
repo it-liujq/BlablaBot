@@ -67,38 +67,50 @@ class LPassAutoScheduler:
 
     async def run_group(self, bot_id: str, group_id: str, binds, day: str):
         """群内全量签到：按账号依次执行，全部跑完后发一条群汇总。"""
+        all_binds = await LPassBind.group_all(bot_id, group_id)
+        enabled_ids = {str(b.user_id) for b in binds}
+        not_enabled = [b for b in all_binds if str(b.user_id) not in enabled_ids]
         successes, failures = [], []
         for bind in binds:
+            display = bind.nickname or str(bind.user_id)
             try:
-                text = await self._execute(bind, day, notify=False)
+                _text, signed, reason = await self._execute(bind, day, notify=False)
             except Exception as exc:  # noqa: BLE001
                 logger.warning("LPass group member failed error_type=%s", type(exc).__name__)
-                failures.append((bind.nickname or bind.user_id, "执行异常"))
-                continue
-            if text is None:
-                failures.append((bind.nickname or bind.user_id, "登录态已过期"))
-                continue
-            if "每日签到" in text and "已完成" in text:
-                successes.append(bind.nickname or bind.user_id)
+                signed, reason = False, "执行异常，请稍后检查"
+            if signed:
+                successes.append(display)
             else:
-                failures.append((bind.nickname or bind.user_id, "未确认签到成功"))
-        summary = self.group_message(successes, failures, len(binds))
+                streak = int(getattr(bind, "fail_streak", 0) or 0) + 1
+                failures.append({"name": display, "qq": str(bind.user_id),
+                                 "reason": reason, "streak": streak,
+                                 "cookie": reason.startswith("登录态")})
+        summary = self.group_message(successes, failures, not_enabled)
         logger.info("LPass group summary group=%s success=%s fail=%s",
                     group_id, len(successes), len(failures))
-        await self.notify_group(bot_id, group_id, binds[0], summary)
+        await self.notify_group(bot_id, group_id, binds[0] if binds else all_binds[0], summary,
+                                mentions=[f["qq"] for f in failures])
 
-    def group_message(self, successes, failures, total: int) -> str:
+    def group_message(self, successes, failures, not_enabled) -> str:
         complete = not failures
-        title = "今日自动签到已完成！" if complete else "自动签到处理结束。"
-        text = ("✅" if complete else "⚠️") + " [BlablaBot] LIPASS" + title
-        text += f"\n📝 本群共签到成功{len(successes)}人，共签到失败{len(failures)}人。"
-        if total == 0:
-            text += "\n本群还没有开启全量签到的用户。"
+        head = ("✅" if complete else "⚠️") + " [BlablaBot] LIPASS"
+        head += "今日自动签到已完成！" if complete else "自动签到处理结束。"
+        lines = [head]
+        tail = f"📝 本群共签到成功{len(successes)}人，共签到失败{len(failures)}人，"
+        tail += (f"{len(not_enabled)}人尚未开启全量签到。" if not_enabled else "全员均已开启全量签到。")
+        lines.append(tail)
+        lines.append("统计范围：本群已绑定 LPass 的账号。")
         if failures:
-            text += "\n" + "、".join(f"{name}（{reason}）" for name, reason in failures[:10])
-        return text
+            lines.extend(["", "异常详情（1/1）："])
+            for item in failures[:20]:
+                lines.append(f"{item['name']} （QQ：{item['qq']}）")
+                lines.append(f"原因：{item['reason']}；共尝试1轮。")
+                lines.append(f"处理：连续失败{item['streak']}/3天，全量签到保持开启，下个周期继续。")
+                if item.get("cookie"):
+                    lines.append("COOKIE 可能已过期，请发送 #LPass绑定；如为网络或服务异常，请稍后检查。")
+        return "\n".join(lines)
 
-    async def notify_group(self, bot_id: str, group_id: str, bind, text: str):
+    async def notify_group(self, bot_id: str, group_id: str, bind, text: str, mentions=None):
         ws = str(getattr(bind, "notify_ws", "") or "")
         if not ws:
             return
@@ -107,8 +119,16 @@ class LPassAutoScheduler:
             transport = gss.active_bot.get(ws)
             if transport is None:
                 return
+            content = text
+            if mentions:
+                from gsuid_core.segment import MessageSegment
+                content = [MessageSegment.text(text), MessageSegment.text("\n")]
+                for idx, qq in enumerate(dict.fromkeys(str(m) for m in mentions if str(m).isdigit())):
+                    if idx:
+                        content.append(MessageSegment.text(" "))
+                    content.append(MessageSegment.at(qq))
             await transport.target_send(
-                text, "group", str(group_id), str(bot_id),
+                content, "group", str(group_id), str(bot_id),
                 str(getattr(bind, "notify_self", "") or ""),
                 group_id=str(group_id), at_sender=False, wait_recall=True,
             )
@@ -116,13 +136,17 @@ class LPassAutoScheduler:
             logger.warning("LPass group notify failed error_type=%s", type(exc).__name__)
 
     async def _execute(self, bind, day: str, *, notify: bool = True):
+        """执行单个账号，返回 (文本, 是否签到成功, 失败原因)。"""
         cookie = decrypt_cookie(bind.cookie_enc)
         if cookie is None or cookie.expired:
             text = "LPass 全量签到：登录态已过期，请重新发送 #LPass绑定。"
-            await LPassBind.mark_ran(bind.user_id, bind.bot_id, day=day, summary=text)
+            await LPassBind.mark_ran(bind.user_id, bind.bot_id, day=day,
+                                     summary=text, success=False)
             if notify:
                 await self.notify(bind, text)
-            return None
+            return text, False, "登录态已过期，请发送 #LPass绑定 重新绑定"
+        signed = False
+        reason = "未确认签到成功"
         try:
             async with LPassAPI(cookie) as api:
                 friend = None
@@ -139,13 +163,25 @@ class LPassAutoScheduler:
                     prefix = "⚠ " if friend.error else ""
                     result.notes.append(f"{prefix}好友/分享：{friend.summary()}")
             text = render(result)
+            signed = any(getattr(st, "key", "") == "signin"
+                         and getattr(st, "status", "") in ("done", "already")
+                         for st in getattr(result, "steps", []))
+            if not signed:
+                signed = any(str(i.get("name", "")) == "每日签到"
+                             for i in getattr(result, "today_points", []))
+            if not signed:
+                signed = "每日签到" in text and "已完成" in text
+            if signed:
+                reason = "签到已确认"
         except Exception as exc:  # noqa: BLE001
             logger.warning("LPass auto error_type=%s", type(exc).__name__)
             text = "LPass 全量签到执行异常，未确认完成，请稍后手动发送 #LPass签到。"
-        await LPassBind.mark_ran(bind.user_id, bind.bot_id, day=day, summary=text)
+            reason = "执行异常，请稍后检查"
+        await LPassBind.mark_ran(bind.user_id, bind.bot_id, day=day,
+                                 summary=text, success=signed)
         if notify:
             await self.notify(bind, text)
-        return text
+        return text, signed, reason
 
     async def run_one(self, bind, day: str):
         await self._execute(bind, day, notify=True)
