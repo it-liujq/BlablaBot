@@ -234,20 +234,124 @@ async def load_client(user_id: str, bot_id: str, *, community=False) -> tuple[Op
 
 def bind_summary(bind: AliceBind) -> str:
     from ..nikke_api.auth import mask
-
-    expiry = "未知（手动导入未提供有效期）"
-    if bind.cookie_expire:
-        import time
-        seconds = int(bind.cookie_expire) - int(time.time())
-        expiry = f"约 {max(1, (seconds + 86399) // 86400)} 天" if seconds > 0 else "已过期，请重新登录"
     from .auth_state import known_invalid
-    if known_invalid(bind):
-        expiry = '已失效，请重新登录'
+
+    cred_state = '已失效，请重新登录' if known_invalid(bind) else '本地可用'
     region = REGIONS.get(int(bind.area_id or 0))
     return (
         f"昵称：{bind.nickname or '未知'}\n"
         f"UID：{bind.uid or '当前区服尚未取得'}\n"
         f"区服：{region.label if region else '不受支持，请重新登录'}\n"
         f"openid：{mask(bind.intl_open_id or '')}\n"
-        f"Cookie 有效期：{expiry}"
+        f"凭据状态：{cred_state}"
     )
+
+
+def account_status_summary(bind: AliceBind, ev=None) -> str:
+    """Aggregate local account, panel cache, automation toggles and privacy status (0 network)."""
+    from ..nikke_time import beijing_text
+    lines = [bind_summary(bind)]
+
+    # 1. Local panel & profile cache
+    try:
+        from ..nikke_character.cache import PanelCache, panel_identity
+        from ..nikke_resource.cache import read_metadata
+        store = PanelCache(MAIN_PATH / 'cache/panels')
+        ident = panel_identity(bind)
+        prof = read_metadata(store.path(ident, 'profile.json'))
+        snap = store.read(ident)
+        p_epoch = prof.get('checked_at') or snap.get('profile_checked_at') or snap.get('saved_at')
+        p_time = beijing_text(p_epoch) if p_epoch else '未缓存'
+        roster_rows = snap.get('roster') if isinstance(snap.get('roster'), list) else None
+        r_epoch = snap.get('roster_checked_at') or snap.get('saved_at')
+        if roster_rows is not None and r_epoch:
+            r_time = f'已缓存 {len(roster_rows)} 名（{beijing_text(r_epoch)}）'
+        else:
+            r_time = '未缓存'
+        lines.append(f'名片资料：{p_time}')
+        lines.append(f'全量练度：{r_time}')
+    except Exception:
+        pass
+
+    # 2. Community auto sign-in
+    try:
+        from ..nikke_community.runtime import recovery_store, configured_sign_time
+        from ..nikke_community.notifications import identity as comm_identity
+        from ..nikke_community.service import CommunityService
+        account, owner = comm_identity(CommunityService, bind)
+        st = recovery_store().state(account)
+        global_paused = bool(AliceUIDConfig.get_config('AliceUID_CommunityPaused').data)
+        if st.get('owner') == owner and st.get('enabled'):
+            like_tag = '含点赞' if st.get('likes') else '不含点赞'
+            extras = []
+            if global_paused:
+                extras.append('全局已暂停')
+            if st.get('paused'):
+                extras.append(f'已暂停：{st["paused"]}')
+            if st.get('fail_count'):
+                extras.append(f'连续失败{st["fail_count"]}/3')
+            extra_str = '｜' + '｜'.join(extras) if extras else ''
+            lines.append(f'自动签到：开启（{like_tag}，每日 {configured_sign_time()}{extra_str}）')
+        elif st.get('owner') == owner and st.get('auto_disabled'):
+            lines.append(f'自动签到：已因连续失败自动暂停（发 {command_prefix()}开启全量签到 可恢复）')
+        elif st.get('owner') == owner:
+            lines.append(f'自动签到：已关闭（发 {command_prefix()}开启全量签到 可开启）')
+        elif st.get('paused') == '绑定已变更':
+            lines.append(f'自动签到：未开启（绑定曾变更，发 {command_prefix()}开启全量签到 重新开启）')
+        else:
+            lines.append(f'自动签到：未开启（发 {command_prefix()}开启全量签到 可开启）')
+    except Exception:
+        pass
+
+    # 3. Auto CDK (uses AutoStore.auto_preferences, opt-out: enabled by default unless user turned off)
+    try:
+        from ..nikke_cdk.store import Store as CdkStore
+        from ..nikke_cdk.automatic import AutoStore
+        cdk_db = MAIN_PATH / 'cdk.sqlite3'
+        user_on = AutoStore(CdkStore(cdk_db)).enabled(bind.bot_id, bind.user_id) if cdk_db.is_file() else True
+        sys_on = AliceUIDConfig.get_config('AliceUID_AutoCDKEnabled').data is True
+        write_on = AliceUIDConfig.get_config('AliceUID_EnableWriteOps').data is True
+        if not user_on:
+            lines.append(f'自动兑换码：个人已关闭（发 {command_prefix()}自动兑换码 可重新开启）')
+        elif sys_on and write_on:
+            lines.append('自动兑换码：开启（系统已就绪）')
+        elif not write_on:
+            lines.append('自动兑换码：个人已开启（未生效：后台未开启「允许本人CDK兑换」）')
+        else:
+            lines.append('自动兑换码：个人已开启（未生效：后台总开关已停用）')
+    except Exception:
+        pass
+
+    # 4. Harvest reminder for current conversation
+    if ev is not None:
+        try:
+            from ..nikke_harvest.planner import account_key as harvest_account_key, route_from_event
+            from ..nikke_harvest.runtime import get_runtime
+            route = route_from_event(ev)
+            h_store = get_runtime().store
+            sub = h_store.sub(route['id'])
+            if sub and sub.get('enabled'):
+                quiet = sub.get('quiet') or '关闭'
+                lines.append(f'收菜提醒：本会话已开启（免打扰：{quiet}）')
+            else:
+                other_active = [
+                    s for s in h_store.subs(harvest_account_key(bind), active=True)
+                    if s.get('id') != route['id']
+                ]
+                if other_active:
+                    lines.append(f'收菜提醒：本会话未开启（其他会话已开启 {len(other_active)} 处）')
+                else:
+                    lines.append('收菜提醒：本会话未开启')
+        except Exception:
+            pass
+
+    # 5. Official privacy pending restore
+    try:
+        from ..nikke_privacy.service import PrivacyService, account_key as priv_key
+        psvc = PrivacyService(MAIN_PATH / 'privacy_restore')
+        if psvc.pending(priv_key(bind)) is not None:
+            lines.append('官网隐私：个人突袭临时公开中（后台将自动恢复）')
+    except Exception:
+        pass
+
+    return '\n'.join(lines)

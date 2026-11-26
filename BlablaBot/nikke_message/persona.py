@@ -3,7 +3,7 @@ from __future__ import annotations
 
 NOTICE_STYLE_KEY = 'AliceUID_NoticeStyle'
 SIGN_FORWARD_KEY = 'AliceUID_SignNoticeForward'
-NOTICE_STYLES = ('爱丽丝风格', '默认说明文')
+NOTICE_STYLES = ('默认说明文',)
 _LEGACY_STYLE_MAP = {
     'alice': '爱丽丝风格',
     'plain': '默认说明文',
@@ -14,26 +14,16 @@ _LEGACY_STYLE_MAP = {
 
 
 def normalize_notice_style(value) -> str:
-    text = str(value or '').strip()
-    if text in NOTICE_STYLES:
-        return text
-    if text in _LEGACY_STYLE_MAP:
-        return _LEGACY_STYLE_MAP[text]
-    return '爱丽丝风格'
+    return '默认说明文'
 
 
 def get_notice_style() -> str:
-    try:
-        from ..nikke_config.config import AliceUIDConfig
-        raw = AliceUIDConfig.get_config(NOTICE_STYLE_KEY).data
-        return normalize_notice_style(raw)
-    except (ImportError, AttributeError, KeyError, TypeError, ValueError, RuntimeError):
-        return '爱丽丝风格'
+    return '默认说明文'
 
 
 def is_alice_style(style: str | None = None) -> bool:
-    resolved = normalize_notice_style(style) if style is not None else get_notice_style()
-    return resolved == '爱丽丝风格'
+    # 已停用该风格，统一使用历史说明文通知
+    return False
 
 
 def sign_notice_forward_enabled() -> bool:
@@ -116,12 +106,12 @@ def _log_plain_send(is_group: bool, *, at_sender: bool, payload) -> None:
 def harvest_body(kind: str, pct: str, full_moment: str, *, style: str | None = None) -> str:
     if is_alice_style(style):
         if kind == 'stop':
-            return '兔子先生连续两天晚上都没来收菜，保管箱一直是满的（MAX），爱丽丝先帮您把收菜提醒静悄悄关掉啦，不打扰您休息。'
+            return '指挥官连续两天晚上都没来收菜，保管箱一直是满的（MAX），爱丽丝先帮您把收菜提醒静悄悄关掉啦，不打扰您休息。'
         if kind == 'full':
-            return '啊，兔子先生！资源保管箱已经装得满满的（MAX）啦，再不收就要溢出来咯，快上线查收吧！'
+            return '啊，指挥官！资源保管箱已经装得满满的（MAX）啦，再不收就要溢出来咯，快上线查收吧！'
         if kind == 'bed':
-            return f'嗯……兔子先生，保管箱当前容量是{pct}%，预计{full_moment}就会装满（MAX）哦。'
-        return f'兔子先生，资源保管箱容量已经达到{pct}%啦，预计{full_moment}达到MAX，有空记得上线把资源收走哦～'
+            return f'嗯……指挥官，保管箱当前容量是{pct}%，预计{full_moment}就会装满（MAX）哦。'
+        return f'指挥官，资源保管箱容量已经达到{pct}%啦，预计{full_moment}达到MAX，有空记得上线把资源收走哦～'
     if kind == 'stop':
         return '指挥官，您的资源保管箱在连续两天23点检查时均为MAX，已自动关闭该账号在所有会话中的收菜提醒，并停止后台检查。'
     if kind == 'full':
@@ -137,7 +127,7 @@ def harvest_footer(kind: str, quiet_period: str, prefix: str, *, style: str | No
         return f'如需恢复，请在需要接收提醒的群聊或私聊中发送“{prefix}开启收菜提醒”。'
     if kind == 'bed':
         base = f'收菜提醒免打扰时段：北京时间{quiet_period.replace("-", "—")}。\n建议睡前上线收取资源。'
-        return base + ('嘿嘿，兔子先生今晚也要做个好梦哦～' if is_alice_style(style) else '')
+        return base + ('嘿嘿，指挥官今晚也要做个好梦哦～' if is_alice_style(style) else '')
     return ''
 
 
@@ -146,14 +136,14 @@ def harvest_enable_text(where: str, created: bool, *, at_str: str = '', pct: str
                         quiet_str: str = '关闭', style: str | None = None) -> str:
     if not created:
         if is_alice_style(style):
-            return f'[BlablaBot·收菜提醒已开启]\n兔子先生，{where}的收菜提醒已经开着啦，爱丽丝正替您盯着呢。'
+            return f'[BlablaBot·收菜提醒已开启]\n指挥官，{where}的收菜提醒已经开着啦，爱丽丝正替您盯着呢。'
         return f'[BlablaBot·收菜提醒已开启]\n指挥官，{where}已开启，无需重复操作。'
     if is_alice_style(style):
         detail = ('资源保管箱已经达到满仓提醒线（99%及以上）啦，快去收一下吧！\n' if is_full else
                   f'预计{t90_str}达到90%，{full_str}装满（MAX）。\n')
         return (
             f'[BlablaBot·收菜提醒已开启]\n'
-            f'遵命！爱丽丝会在{where}替兔子先生看管保管箱的。\n'
+            f'遵命！爱丽丝会在{where}替指挥官看管保管箱的。\n'
             f'当前容量（{at_str}）：{pct}%。\n'
             + detail
             + f'免打扰时段：{quiet_str}（北京时间）。\n'
@@ -172,7 +162,7 @@ def harvest_enable_text(where: str, created: bool, *, at_str: str = '', pct: str
 
 def harvest_disable_text(where: str, all_stopped: bool, *, style: str | None = None) -> str:
     if is_alice_style(style):
-        text = f'[BlablaBot·收菜提醒已关闭]\n好~爱丽丝已经帮兔子先生关掉{where}的收菜提醒啦（其他会话里的提醒不受影响）。'
+        text = f'[BlablaBot·收菜提醒已关闭]\n好~爱丽丝已经帮指挥官关掉{where}的收菜提醒啦（其他会话里的提醒不受影响）。'
         if all_stopped:
             text += '\n目前所有会话都已关闭，爱丽丝先停下后台检查咯。'
         return text
@@ -185,7 +175,7 @@ def harvest_disable_text(where: str, all_stopped: bool, *, style: str | None = N
 def harvest_quiet_text(period: str | None, *, style: str | None = None) -> str:
     val = period or '关闭'
     if is_alice_style(style):
-        return f'[BlablaBot·收菜免打扰已设置]\n遵命！当前会话免打扰已设为：{val}（北京时间），休息时间爱丽丝不会吵醒兔子先生的。'
+        return f'[BlablaBot·收菜免打扰已设置]\n遵命！当前会话免打扰已设为：{val}（北京时间），休息时间爱丽丝不会吵醒指挥官的。'
     return f'[BlablaBot·收菜免打扰已设置]\n当前会话：{val}（北京时间）。仅影响收菜提醒。'
 
 
@@ -194,7 +184,7 @@ def harvest_quiet_text(period: str | None, *, style: str | None = None) -> str:
 def cdk_already_redeemed_text(code: str, when: str, *, style: str | None = None) -> str:
     if is_alice_style(style):
         return (
-            f'[BlablaBot·兑换结果]\n嘿嘿，兔子先生，这个兑换码（{code}）爱丽丝已经在 {when} 帮你悄悄兑好啦！'
+            f'[BlablaBot·兑换结果]\n嘿嘿，指挥官，这个兑换码（{code}）爱丽丝已经在 {when} 帮你悄悄兑好啦！'
             '礼物已经在游戏邮箱里乖乖等着你，快上线查收吧～'
         )
     return f'[BlablaBot·兑换结果]\n兑换码 {code} 已于 {when}（北京时间）兑换过，请前往游戏邮箱查收。'
@@ -202,19 +192,19 @@ def cdk_already_redeemed_text(code: str, when: str, *, style: str | None = None)
 
 def cdk_all_claimed_note(*, style: str | None = None) -> str:
     if is_alice_style(style):
-        return '兔子先生，当前所有有效兑换码爱丽丝都帮你领完啦，快去游戏邮箱看看吧～'
+        return '指挥官，当前所有有效兑换码爱丽丝都帮你领完啦，快去游戏邮箱看看吧～'
     return '当前所有有效兑换码均已领取，请前往游戏邮箱查看。'
 
 
 def cdk_auto_start_notice(source_text: str, codes: str, *, only_user: bool = False, style: str | None = None) -> str:
     if only_user:
         if is_alice_style(style):
-            return titled('自动兑换', '收到啦~检测到兔子先生刚绑定好账号，爱丽丝正在帮您核对当前全部有效的兑换码哦～')
+            return titled('自动兑换', '收到啦~检测到指挥官刚绑定好账号，爱丽丝正在帮您核对当前全部有效的兑换码哦～')
         return titled('自动兑换', '新绑定账号，正在核对当前有效兑换码。')
     if is_alice_style(style):
         return titled(
             '自动兑换',
-            f'啊，兔子先生！爱丽丝在 {source_text} 发现了新的兑换码小礼物：\n{codes}\n正在帮大家执行自动兑换任务，稍微等我一下哦～',
+            f'啊，指挥官！爱丽丝在 {source_text} 发现了新的兑换码小礼物：\n{codes}\n正在帮大家执行自动兑换任务，稍微等我一下哦～',
         )
     return titled('自动兑换', f'在 {source_text} 发现新增兑换码：\n{codes}\n正在执行自动兑换任务。')
 
@@ -223,14 +213,14 @@ def cdk_auto_group_summary(total: int, bad_count: int, *, only_user: bool = Fals
     ok_count = total - bad_count
     if only_user:
         if is_alice_style(style):
-            head = '嘿嘿，兔子先生，新绑定账号的兑换码爱丽丝已经帮您核对完啦～' if not bad_count else '兔子先生，新绑定账号的兑换码核对未全部完成。'
+            head = '嘿嘿，指挥官，新绑定账号的兑换码爱丽丝已经帮您核对完啦～' if not bad_count else '指挥官，新绑定账号的兑换码核对未全部完成。'
             return titled('自动兑换结果', f'{head}（成功{ok_count}人｜未完成{bad_count}人）')
         head = '新绑定账号兑换码核对完成。' if not bad_count else '新绑定账号兑换码核对未全部完成。'
         return titled('自动兑换结果', f'{head}\n成功{ok_count}人｜未完成{bad_count}人')
     if is_alice_style(style):
         if not bad_count:
-            return titled('自动兑换结果', f'嘿嘿，兔子先生，这次的新兑换码爱丽丝已经帮本群全员成功领好啦，记得去游戏邮箱查收礼物哦～（成功{ok_count}人｜未完成0人）')
-        return titled('自动兑换结果', f'兔子先生，新增兑换码自动兑换已结束，部分用户未能完成（成功{ok_count}人｜未完成{bad_count}人）。')
+            return titled('自动兑换结果', f'嘿嘿，指挥官，这次的新兑换码爱丽丝已经帮本群全员成功领好啦，记得去游戏邮箱查收礼物哦～（成功{ok_count}人｜未完成0人）')
+        return titled('自动兑换结果', f'指挥官，新增兑换码自动兑换已结束，部分用户未能完成（成功{ok_count}人｜未完成{bad_count}人）。')
     head = ('本群参与本次自动兑换的绑定用户已全员成功兑换（含已领取）。' if not bad_count else
             '新增兑换码自动兑换已结束，部分用户未能完成。')
     return titled('自动兑换结果', f'{head}\n成功{ok_count}人｜未完成{bad_count}人')
@@ -242,7 +232,7 @@ def community_enable_text(sign_time: str, prefix: str, *, style: str | None = No
     if is_alice_style(style):
         return titled(
             '自动社区',
-            f'遵命！爱丽丝每天北京时间{sign_time}起会替兔子先生自动签到与浏览社区帖子。'
+            f'遵命！爱丽丝每天北京时间{sign_time}起会替指挥官自动签到与浏览社区帖子。'
             f'（如需自动点赞，可另发 {prefix}自动社区 点赞开启；连续三天失败会自动暂停）',
         )
     return titled(
@@ -258,9 +248,9 @@ def community_group_summary_header(counts, day: str, today: bool, complete: bool
     if is_alice_style(style):
         text = f'[BlablaBot·社区自动签到] {status_icon}'
         if complete:
-            text += f'\n嘿嘿，兔子先生，{scope_day}的社区签到爱丽丝已经帮大家办好啦～（本群签到成功{counts["成功"]}人，签到失败{counts["失败"]}人，{counts["未开启"]}人尚未开启自动签到）'
+            text += f'\n嘿嘿，指挥官，{scope_day}的社区签到爱丽丝已经帮大家办好啦～（本群签到成功{counts["成功"]}人，签到失败{counts["失败"]}人，{counts["未开启"]}人尚未开启自动签到）'
         else:
-            text += f'\n兔子先生，{scope_day}自动签到已处理完毕（本群签到成功{counts["成功"]}人，签到失败{counts["失败"]}人，{counts["未开启"]}人尚未开启自动签到）。'
+            text += f'\n指挥官，{scope_day}自动签到已处理完毕（本群签到成功{counts["成功"]}人，签到失败{counts["失败"]}人，{counts["未开启"]}人尚未开启自动签到）。'
         return text
     text = f'[BlablaBot·社区自动签到] {status_icon}'
     prefix = '' if today else f'{day}周期'
@@ -275,8 +265,8 @@ def wait_roster_generating(*, merged: bool = False, mode: str = 'main', style: s
     noun = '主力妮姬卡片' if mode == 'main' else '完整图鉴卡片'
     if is_alice_style(style):
         if merged:
-            return titled(tag, f'兔子先生，{noun}正在为您加紧绘制中，稍微等爱丽丝一小会儿哦～')
-        return titled(tag, f'好~爱丽丝正在核对兔子先生的阵容并绘制{noun}，首次准备头像可能会稍久一点哦～')
+            return titled(tag, f'指挥官，{noun}正在为您加紧绘制中，稍微等爱丽丝一小会儿哦～')
+        return titled(tag, f'好~爱丽丝正在核对指挥官的阵容并绘制{noun}，首次准备头像可能会稍久一点哦～')
     if merged:
         return titled(tag, f'你的{noun}正在生成，请稍候。')
     return titled(tag, f'正在核对本人阵容并生成{noun}，首次准备肖像可能稍久。')
@@ -284,15 +274,15 @@ def wait_roster_generating(*, merged: bool = False, mode: str = 'main', style: s
 
 def wait_export_running(*, style: str | None = None) -> str:
     if is_alice_style(style):
-        return titled('练度导出', '兔子先生，您的练度表正在整理发送中，请稍微等爱丽丝一下哦～')
+        return titled('练度导出', '指挥官，您的练度表正在整理发送中，请稍微等爱丽丝一下哦～')
     return titled('练度导出', '你的练度表正在生成或发送，请稍候；本次不会重复导出。')
 
 
 def wait_panel_refresh(*, merged: bool = False, style: str | None = None) -> str:
     if is_alice_style(style):
         if merged:
-            return titled('刷新面板', '兔子先生，资料和角色数据已经在努力缓存中啦，稍微等爱丽丝一下哦～')
-        return titled('刷新面板', '遵命！爱丽丝正在帮兔子先生重新整理本人资料、全部角色练度与皮肤缓存，完成后立刻把最新的信息图送过来哦～')
+            return titled('刷新面板', '指挥官，资料和角色数据已经在努力缓存中啦，稍微等爱丽丝一下哦～')
+        return titled('刷新面板', '遵命！爱丽丝正在帮指挥官重新整理本人资料、全部角色练度与皮肤缓存，完成后立刻把最新的信息图送过来哦～')
     if merged:
         return titled('刷新面板', '本人资料与角色数据正在缓存，请稍候；已合并重复请求。')
     return titled('刷新面板', '正在刷新本人资料、全部角色练度与皮肤缓存；完成后发送最新信息图。')
@@ -300,29 +290,29 @@ def wait_panel_refresh(*, merged: bool = False, style: str | None = None) -> str
 
 def wait_character_single_query(role_name: str, *, style: str | None = None) -> str:
     if is_alice_style(style):
-        return titled('角色面板', f'本地名单里暂时没看到「{role_name}」，爱丽丝正在帮兔子先生单独去查一下，稍微等我一下哦～')
+        return titled('角色面板', f'本地名单里暂时没看到「{role_name}」，爱丽丝正在帮指挥官单独去查一下，稍微等我一下哦～')
     return titled('角色面板', f'本地记录未持有「{role_name}」，正在单独查询该角色，请稍候。')
 
 
 def wait_export_public(*, style: str | None = None) -> str:
     if is_alice_style(style):
-        return titled('练度导出', '遵命！爱丽丝正在帮兔子先生整理全部角色的完整练度信息，数据量比较大可能会慢一点，请耐心等我一下哦～')
+        return titled('练度导出', '遵命！爱丽丝正在帮指挥官整理全部角色的完整练度信息，数据量比较大可能会慢一点，请耐心等我一下哦～')
     return titled('练度导出', '正在获取全部角色的完整练度信息，数据量较大，可能需要较长时间，请耐心等待。')
 
 
 def wait_profile_refresh(*, style: str | None = None) -> str:
     if is_alice_style(style):
-        return titled('刷新信息', '好~爱丽丝正在帮兔子先生快速刷新一下名片资料，很快就好哦～')
+        return titled('刷新信息', '好~爱丽丝正在帮指挥官快速刷新一下名片资料，很快就好哦～')
     return titled('刷新信息', '正在轻量刷新本人名片资料，不读取全部角色装备详情。')
 
 
 def solo_wait_text(ahead: int = 0, *, style: str | None = None) -> str:
     if ahead > 0:
         if is_alice_style(style):
-            return titled('个人突袭', f'兔子先生，现在还有 {ahead} 位小伙伴在前面排队测算呢，爱丽丝已经帮您占好位置啦，稍等一下就轮到您哦～')
+            return titled('个人突袭', f'指挥官，现在还有 {ahead} 位小伙伴在前面排队测算呢，爱丽丝已经帮您占好位置啦，稍等一下就轮到您哦～')
         return titled('个人突袭', f'当前正在处理其他用户的单人突袭推荐，已为你排队，前方还有{ahead}个任务。')
     if is_alice_style(style):
-        return titled('个人突袭', '遵命！爱丽丝正在帮兔子先生从 DILDORO 测算个人突袭推荐阵容，大概需要几十秒，稍微等我一下哦～')
+        return titled('个人突袭', '遵命！爱丽丝正在帮指挥官从 DILDORO 测算个人突袭推荐阵容，大概需要几十秒，稍微等我一下哦～')
     return titled('个人突袭', '正在从 https://dildoro.com/ 查询并生成个人突袭推荐，请稍候；更为详细的计算请直接访问该网站。')
 
 
@@ -330,7 +320,7 @@ def solo_privacy_text(label: str, *, style: str | None = None) -> str:
     if is_alice_style(style):
         return titled(
             '个人突袭',
-            f'嗯……兔子先生的官网妮姬资料现在是「{label}」状态。为了完成这次推荐，'
+            f'嗯……指挥官的官网妮姬资料现在是「{label}」状态。为了完成这次推荐，'
             '爱丽丝会先临时帮您设为所有人可见，查询可能稍慢一点，完成后会恢复原状的（期间其他访问者也能看到资料哦）。',
         )
     return titled('个人突袭', f'你的官网妮姬资料当前为{label}。为本次推荐将临时设为所有人可见，查询可能较慢；期间其他访问者也可读取资料。')
@@ -340,28 +330,28 @@ def solo_privacy_text(label: str, *, style: str | None = None) -> str:
 
 def alias_owner_only_text(action: str = '维护角色别名', *, style: str | None = None) -> str:
     if is_alice_style(style):
-        return titled('角色别名', f'唔……兔子先生，{action}这项工作只有 Bot 主才能操作哦。')
+        return titled('角色别名', f'唔……指挥官，{action}这项工作只有 Bot 主才能操作哦。')
     return titled('角色别名', f'仅Bot主可{action}。')
 
 
 def alias_add_text(role_name: str, alias: str, *, style: str | None = None) -> str:
     if is_alice_style(style):
-        return titled('角色别名', f'嘿嘿，爱丽丝已经帮兔子先生记下新称呼啦：{role_name} → {alias}')
+        return titled('角色别名', f'嘿嘿，爱丽丝已经帮指挥官记下新称呼啦：{role_name} → {alias}')
     return titled('角色别名', f'已添加：{role_name} → {alias}')
 
 
 def alias_remove_text(role_name: str, alias: str, *, style: str | None = None) -> str:
     if is_alice_style(style):
-        return titled('角色别名', f'好~爱丽丝已经帮兔子先生把这个别名划掉啦～（已注销：{role_name} × {alias}）')
+        return titled('角色别名', f'好~爱丽丝已经帮指挥官把这个别名划掉啦～（已注销：{role_name} × {alias}）')
     return titled('角色别名', f'已注销：{role_name} × {alias}')
 
 
 def alias_export_notice(kind: str, *, style: str | None = None) -> str:
     if is_alice_style(style):
         mapping = {
-            'busy': '兔子先生，爱丽丝正在整理并发送别名表呢，稍微等我一下下哦～',
+            'busy': '指挥官，爱丽丝正在整理并发送别名表呢，稍微等我一下下哦～',
             'unconfirmed': '唔……别名表已经生成好啦，但没有收到接入端的发送确认，请检查文件上传支持哦。',
-            'failed': '啊……别名表导出或发送失败了，请兔子先生检查本地别名文件与接入端权限。',
+            'failed': '啊……别名表导出或发送失败了，请指挥官检查本地别名文件与接入端权限。',
         }
         return titled('别名导出', mapping[kind])
     mapping = {
@@ -370,3 +360,59 @@ def alias_export_notice(kind: str, *, style: str | None = None) -> str:
         'failed': '别名表导出或文件发送失败，请检查本地别名文件与接入端权限。',
     }
     return titled('别名导出', mapping[kind])
+
+
+# --- 6. 通用账号、权限与攻略提示 ---
+
+def need_login_text(prefix: str, *, style: str | None = None) -> str:
+    if is_alice_style(style):
+        return f'指挥官还没有绑定账号呢，快发送 {prefix}登录（或{prefix}登陆）选择区服绑定吧～'
+    return f'还没有绑定账号，请发送 {prefix}登录（或{prefix}登陆）选择区服。'
+
+
+def relogin_text(prefix: str, *, style: str | None = None) -> str:
+    if is_alice_style(style):
+        return f'啊，指挥官的登录凭据失效啦！请发送 {prefix}重新登录（或{prefix}重新登陆）更新一下，原绑定会一直保留的，不用先解绑哦～'
+    return f'Cookie 已失效或登录凭据不可用，请发送 {prefix}重新登录（或{prefix}重新登陆）更新；原绑定已保留，无需先解绑。'
+
+
+def broken_binding_text(prefix: str, *, style: str | None = None) -> str:
+    if is_alice_style(style):
+        return f'唔……指挥官的绑定数据好像不太完整，请发送 {prefix}重新登录（或{prefix}重新登陆）修复一下吧。'
+    return f'绑定数据损坏或Cookie缺失/不可用，请发送 {prefix}重新登录（或{prefix}重新登陆）更新。'
+
+
+def permission_denied_text(scope: str = '妮姬查询', *, style: str | None = None) -> str:
+    if is_alice_style(style):
+        return f'唔……当前群聊或账号还没有开放{scope}权限哦，请联系群管理员或 Bot 主开启。'
+    return f'本群或当前用户未开放{scope}，请联系管理员。'
+
+
+def guide_init_wait_text(*, style: str | None = None) -> str:
+    if is_alice_style(style):
+        return '爱丽丝正在帮指挥官初始化攻略索引，首次加载会稍微慢一点点，请稍候哦～'
+    return '攻略索引正在初始化，请稍候…'
+
+
+def guide_render_wait_text(title: str, *, style: str | None = None) -> str:
+    if is_alice_style(style):
+        return f'遵命！爱丽丝正在获取并绘制《{title}》攻略长图，稍微等我一下哦～'
+    return f'正在获取并生成《{title}》攻略长图，请稍候…'
+
+
+def guide_not_found_text(author_name: str, target_label: str, prefix: str, *, style: str | None = None) -> str:
+    if is_alice_style(style):
+        return (
+            f'唔……爱丽丝在已收录作者（{author_name}）的攻略里没找到「{target_label}」相关文章呢。\n'
+            f'可以发 {prefix}攻略查询 看看最近攻略，或者换个角色名/关键词试试哦～'
+        )
+    return (
+        f'暂未在已收录作者（{author_name}）的攻略中找到「{target_label}」相关文章。\n'
+        f'可发送 {prefix}攻略查询 查看最近攻略，或尝试更换角色名/关键词。'
+    )
+
+
+def guide_timeout_text(ttl: int, prefix: str, *, style: str | None = None) -> str:
+    if is_alice_style(style):
+        return f'唔……攻略列表已经超过 {ttl} 秒失效啦，指挥官请重新发送 {prefix}攻略查询 获取最新列表哦～'
+    return f'当前没有有效的新攻略列表或已超过 {ttl} 秒，请先发送 {prefix}攻略查询。'

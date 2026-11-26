@@ -8,13 +8,13 @@
 
 <p align="center">
   <strong>适用于 GsCore 的《胜利女神：NIKKE》全能战术数据插件</strong><br>
-  个人名片 · 角色练度与图鉴 · 全量导出与等级模拟 · 联盟会战与攻略 · 资源收菜提醒 · 自动兑换码 · 社区签到 · DILDORO 个人突袭推荐
+  个人名片 · 角色练度与图鉴 · 全量导出与等级模拟 · 通用攻略查询 · 官网活动日历 · 联盟会战 · 收菜提醒 · 自动兑换码 · 社区签到 · DILDORO 个人突袭推荐
 </p>
 
 <p align="center">
   <a href="https://github.com/Genshin-bots/gsuid_core"><img src="https://img.shields.io/badge/Framework-GsCore-8A2BE2?style=flat-square" alt="Framework: GsCore"></a>
   <a href="https://github.com/dddada123/BlablaBot/blob/main/LICENSE"><img src="https://img.shields.io/badge/License-MIT-green?style=flat-square" alt="License: MIT"></a>
-  <a href="CHANGELOG.md"><img src="https://img.shields.io/badge/Version-1.3.04-ff69b4?style=flat-square" alt="Version: 1.3.04"></a>
+  <a href="CHANGELOG.md"><img src="https://img.shields.io/badge/Version-1.4.02-ff69b4?style=flat-square" alt="Version: 1.4.02"></a>
   <a href="pyproject.toml"><img src="https://img.shields.io/badge/Python-%E2%89%A53.10-3776AB?style=flat-square&amp;logo=python&amp;logoColor=white" alt="Python: ≥3.10"></a>
   <a href="https://github.com/dddada123/BlablaBot/stargazers"><img src="https://img.shields.io/github/stars/dddada123/BlablaBot?style=flat-square" alt="GitHub Stars"></a>
 </p>
@@ -37,12 +37,12 @@
 
 ---
 
-> **当前版本：1.3.01**
+> **当前版本：1.4.02**
 >
-> - **爱丽丝 / 说明文双风格通知与签到异常合并转发**：后台支持一键切换 `爱丽丝风格`（默认）与 `默认说明文`，覆盖收菜提醒、签到、兑换码、群播报与等待提示；每日签到异常名单自动按报错原因合并人员并默认以合并转发消息发送（`AliceUID_SignNoticeForward`），同时清理 `#bla资源查询` 等多处冗余规则说明。
-> - **全卡片 Bento 战术玻璃 v2 大统一**：全量卡片统一为暗版琥珀金 / 亮版珊瑚红视觉，支持横版大立绘 `-100%` ~ `+100%` 自定义缩放；`#bla资源查询` 配备 8 色顶部条纹与保管箱 `>>>>>>` 充能进度条。
-> - **爱丽丝专属兑换码提醒与结果标识**：使用 `#bla兑换码ABCDEFG` 命中本地已有兑换记录时，爱丽丝将用专属口吻告知兔子先生已兑换时间；批量兑换汇总行非零项自动附带状态 Emoji（`✅`/`❗`/`❌`/`❓`）。
-> - **稳定三档串行查询**：游戏查询提供高速（1 秒）/ 中速（推荐，默认 2 秒）/ 缓速（5 秒）三档串行速率；默认指令前缀为 `nk`，可在 Core 插件管理中自定义。
+> - **全新 Bento 视觉体系与亮暗双主题精调**：全面升级 `#bla信息`（Bento v3 非对称名片）、横/纵版角色练度卡（支持亮色图标 90% 深灰反色与低扩散白外发光、通透玻璃衬底）及 `#bla出刀` 双列「龙傲天 / 活菩萨」榜单；拆分 `#bla卡片`（主力妮姬）与 `#bla图鉴`（含灰阶未解锁角色）。
+> - **Blablalink 通用攻略查询与官网活动日历**：无需登录即可查询 `nk<角色/别名/关键词>攻略`、`#bla攻略查询`（支持翻页、默认双气泡 20 条与 120 秒 `#bla查询1~20` 点选，与角色歧义/拼写相近候选共用点选路由）、`#bla会战攻略` 与高还原 `#bla日历`，全面迁移至 GsCore 内置原生渲染引擎。
+> - **交互体验与运维能力增强**：统一支持后置 `刷新` 语法（如 `#bla信息 刷新`、`#bla爱丽丝练度 刷新`、`#bla卡片 刷新`）；增强 `#bla我的账号` / `#bla我的状态` 总览；补全 `爱丽丝风格`（默认）与 `默认说明文` 双文风，支持全局主题随机策略（`纯随机` / `交替` / `昼夜`）；新增 Bot 主 `#bla自检` 与 `#bla清理缓存`。
+> - **稳定三档串行查询与隐私保护**：游戏查询提供高速（1 秒）/ 中速（推荐，默认 2 秒）/ 缓速（5 秒）三档串行速率；`#bla日志导出` 自动脱敏发送者身份与敏感凭据。默认指令前缀为 `nk`，可在 Core 插件管理中自定义。
 
 ---
 
@@ -50,11 +50,13 @@
 
 | 模块 | 主要能力 |
 |---|---|
-| **养成卡片与导出** | 横版 / 纵版亮暗角色练度卡、高透玻璃指挥官名片、完整皮肤图鉴；支持本人与公开链接的 **Excel / JSON（schema v3）全量导出**与 **1400 级内任意指定等级模拟**。 |
-| **联盟会战与攻略** | BOSS 血量、出刀总览、Day1 / Day2 切换、成员阵容按伤害排名查询、缺刀与尾刀统计，以及带作者来源与原图长截图的会战阵容攻略。 |
-| **资源与收菜提醒** | 紧凑化 8 类核心资源与前哨保管箱进度卡（90% 警戒刻度 + 满仓时间估算），支持按群聊/私聊独立开启 90%、满仓及睡前收菜提醒与免打扰。 |
-| **兑换码与自动兑换** | 汇总官方、GameWith 与成员贡献三源并跨源去重；支持手动与自动兑换、新绑定即时补领，重复输入单码时由爱丽丝贴心提示已兑时间。 |
-| **社区任务与活动日历** | 本人授权手动/自动社区签到、浏览与点赞（支持单群/全群通知控制），以及官网当前活动日历截图。 |
+| **养成卡片与图鉴** | 横版 / 纵版亮暗角色练度卡（支持横版大立绘缩放微调）、Bento v3 指挥官名片、`#bla卡片` 主力妮姬展示与 `#bla图鉴` 全量图鉴（含灰阶未解锁）；内置常用别名表，支持本人与公开链接的 **Excel / JSON（schema v3）全量导出**与 **1400 级内任意指定等级模拟**。 |
+| **通用攻略与会战攻略** | 无需登录即可查询 Blablalink 角色袖珍指南、单突/联盟战与机制攻略（自动中文翻译、别名/标点模糊匹配、原皮/异格精准区分、带原帖二维码长图与纯文字保序转发），以及自动核对赛季归属的当期会战阵容攻略。 |
+| **官网活动日历** | 无需登录即可生成高还原官网活动日历（队员招募、最新时装、版本活动奖励、模拟室双倒计时、竞技场双赛程表），支持亮/暗双主题与默认合并转发。 |
+| **联盟会战** | BOSS 血量、出刀总览、Day1 / Day2 切换、成员阵容按伤害排名查询、缺刀与尾刀统计。 |
+| **资源与收菜提醒** | 8 类核心资源与前哨保管箱进度卡（90% 警戒刻度 + 满仓时间估算），支持按群聊/私聊独立开启 90%、满仓及睡前收菜提醒与免打扰时段。 |
+| **兑换码与自动兑换** | 汇总官方、GameWith 与成员贡献三源并跨源去重；支持手动与自动兑换、新绑定即时补领，单码重复兑换时由爱丽丝贴心提示已兑时间。 |
+| **社区任务** | 本人授权手动/自动社区签到、浏览与点赞，支持单群/全群通知控制与签到异常原因归类合并转发。 |
 | **DILDORO 个人突袭** | 接入 [DILDORO](https://dildoro.com/) 按本人养成生成推荐编队与模拟伤害卡片；支持受限账号临时公开妮姬资料并后台自动恢复、翻译异常自动切换原文与降级出图。 |
 | **可选 Core AI 查询** | 配合 GsCore AI 开启只读工具后，可用自然语言查询本人资料、角色练度、别名与帮助（默认关闭，不开放登录与写操作）。 |
 
@@ -71,12 +73,12 @@ BlablaBot 依托 **GsCore** 运行，不支持独立启动，环境要求 **Pyth
 python -m pip install -r plugins/BlablaBot/requirements.txt
 ```
 
-3. **配置与重启**：在 Core WebUI 配置外部可访问的登录地址、黑白名单及卡片外观，**完整重启 Core** 后发送 `#bla帮助` 验证。首次启动会自动更新最新角色目录。
+3. **配置与重启**：在 Core WebUI 配置外部可访问的登录地址、黑白名单及卡片外观，**完整重启 Core** 后发送 `#bla帮助` 验证。首次启动会自动检查公开角色目录并初始化攻略索引。
 
 > **升级注意事项**
 > - 请保留 `plugins/BlablaBot/BlablaBot/` 的嵌套目录结构，切勿只复制内层目录，也不要同时启用多份同名插件。
-> - 升级请保留原 `data/BlablaBot`、绑定数据库、加密密钥及 `cdk.sqlite3`（保存兑换回执与自动兑换记录）。
-> - 常规卡片（名片、角色练度、图鉴、资源、会战、帮助）默认由 **GsCore 内置原生渲染引擎** 生成；网页登录、官网日历、会战攻略与 DILDORO 个人突袭使用 Playwright，插件默认复用 Core 的 Playwright 并自动补齐配套 Chromium（Cookie 导入登录本身不启动浏览器）。
+> - 升级请保留原 `data/BlablaBot`、绑定数据库、加密密钥及 `cdk.sqlite3`（保存兑换回执与自动兑换记录）；攻略索引数据库平滑兼容旧版，升级后自动在本地更新规则，无需手动删库。
+> - 常规卡片（名片、角色练度、主力卡片、图鉴、资源、会战、帮助）、官网活动日历、会战攻略与通用攻略均默认由 **GsCore 内置原生渲染引擎** 生成；仅网页账密登录与 DILDORO 个人突袭使用 Playwright（插件默认复用 Core 的 Playwright 并自动补齐配套 Chromium；Cookie 导入登录本身不启动浏览器）。
 > - 从旧版 NikkeUID 迁移时仅复用公开素材，需在 BlablaBot 中重新登录。
 
 ---
@@ -87,37 +89,46 @@ python -m pip install -r plugins/BlablaBot/requirements.txt
 
 1. 发送 `#bla登录日服`（可将 `日服` 替换为目标区服，支持 `登录` / `登陆`），打开本人专属一次性链接。
 2. 在网页中使用账号密码完成验证，或直接导入 Cookie 请求头 / `cookies.txt` 文件（输入框默认打码保护）。
-3. 登录成功后插件会在后台自动采集完整资料并向原会话发送指挥官名片；随后即可使用 `#bla信息`、`#bla爱丽丝练度`、`#bla卡片`、`#bla资源查询` 等指令。
+3. 登录成功后插件会在后台自动采集完整资料并向原会话发送指挥官名片；随后即可使用 `#bla信息`、`#bla爱丽丝练度`、`#bla卡片`、`#bla图鉴`、`#bla资源查询` 等指令。
 
-> 凭据失效请发送 `#bla重新登录` 更新同区服 Cookie（失败自动保留原绑定）；换号或换服请先 `#bla解绑`。
+> 凭据失效请发送 `#bla重新登录` 更新同区服 Cookie（失败自动保留原绑定）；换号或换服请先 `#bla解绑`。无需登录即可直接使用 `#bla攻略查询`、`nk<角色>攻略`、`#bla会战攻略`、`#bla日历`、`#bla查询兑换码` 与别名查询。
 
 ---
 
 ## 常用指令一览
 
-方括号 `[ ]` 表示可选参数，实际输入时无需带括号；更多权限可见指令请发送 `#bla帮助` 或 `#bla帮助 文字`。
+方括号 `[ ]` 表示可选参数，实际输入时无需带括号；更多当前权限可见指令请发送 `#bla帮助` 或 `#bla帮助 文字`。
 
 ### 账号与隐私
 | 命令 | 说明 |
 |---|---|
 | `#bla登录日服` | 五区登录（日服 / 国际服 / 北美服 / 韩服 / 东南亚服） |
 | `#bla重新登录` | 更新原账号同区服 Cookie，失败保留原绑定 |
-| `#bla我的账号` / `#bla解绑` | 查看绑定摘要或解除当前绑定 |
+| `#bla我的账号` / `#bla我的状态` / `#bla解绑` | 查看绑定、缓存与自动化状态总览，或解除当前绑定 |
 | `#bla妮姬公开` / `#bla妮姬隐藏` / `#bla妮姬公开状态` | 管理本人官网妮姬资料公开范围与待恢复状态 |
 | `#bla绑定UID` / `#bla我的UID` / `#bla解绑UID` | 登记或清理个人分享标识（不能代替登录） |
 
 ### 养成、图鉴与导出
 | 命令 | 说明 |
 |---|---|
-| `#bla信息` / `#bla名片` | 指挥官名片与主页展示队伍（第 3 槽位为大立绘） |
-| `#bla信息刷新` / `#bla刷新信息` | 轻量刷新名片资料 |
+| `#bla信息` / `#bla名片` | Bento v3 指挥官名片与主页展示队伍（第 3 槽位为大立绘） |
+| `#bla信息刷新` / `#bla信息 刷新` | 轻量刷新名片资料（同步支持 `#bla刷新信息`） |
 | `#bla刷新面板` | 全量更新全部角色练度与皮肤缓存 |
-| `#bla爱丽丝练度` / `#bla爱丽丝面板` | 查看指定角色练度卡（横版 / 纵版由后台配置控制） |
+| `#bla爱丽丝练度` / `#bla爱丽丝面板 [刷新]` | 查看指定角色练度卡（歧义或拼写相近时支持 120 秒 `#bla查询1~20` 点选） |
 | `#bla刷新爱丽丝面板` | 仅刷新指定角色练度与对应循环室数据 |
-| `#bla卡片` | 完整已持有角色与皮肤图鉴 |
-| `#bla黑莲别名查询` | 查询角色本名及已注册别名 |
+| `#bla卡片 [刷新]` / `#bla阵容卡片` | 主力妮姬卡片（展示任一技能 ≥ Lv.7 的已持有角色） |
+| `#bla图鉴 [刷新]` / `#bla妮姬图鉴` | 全量角色与皮肤图鉴（含灰阶未解锁妮姬展示） |
+| `#bla黑莲别名查询` | 查询角色官方名称及已注册别名（无需登录） |
 | `#bla练度全量导出` / `#bla练度全量导出json` | 导出本人实际等级 Excel / JSON |
 | `nk400练度全量导出` / `nk1000全量导出JSON` | 导出原始与指定等级模拟对照（支持自定义等级与公开链接组合） |
+
+### 攻略查询（无需登录）
+| 命令 | 说明 |
+|---|---|
+| `nk<角色/别名/关键词>攻略` | 查询角色、单人突袭或机制攻略（如 `#bla红莲攻略`、`#bla黑莲攻略`、`#bla魔方攻略`） |
+| `#bla攻略查询 [筛选/页码]` | 查看最新攻略并检查新帖（默认双气泡转发 20 篇，支持分类筛选与翻页） |
+| `#bla查询1` ～ `#bla查询20` | 收到攻略列表或角色候选提示后 120 秒内回复编号获取对应结果 |
+| `#bla会战攻略` / `#bla会战阵容` | 转发当前或最近一期联盟战攻略（标题来源、组队原图、完整长图） |
 
 ### 联盟会战、资源与个人突袭
 | 命令 | 说明 |
@@ -127,33 +138,37 @@ python -m pip install -r plugins/BlablaBot/requirements.txt
 | `#bla出刀详情 [排名]` | 查本人出刀详情；带数字按本联盟伤害排名查看成员阵容 |
 | `#bla出刀缺刀` / `#bla出刀尾刀` | 未完成出刀名单与尾刀统计 |
 | `#bla会战血量 [刷新]` | 当前联盟阶段与 BOSS 血量进度 |
-| `#bla会战阵容` / `#bla会战攻略` | 转发当前或最近一期会战阵容攻略（标题、原图、长截图） |
 | `#bla资源查询 [刷新]` | 查看 8 类核心资源与保管箱 90% / 满仓时间估算 |
 | `#bla开启收菜提醒` / `#bla关闭收菜提醒` | 按当前群聊或私聊独立开关 90%、满仓与睡前提醒 |
-| `#bla收菜提醒状态` / `#bla收菜免打扰 00:00-08:00` | 查看本地提醒状态或设置当前会话免打扰时段 |
+| `#bla收菜提醒状态` / `#bla收菜免打扰 00:00-08:00` | 查看本地提醒状态与下次睡前检查时间，或设置免打扰时段 |
 | `#bla个人突袭推荐 [属性] [亮色/暗色/随机]` | 接入 DILDORO 生成推荐编队（别名 `#bla单人突袭推荐`；加 `刷新` 强制重算） |
 
-### 兑换码、社区与日历
+### 兑换码、社区与活动日历
 | 命令 | 说明 |
 |---|---|
+| `#bla日历` / `#bla日历 帮助` | 生成官网当期高还原活动日历图（无需登录，默认合并转发） |
 | `#bla查询兑换码` / `#bla兑换码 速查` | 只读查询当前有效兑换码详情或极简清单 |
 | `#bla兑换码 [兑换码]` | 尝试兑换当前全部或指定兑换码（已由插件兑过将触发爱丽丝专属提醒） |
 | `#bla增加兑换码ABCDEFG` | 本人核验有效后贡献至共享码池并触发新码派发 |
 | `#bla自动兑换码` / `#bla关闭自动兑换码` | 个人自动兑换开关 |
 | `#bla签到` / `#bla开启全量签到` | 执行本人社区签到，或授权签到+浏览+点赞自动任务 |
 | `#bla自动社区 状态` / `#bla自动社区 关闭` | 查看或停止自动社区任务 |
-| `#bla日历` / `#bla日历 帮助` | 获取官网当前默认活动日历截图 |
 
 ### Bot 主管理指令
 | 命令 | 说明 |
 |---|---|
+| `#bla自检` / `#bla清理缓存 [确认]` | 检查插件目录、依赖与缓存健康度，或安全清理可再生衍生缓存 |
 | `#bla日志导出[数字]` | 导出最近 `1~1440` 分钟脱敏诊断日志 MD（推荐 `#bla日志导出5`） |
-| `#bla账号列表` / `#bla绑定列表` | 查看绑定概览（群内号码自动脱敏，私聊完整显示） |
+| `#bla攻略重索引 [清空]` | 重新回溯全量攻略索引（默认保留长图缓存；追加 `清空` 则清库重建） |
 | `#bla数据库更新` / `#bla数据库更新 状态` | 手动触发或查看公开角色库与图库维护进度 |
+| `nk<角色名>新增别名<别名>` | 添加全局角色别名（如 `#bla红莲暗影新增别名黑莲`） |
+| `#bla注销别名 <别名>` / `#bla别名导出` | 屏蔽指定别名（含内置默认别名）或导出当前完整别名表 MD |
+| `#bla账号列表` / `#bla绑定列表` | 查看绑定概览（群内号码自动脱敏，私聊完整显示） |
+| `#bla群查询 开启/关闭/状态` | 管理本群查询权限及当前状态 |
+| `#bla群黑名单` / `#bla群白名单` / `#bla用户黑名单` / `#bla用户白名单` | 维护群聊与用户四名单权限控制 |
 | `#bla刷新兑换码` | 手动刷新官方 / GameWith 公开兑换码库存 |
 | `#bla启用自动兑换码` / `#bla停用自动兑换码` | 自动兑换系统总开关 |
-| `#bla全群自动兑换码` / `#bla关闭全群自动兑换码` | 批量设置当前群绑定用户的自动兑换开关 |
-| `#bla全员自动兑换码` / `#bla关闭全员自动兑换码` | 批量设置全部绑定用户的自动兑换开关 |
+| `#bla全群自动兑换码` / `#bla全员自动兑换码` | 批量开启本群或全员自动兑换（对应 `#bla关闭全群/全员自动兑换码`） |
 | `#bla签到查询 [页码]` | 查询本群已知账号的当日签到确认状态 |
 | `#bla签到群通知 开启/关闭/状态` | 管理当前群的签到汇总通知（快捷：`#bla开启/关闭签到群通知`） |
 | `#bla全群签到通知 开启/关闭/状态` | 批量设置全部群通知策略（支持单群后续覆盖） |
@@ -162,26 +177,30 @@ python -m pip install -r plugins/BlablaBot/requirements.txt
 
 ## 功能详解
 
-### 养成查询、练度导出与等级模拟
-- 普通查询与导出默认读取本地缓存；需要最新数据时主动使用 `#bla刷新信息`、`#bla刷新面板` 或 `#bla刷新爱丽丝面板`。升级后首次本人导出会自动识别旧缓存并执行一次完整升级刷新。
-- **全量导出组合语法**：支持 `#bla练度全量导出`、`#bla练度全量导出json`、`nk400练度全量导出`、`nk400练度全量导出json 链接` 等组合。公开链接支持 Blablalink 主页（`/shiftyspad`）或妮姬列表页 URL（`uid` 与 `openid` 并存时按官网规则优先 `uid`；无标识链接按本人处理），需发起者已登录对应版本账号且目标公开妮姬资料。
+### 通用攻略查询与会战攻略
+- **多维度精准检索**：无需登录即可查询 Blablalink 已收录作者（首批内置 `在舒恩裡面卍解【Syuen】`）的角色袖珍指南、单人突袭、联盟突袭与魔方/机制专题。支持内置/自定义别名自动映射、跨简繁与中英检索，并忽略全/半角冒号、空格与双词词序。
+- **原皮与异格精准区分**：严格区分同名角色原皮与异格（如 `灰姑娘` 与 `灰姑娘：琉璃波光`）。若目标角色暂未收录但存在同系异格攻略，会主动询问是否查看对应异格并附带快捷指令与 120 秒 `#bla查询1~20` 编号选择。
+- **自动中文翻译与保序转发**：命中外语原帖时自动获取官方中文译文并渲染中文长图（右下角附带原帖直达二维码）；合并转发严格按序发送「标题/作者/原帖与主页链接」→「完整攻略长图」→「纯文字正文（含图片位置标注）」。
+- **自动增量更新**：插件启动自动初始化索引，每天北京时间 `04:15` / `14:15` 自动检查新帖；若极少数配图因网络波动未拉取成功，过 60 秒短冷却后再次查询将仅增量补全缺失配图并重绘完整长图。
+- **联盟会战攻略**：`#bla会战阵容` / `#bla会战攻略` 同样无需绑定，自动核对官方赛季归属并依次转发原标题来源、组队示例原图与正文完整长图。
+
+### 养成查询、图鉴与练度导出
+- 普通查询与导出默认读取本地缓存；需要最新数据时主动使用 `#bla刷新信息`、`#bla刷新面板` 或 `#bla刷新爱丽丝面板`。
+- **`#bla卡片` 与 `#bla图鉴` 区分**：`#bla卡片` 聚焦任一技能 ≥ Lv.7 的主力妮姬并自适应列数；`#bla图鉴` 展示全量已持有角色并以灰阶队列补全未解锁角色。
+- **全量导出组合语法**：支持 `#bla练度全量导出`、`#bla练度全量导出json`、`nk400练度全量导出`、`nk400练度全量导出json 链接` 等组合。公开链接支持 Blablalink 主页（`/shiftyspad`）或妮姬列表页 URL（`uid` 与 `openid` 并存时优先 `uid`；无标识链接按本人处理），需发起者已登录对应版本账号且目标公开妮姬资料。
 - **数据口径**：Excel 支持爆裂阶段、定位、企业、属性四项联动筛选与「编号升序 / 原始战力降序」切换；JSON 采用 `schema_version=3`，`combat/attack/defense/hp` 始终表示当前实际练度，指定等级结果独立保存于 `simulation` 对象（成长资料覆盖至 1400 级，缺失数据标注原因且不补 0）。
 
-### 联盟会战与攻略
-- 当期会战同联盟共享短缓存（默认 180 秒），休赛期可长期复用已结算历史记录。出刀详情展示武器、爆裂、属性、等级、星级及核心角标（记录缺失的突破信息按严格身份匹配参考该成员本地缓存）。
-- `#bla会战阵容` / `#bla会战攻略` 无需绑定，自动核对官方赛季归属并按顺序合并转发：原标题与作者来源、组队示例原图、正文完整长截图。
-
-### 资源查询与收菜提醒
-- `#bla资源查询` 仅请求必要双接口并复用 5 分钟成功图片窗口；保管箱进度条按快照占比动态变色（>70% 橙色、>90% / MAX 红色）并标出 90% 提醒刻度线。
-- 收菜提醒按群聊/私聊独立订阅，默认北京时间 `00:00–08:00` 免打扰；连续两晚 23:00–24:00 均处于 100% 满仓将自动停止提醒以免打扰。
+### 官网活动日历、资源与收菜提醒
+- **`#bla日历`**：直接拉取官网公开日程与官方图文素材，高还原呈现卡池 Banner、时装头像条、活动奖励、模拟室双倒计时与竞技场双赛程表，默认通过合并转发发送。
+- **资源与收菜提醒**：`#bla资源查询` 仅请求必要双接口并复用 5 分钟成功图片窗口；保管箱进度条按快照占比动态变色（>70% 橙色、>90% / MAX 红色）并标出 90% 提醒刻度线。收菜提醒按群聊/私聊独立订阅，默认北京时间 `00:00–08:00` 免打扰；在免打扰前 1 小时窗口内设置免打扰将即时补检一次睡前提醒；连续两晚 23:00–24:00 均满仓将自动停止提醒。
 
 ### 兑换码与自动兑换
 - 官方与 GameWith 库存每日 `00:00 / 08:00 / 16:00` 定时更新，仅对跨来源去重后的真正新码或成员新贡献触发全员派发；新绑定用户自动即时核对当前有效码。
-- 手动与自动兑换均需 Bot 主在后台开启「允许本人 CDK 兑换」；当使用 `#bla兑换码ABCDEFG` 命中本地已有兑换记录时，爱丽丝将以专属口吻提示兔子先生具体的已兑换时间。
+- 手动与自动兑换均需 Bot 主在后台开启「允许本人 CDK 兑换」；使用 `#bla兑换码ABCDEFG` 命中本地已有兑换记录时，爱丽丝将以专属口吻提示具体的已兑换时间。
 
 ### 个人突袭推荐（DILDORO）
 - 自动识别网站当前赛季弱点，也可指定 `火/水/风/电/铁`（或全称），各属性缓存独立保留 5 天；重算任务按 FIFO 排队并具备 3 轮总预算与 20 秒无响应静默重试。
-- 支持自动识别并套用网站最新同属性推荐配置；中文翻译异常时自动切换韩语原文继续计算，图片/字体异常支持降级出图。
+- 自动识别并套用网站最新同属性推荐配置；中文翻译异常时自动切换韩语原文继续计算，图片/字体异常支持降级出图。
 - 若本人官网妮姬资料处于隐藏/仅盟友/仅好友状态，轮到同步时将自动临时公开并在截图发送后于后台持久化恢复原公开范围（最多 3 条通知，不改动其他隐私项）。
 
 ---
@@ -195,8 +214,8 @@ Bot 主可在 GsCore WebUI 调整以下配置（修改 Core 插件前缀或开�
 | **游戏查询速度 / 风控策略** | `AliceUID_PanelRiskStrategy`：高速（1 秒）/ 中速（推荐，默认 2 秒）/ 缓速（5 秒），三档均串行；个人突袭、签到、兑换与数据库独立控制。 |
 | **登录地址与 HTTPS** | `AliceUID_LoginUrl` 填写外网可访问地址（反代需转发 `/nikke/`）；开启 `LoginRequireHTTPS` 前请确认 Core 正确识别外部 HTTPS 协议。 |
 | **登录方式与浏览器** | `AliceUID_LoginMode` 可选 `browser`（账密+Cookie 导入）或 `cookie`（仅导入）；`BrowserAutoInstall` 默认开启自动补装配套 Chromium。 |
-| **卡片外观** | 全局主题、语言、字体可调；角色练度支持 `横版亮色` / `横版暗色` / `纵版亮色` / `纵版暗色` 及随机主题；个人突袭推荐拥有独立主题设置。 |
-| **消息转发** | 帮助、图鉴、出刀、会战攻略、登录链接、账号列表与兑换码均可独立开关；NapCat 回执等待默认 30 秒（5–300 秒），未确认自动普通回退一次并暂停该连接转发 60 秒。 |
+| **卡片外观与主题策略** | 全局主题支持 `random` / `dark` / `light`；新增 `AliceUID_ThemeRandomStrategy`（`纯随机` / `交替` / `昼夜`，06:00–18:00 亮色 / 18:00–06:00 暗色）；角色练度支持 `横版/纵版亮暗`、`关闭/横版/纵版/全部随机` 及横版大立绘缩放微调（`-100%`～`+100%`）；支持 `爱丽丝风格` / `默认说明文` 通知文风切换。 |
+| **消息转发** | 帮助、图鉴、出刀、会战攻略、通用攻略、活动日历、登录链接、账号列表、签到异常名单与兑换码均可独立开关；NapCat 回执等待默认 30 秒（5–300 秒），未确认自动普通回退一次并暂停该通道转发 60 秒。 |
 | **社区与兑换码** | `AliceUID_CommunitySignTime` 默认 `08:33`；`AliceUID_EnableWriteOps` 默认关闭，开启后方可执行 CDK 兑换。 |
 | **公开数据库与 AI** | 支持首次启动、招募日历与周五 `02:33` 自动维护公开资料；`AliceUID_AIQueryEnabled` 默认关闭。 |
 
@@ -204,95 +223,247 @@ Bot 主可在 GsCore WebUI 调整以下配置（修改 Core 插件前缀或开�
 
 ## 效果预览
 
-**点击每张图片上方的标题或小三角，即可展开或收起图片。** 前五组默认展开，Day2 出刀总览较长默认折叠；点击图片可查看高清原图（以下示例采用默认 `nk` 前缀，实际渲染以当前版本为准）。
+> **浏览说明**：核心主卡片默认展开，次要主题、高信息密度长图与帮助菜单默认折叠以保持页面清爽。**点击标题或小三角即可展开 / 收起，点击任意图片可查看高清原图**（以下示例均由 `1.4.01` 原生渲染引擎生成，个人昵称与 UID 已做脱敏处理）。
+
+### 1. 角色练度面板（横版 & 纵版 · 亮暗双主题）
+
+使用 `#bla角色名练度`（如 `#bla爱丽丝练度`，加 `刷新` 可实时同步），完整呈现角色立绘/皮肤、装备超载词条、技能练度、收藏品、魔方与循环室；支持横版与纵版自由切换，以及亮/暗主题与全局随机策略。
 
 <details open>
-<summary><strong>图1 · 妮姬练度查询｜点击展开 / 收起</strong></summary>
+<summary><strong>横版角色练度卡 · 亮色 &amp; 暗色｜点击展开 / 收起</strong></summary>
 
-使用 `#bla角色名练度`（如 `#bla爱丽丝练度`），查看本人角色的装备超载词条、技能、魔方、收藏品与循环室。
-
-<p align="center"><strong>宽版亮色</strong></p>
+<p align="center"><strong>横版亮色（90% 深灰反色图标 + 轻透玻璃衬底）</strong></p>
 <p align="center">
-  <a href="https://s1.imagehub.cc/images/2026/10/29/2bfd48fe190ca4da68c49d29739fc3da.png">
-    <img src="https://s1.imagehub.cc/images/2026/10/29/2bfd48fe190ca4da68c49d29739fc3da.png" width="900" alt="宽版亮色角色练度卡：角色立绘、装备词条、技能与循环室">
-  </a>
-</p>
-<p align="center"><strong>宽版暗色</strong></p>
-<p align="center">
-  <a href="https://s1.imagehub.cc/images/2026/10/29/20103cbcd1626d374df0ab5f2b146911.png">
-    <img src="https://s1.imagehub.cc/images/2026/10/29/20103cbcd1626d374df0ab5f2b146911.png" width="900" alt="宽版暗色角色练度卡：角色立绘、装备词条、技能与循环室">
+  <a href="https://s1.imagehub.cc/images/2026/11/25/243e7149486a1e15ceabaa35480fe3cc.png">
+    <img src="https://s1.imagehub.cc/images/2026/11/25/243e7149486a1e15ceabaa35480fe3cc.png" width="900" alt="横版亮色角色练度卡：爱丽丝立绘、装备词条、技能、收藏品、魔方与循环室">
   </a>
 </p>
 
-<p align="center"><strong>纵版暗色（窄版）</strong></p>
+<p align="center"><strong>横版暗色（兔女郎皮肤立绘示例）</strong></p>
 <p align="center">
-  <a href="https://s1.imagehub.cc/images/2026/10/29/27af72b039f827da4ec7a53de114463d.png">
-    <img src="https://s1.imagehub.cc/images/2026/10/29/27af72b039f827da4ec7a53de114463d.png" width="600" alt="纵版暗色角色练度卡：角色立绘、装备词条与技能养成">
+  <a href="https://s1.imagehub.cc/images/2026/11/25/d0556f656cc2ae2ca1ab438b676372ba.png">
+    <img src="https://s1.imagehub.cc/images/2026/11/25/d0556f656cc2ae2ca1ab438b676372ba.png" width="900" alt="横版暗色角色练度卡：兔女郎爱丽丝立绘、装备词条、技能、收藏品、魔方与循环室">
   </a>
 </p>
 
 </details>
 
 <details open>
-<summary><strong>图2 · 指挥官信息名片｜点击展开 / 收起</strong></summary>
+<summary><strong>纵版角色练度卡（手机单屏适配）· 亮色 &amp; 暗色｜点击展开 / 收起</strong></summary>
 
-使用 `#bla信息` 或 `#bla名片`，以横版名片展示指挥官资料、主页队伍、主推角色立绘、战役爬塔与前哨数据。
-
-<p align="center">
-  <a href="https://s1.imagehub.cc/images/2026/10/29/ad94378a318bc927b3302e2d86e2b15d.png">
-    <img src="https://s1.imagehub.cc/images/2026/10/29/ad94378a318bc927b3302e2d86e2b15d.png" width="900" alt="横版指挥官信息名片：指挥官资料、角色立绘、主页队伍、战役爬塔与前哨数据">
-  </a>
-</p>
-
-</details>
-
-<details open>
-<summary><strong>图3 · 资源查询与预计满仓时间 · 暗色主题｜点击展开 / 收起</strong></summary>
-
-使用 `#bla资源查询`，查看核心资源、保管箱容量与预计回满时间；时间预估基于本次查询快照。
-
-<p align="center">
-  <a href="https://s1.imagehub.cc/images/2026/10/20/1b94addf6276f536bd6628aa8bd0c49e.png">
-    <img src="https://s1.imagehub.cc/images/2026/10/20/1b94addf6276f536bd6628aa8bd0c49e.png" width="900" alt="暗色主题资源查询：资源与保管箱容量、预计满仓时间">
-  </a>
-</p>
+<table>
+  <tr>
+    <th align="center">纵版亮色（玛丽安：女王皮肤）</th>
+    <th align="center">纵版暗色（莉贝雷利奥皮肤）</th>
+  </tr>
+  <tr>
+    <td align="center">
+      <a href="https://s1.imagehub.cc/images/2026/11/25/82b5b313dafa9dbaf2aa13c5d914bec0.png">
+        <img src="https://s1.imagehub.cc/images/2026/11/25/82b5b313dafa9dbaf2aa13c5d914bec0.png" width="430" alt="纵版亮色角色练度卡：玛丽安女王皮肤、装备词条、技能、收藏品与循环室">
+      </a>
+    </td>
+    <td align="center">
+      <a href="https://s1.imagehub.cc/images/2026/11/25/2041c2cb28f5d957521f2137fbe15b40.png">
+        <img src="https://s1.imagehub.cc/images/2026/11/25/2041c2cb28f5d957521f2137fbe15b40.png" width="430" alt="纵版暗色角色练度卡：莉贝雷利奥皮肤、装备词条、技能、收藏品与循环室">
+      </a>
+    </td>
+  </tr>
+</table>
 
 </details>
 
-<details open>
-<summary><strong>图4 · 保管箱接近满仓的颜色提示 · 亮色主题｜点击展开 / 收起</strong></summary>
+---
 
-资源查询图中的保管箱提示条会随占用比例变色（>70% 橙色、>90% / MAX 红色）；这是查询图片内的状态提示，主动推送需另行开启收菜提醒。
+### 2. 指挥官名片、阵容图鉴与别名查询
 
-<p align="center">
-  <a href="https://s1.imagehub.cc/images/2026/10/20/a363a6f9c270f4fe24001417e8e0f7e3.png">
-    <img src="https://s1.imagehub.cc/images/2026/10/20/a363a6f9c270f4fe24001417e8e0f7e3.png" width="900" alt="亮色主题资源查询：保管箱接近满仓时，提示条变为红色警戒色">
-  </a>
-</p>
-
-</details>
+使用 `#bla信息` / `#bla名片` 生成 Bento v3 指挥官名片；使用 `#bla卡片` 查看主力妮姬、`#bla图鉴` 查看全量图鉴（含灰阶未解锁角色）；使用 `nk<角色>别名查询` 快速确认可用简称。
 
 <details open>
-<summary><strong>图5 · 个人出刀详情｜点击展开 / 收起</strong></summary>
-
-使用 `#bla出刀详情`，查看本人或同联盟指定排名成员的会战队伍、伤害与击杀记录。
+<summary><strong>指挥官信息名片（Bento v3 · 暗色主题）｜点击展开 / 收起</strong></summary>
 
 <p align="center">
-  <a href="https://s1.imagehub.cc/images/2026/10/20/69d53dbc204a634d511d40c0e2cabb6d.png">
-    <img src="https://s1.imagehub.cc/images/2026/10/20/69d53dbc204a634d511d40c0e2cabb6d.png" width="900" alt="个人出刀详情示例：本人会战队伍、伤害及击杀信息">
+  <a href="https://s1.imagehub.cc/images/2026/11/25/a0eb6c6866dab1dc664e616490dbda82.png">
+    <img src="https://s1.imagehub.cc/images/2026/11/25/a0eb6c6866dab1dc664e616490dbda82.png" width="900" alt="指挥官信息名片暗色主题：主推立绘、核心 KPI、战役与四大企业塔、前哨基地及主页队伍">
   </a>
 </p>
 
 </details>
 
 <details>
-<summary><strong>图6 · Day2 联盟成员出刀总览 · 长图默认折叠｜点击展开 / 收起</strong></summary>
-
-使用 `#bla出刀速查 Day2`，查看成员出刀总览、输出前三、击杀前三与未完成名单。
+<summary><strong>指挥官信息名片（Bento v3 · 亮色主题）｜点击展开</strong></summary>
 
 <p align="center">
-  <a href="https://s1.imagehub.cc/images/2026/10/20/c6214312dc66e19bf15358682e2ab903.png">
-    <img src="https://s1.imagehub.cc/images/2026/10/20/c6214312dc66e19bf15358682e2ab903.png" width="900" alt="Day2联盟出刀总览长图：成员出刀情况、输出前三、击杀前三与未完成名单">
+  <a href="https://s1.imagehub.cc/images/2026/11/25/d819fc37efdfd8a12f58f5044426fd56.png">
+    <img src="https://s1.imagehub.cc/images/2026/11/25/d819fc37efdfd8a12f58f5044426fd56.png" width="900" alt="指挥官信息名片亮色主题：主推立绘、反色企业塔图标、核心 KPI、前哨基地及主页队伍">
+  </a>
+</p>
+
+</details>
+
+<details>
+<summary><strong>主力妮姬卡片（<code>#bla卡片</code> · 任一技能 ≥ Lv.7）｜点击展开</strong></summary>
+
+<p align="center">
+  <a href="https://s1.imagehub.cc/images/2026/11/25/ac997bf993504ad20ed1326de6beee5a.jpg">
+    <img src="https://s1.imagehub.cc/images/2026/11/25/ac997bf993504ad20ed1326de6beee5a.jpg" width="900" alt="主力妮姬卡片：技能大于等于7级主力阵容、同步器等级与星级核心角标">
+  </a>
+</p>
+
+</details>
+
+<details>
+<summary><strong>完整妮姬图鉴（<code>#bla图鉴</code> · 含灰阶未解锁展示）｜点击展开</strong></summary>
+
+<p align="center">
+  <a href="https://s1.imagehub.cc/images/2026/11/25/84ed5d8c071a4e4eebdabf91127b0868.jpg">
+    <img src="https://s1.imagehub.cc/images/2026/11/25/84ed5d8c071a4e4eebdabf91127b0868.jpg" width="900" alt="完整妮姬图鉴：全量已持有角色与灰阶未解锁妮姬列表">
+  </a>
+</p>
+
+</details>
+
+<details>
+<summary><strong>角色别名查询卡片（<code>#bla黑莲别名查询</code> · 亮色 &amp; 暗色）｜点击展开</strong></summary>
+
+<table>
+  <tr>
+    <th align="center">亮色主题（红莲：暗影）</th>
+    <th align="center">暗色主题（莉贝雷利奥）</th>
+  </tr>
+  <tr>
+    <td align="center">
+      <a href="https://s1.imagehub.cc/images/2026/11/25/5825d35c36ab05e44abed765ab064bc1.png">
+        <img src="https://s1.imagehub.cc/images/2026/11/25/5825d35c36ab05e44abed765ab064bc1.png" width="430" alt="角色别名卡片亮色主题：红莲暗影可用别名列表">
+      </a>
+    </td>
+    <td align="center">
+      <a href="https://s1.imagehub.cc/images/2026/11/25/088eb3e492086485c1f8affdb5d7e9ae.png">
+        <img src="https://s1.imagehub.cc/images/2026/11/25/088eb3e492086485c1f8affdb5d7e9ae.png" width="430" alt="角色别名卡片暗色主题：莉贝雷利奥可用别名列表">
+      </a>
+    </td>
+  </tr>
+</table>
+
+</details>
+
+---
+
+### 3. 资源查询、联盟会战与个人突袭
+
+<details open>
+<summary><strong>资源查询与保管箱收菜估算（<code>#bla资源查询</code>）｜点击展开 / 收起</strong></summary>
+
+展示 8 类核心资源、前哨保管箱动态警戒进度条（>70% 橙色、>90% / MAX 红色）及 90% 提醒线与满仓时间预估；主动推送需另行开启 `#bla开启收菜提醒`。
+
+<p align="center">
+  <a href="https://s1.imagehub.cc/images/2026/11/25/f8b36493a103be85473f65ddcfd7ed7b.png">
+    <img src="https://s1.imagehub.cc/images/2026/11/25/f8b36493a103be85473f65ddcfd7ed7b.png" width="760" alt="资源查询卡片：8类核心资源、保管箱90%警戒刻度与满仓时间估算">
+  </a>
+</p>
+
+</details>
+
+<details open>
+<summary><strong>联盟突袭 · 个人出刀详情（<code>#bla出刀详情</code>）｜点击展开 / 收起</strong></summary>
+
+查看本人或同联盟指定伤害排名成员的会战配队、角色练度角标、单刀伤害与尾刀击杀记录。
+
+<p align="center">
+  <a href="https://s1.imagehub.cc/images/2026/11/25/e8492d9ea9802636392942ade204afb5.png">
+    <img src="https://s1.imagehub.cc/images/2026/11/25/e8492d9ea9802636392942ade204afb5.png" width="900" alt="联盟突袭出刀详情：成员会战队伍、角色头像角标、单刀伤害与尾刀标记">
+  </a>
+</p>
+
+</details>
+
+<details>
+<summary><strong>联盟突袭 · 查刀概览与双列榜单（<code>#bla出刀</code> / <code>#bla查刀</code>）｜点击展开</strong></summary>
+
+包含左右双列「龙傲天 · 输出前三」与「活菩萨 · 击杀前三」榜单、Day2 出刀速查表、缺刀名单与尾刀统计。
+
+<p align="center">
+  <a href="https://s1.imagehub.cc/images/2026/11/25/fc2b7a1cc95ffdd4f0539a03a71819c4.png">
+    <img src="https://s1.imagehub.cc/images/2026/11/25/fc2b7a1cc95ffdd4f0539a03a71819c4.png" width="900" alt="联盟突袭查刀概览：龙傲天与活菩萨双列榜单、成员出刀速查与缺刀统计">
+  </a>
+</p>
+
+</details>
+
+<details>
+<summary><strong>联盟突袭 · BOSS 血量进度（<code>#bla会战血量</code>）｜点击展开</strong></summary>
+
+<p align="center">
+  <a href="https://s1.imagehub.cc/images/2026/11/25/da6975173ec63e1980a3f22ea914eccd.png">
+    <img src="https://s1.imagehub.cc/images/2026/11/25/da6975173ec63e1980a3f22ea914eccd.png" width="820" alt="联盟会战 BOSS 血量卡片：当前阶段、总削减进度与 5 位 BOSS 剩余血量">
+  </a>
+</p>
+
+</details>
+
+<details open>
+<summary><strong>DILDORO 个人突袭配队与伤害模拟（<code>#bla个人突袭推荐</code>）｜点击展开 / 收起</strong></summary>
+
+自动识别当前弱点或按指定五属性导入本人养成，生成排行编队推荐与伤害模拟参考。
+
+<p align="center">
+  <a href="https://s1.imagehub.cc/images/2026/11/25/b123b0fb788248134887aa2eb9eab0ab.png">
+    <img src="https://s1.imagehub.cc/images/2026/11/25/b123b0fb788248134887aa2eb9eab0ab.png" width="900" alt="个人突袭推荐卡片：查询弱点、赛季信息与 DILDORO 推荐编队伤害模拟">
+  </a>
+</p>
+
+</details>
+
+---
+
+### 4. 官网活动日历、社区攻略与帮助菜单（长图默认折叠）
+
+<details>
+<summary><strong>官网活动日历 · 亮色主题（<code>#bla日历</code> · 无需登录）｜点击展开</strong></summary>
+
+<p align="center">
+  <a href="https://s1.imagehub.cc/images/2026/11/25/b15e363dc91aa3c83de5aa4240e4778b.png">
+    <img src="https://s1.imagehub.cc/images/2026/11/25/b15e363dc91aa3c83de5aa4240e4778b.png" width="860" alt="官网活动日历亮色主题：队员招募、最新时装、版本活动奖励、模拟室倒计时与竞技场赛程">
+  </a>
+</p>
+
+</details>
+
+<details>
+<summary><strong>官网活动日历 · 暗色主题（<code>#bla日历</code> · 无需登录）｜点击展开</strong></summary>
+
+<p align="center">
+  <a href="https://s1.imagehub.cc/images/2026/11/25/a0f572cb5e6d5939c4f4c793a2a24b55.png">
+    <img src="https://s1.imagehub.cc/images/2026/11/25/a0f572cb5e6d5939c4f4c793a2a24b55.png" width="860" alt="官网活动日历暗色主题：队员招募、最新时装、版本活动奖励、模拟室倒计时与竞技场赛程">
+  </a>
+</p>
+
+</details>
+
+<details>
+<summary><strong>Blablalink 社区攻略长图（<code>nk&lt;角色&gt;攻略</code> · 含自动中文翻译与原帖二维码）｜点击展开</strong></summary>
+
+<p align="center">
+  <a href="https://s1.imagehub.cc/images/2026/11/25/da24e2d4240eeca29e0892553f4b36e8.jpg">
+    <img src="https://s1.imagehub.cc/images/2026/11/25/da24e2d4240eeca29e0892553f4b36e8.jpg" width="860" alt="Blablalink 社区攻略长图示例：自动中文翻译、图文排版与原帖直达二维码">
+  </a>
+</p>
+
+</details>
+
+<details>
+<summary><strong>指令帮助菜单 · 普通用户版 &amp; Bot 主完整版（<code>#bla帮助</code>）｜点击展开</strong></summary>
+
+<p align="center"><strong>普通用户指令指南</strong></p>
+<p align="center">
+  <a href="https://s1.imagehub.cc/images/2026/11/25/c8c6829ca0c7a5fcd2cbe8f5e09a7da9.png">
+    <img src="https://s1.imagehub.cc/images/2026/11/25/c8c6829ca0c7a5fcd2cbe8f5e09a7da9.png" width="860" alt="帮助菜单普通用户版：三步快速上手与常用指令分组一览">
+  </a>
+</p>
+
+<p align="center"><strong>Bot 主完整指令指南（含运维自检、攻略重索引与四名单管理）</strong></p>
+<p align="center">
+  <a href="https://s1.imagehub.cc/images/2026/11/25/e7ed07285f61d25c24856321d9e659bd.png">
+    <img src="https://s1.imagehub.cc/images/2026/11/25/e7ed07285f61d25c24856321d9e659bd.png" width="860" alt="帮助菜单 Bot 主完整版：全量用户指令与 Bot 主运维管理指令">
   </a>
 </p>
 
@@ -337,7 +508,7 @@ docker compose up -d --force-recreate napcat
 <details>
 <summary><strong>3. Playwright 报“浏览器不存在”，或者一直在准备组件？</strong></summary>
 
-插件复用 Core 的 Playwright 并在缺少配套 Chromium 时自动补装（**无需开启 AI**，也不改动 Core 的 Python 包）。首次准备请保持登录页打开，下载失败会冷却 5 分钟。
+常规卡片、活动日历与攻略均已使用 GsCore 原生渲染，**仅网页账密登录与 DILDORO 个人突袭需要 Playwright**。插件默认复用 Core 的 Playwright 并在缺少配套 Chromium 时自动补装（**无需开启 AI**，也不改动 Core 的 Python 包）。首次准备请保持登录页打开，下载失败会冷却 5 分钟。
 
 请检查「自动准备浏览器组件」是否开启以及是否设置了 `GSUID_PLAYWRIGHT_AUTOINSTALL=0`。如需手动修复，在 Core 实际 Python 环境执行：
 
@@ -398,6 +569,13 @@ docker exec -u 0 gsuid_core /venv/bin/python -m playwright install --with-deps c
 <summary><strong>10. 提示登录失效，或转发未收到 / 迟到重复？</strong></summary>
 
 同号更新凭据请用 `#bla重新登录`，换号/换服先 `#bla解绑`；网络超时、403、429 不等同于 Cookie 失效。转发未收到时请核对 QQ 接入端上传日志与消息回执，可按需调整「转发回执等待秒数」（默认 30 秒，范围 5–300 秒）或关闭单项转发开关。
+
+</details>
+
+<details>
+<summary><strong>11. 通用攻略查不到某角色、或偶尔提示配图缺失怎么办？</strong></summary>
+
+攻略仅检索已收录作者发布的文章；若查询原皮而库内仅有同系异格（如 `灰姑娘` 与 `灰姑娘：琉璃波光`），机器人会主动提示并给出快捷编号。Bot 主可随时发送 `#bla攻略重索引` 手动回溯更新索引（追加 `清空` 可彻底重建）。若某次因海外图床波动导致少数配图缺失，60 秒后再次查询会自动仅补下缺失配图并重绘完整长图。
 
 </details>
 

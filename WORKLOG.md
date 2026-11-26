@@ -171,3 +171,25 @@ python -m unittest discover -s tests
   - 发送时对失败用户追加 `@QQ` 提及（MessageSegment.at）；
   - `_reply` 改为所有 LPass 回复直接 `bot.send(text, at_sender=True)`，不再合并转发。
 - **验证**：`compileall` / `ruff F,E9` 通过；31 项单元测试通过。
+## 16. 合并上游 1.3.05 → 1.4.02，并还原历史通知文案（2026-11-26）
+
+- **上游内容**：
+  - 1.3.05~1.3.09 新增角色攻略查询、攻略匹配/性能/并发与超时优化、昼夜/交替主题策略；
+  - 1.4.0 重构 README 与开发文档、统一版本号；
+  - 1.4.01 多项内部优化；
+  - 1.4.02 修复 nk「我的状态」信息读取错误。
+  - 新增 `nikke_guide/` 整模块（commands/draw/matcher/registry/scheduler/service/source/store）、`nikke_calendar/assets.py`、`nikke_calendar/draw.py`、`nikke_commands/selection.py`、`nikke_logs/ops.py` 及攻略/日历模板。
+- **合并处理**：
+  - 新文件整包复制并品牌替换；图片等二进制原样复制；
+  - 冲突文件：`nikke_help/draw.py` 取上游新版帮助结构，并重新补回「LI PASS 奖励中心」分节；`nikke_logs/store.py`、`version.py`、`CHANGELOG.md`、`DEVELOPMENT.md`、`README.md` 取上游后重套品牌；
+  - 全局修正 `BlablaBotConfig` → `AliceUIDConfig`；配置键去重并核对上游键全部存在。
+- **通知风格还原**：
+  - 用户要求去掉「兔子先生」相关描述，恢复历史消息提醒；
+  - `AliceUID_NoticeStyle` 默认改为「默认说明文」且仅保留该选项；
+  - `persona.py` 的 `normalize_notice_style()` / `get_notice_style()` 固定返回「默认说明文」，`is_alice_style()` 固定返回 False（旧配置保存的「爱丽丝/兔子先生」值会自动回退）；
+  - 全包将「兔子先生」统一替换为「指挥官」，不再出现该称呼。
+- **验证**：
+  - `compileall` 全包通过；`ruff F821/F822/F823/E9` 全包通过；
+  - 31 项单元测试通过；
+  - 配置键：上游全部存在，本项目 LPass/签到通知等额外键保留，无重复；
+  - 帮助页重新包含 LPass 分节；`#bla` 与 `#LPass*` 命令保持。

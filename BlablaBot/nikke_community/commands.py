@@ -118,14 +118,14 @@ class CommunityCommands:
             state = self.service.status(client,actor_id,bot_id,binding.revision)
             from ..nikke_message.persona import is_alice_style
             alice = is_alice_style()
-            prefix = (('已为兔子先生本人开启全量签到（签到、浏览及点赞）。\n' if alice else
+            prefix = (('已为指挥官本人开启全量签到（签到、浏览及点赞）。\n' if alice else
                        '已为你本人开启全量签到（签到、浏览及点赞）。\n') if full else '')
             if self.service.store.signin_status(account,owner,day)['confirmed']:
-                return finish(prefix + ('嘿嘿，兔子先生，您本周期已签到✅ 不用再跑一趟啦～' if alice else '本周期已签到✅'))
+                return finish(prefix + ('嘿嘿，指挥官，您本周期已签到✅ 不用再跑一趟啦～' if alice else '本周期已签到✅'))
             if state['paused']:
                 return finish('社区任务已暂停：' + state['paused'] + '。请人工检查后重新开启。')
             if notify:
-                await notify(prefix + ('遵命！兔子先生的签到任务已受理⏳ 爱丽丝办妥后马上回来向您汇报～' if alice else
+                await notify(prefix + ('遵命！指挥官的签到任务已受理⏳ 爱丽丝办妥后马上回来向您汇报～' if alice else
                                        '签到任务已受理⏳ 正在排队或执行，完成后会返回结果。'))
             result = await self.service.run(client,actor_id,bot_id,binding.revision,
                                             manual=True,signin_only=not bool(state['likes'] and state['enabled']))

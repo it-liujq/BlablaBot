@@ -1,4 +1,4 @@
 """Single runtime version used by diagnostics and help output."""
-VERSION = "1.3.04"
-BUILD = "20261124.2"
+VERSION = "1.4.02"
+BUILD = "20261125.01"
 ISSUES = "https://github.com/it-liujq/BlablaBot/issues"

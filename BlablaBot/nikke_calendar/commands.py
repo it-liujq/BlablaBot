@@ -5,17 +5,18 @@ from ..nikke_commands import command_prefix
 from .service import CalendarUnavailable, get_calendar
 
 HELP = (f'命令：{command_prefix()}日历\n'
-        '发送官网当前默认活动日历的真实网页截图，无需绑定账号。\n'
+        '基于官网公开日程数据与官方 Banner/头像资源渲染当前活动日历，无需绑定账号。\n'
         f'{command_prefix()}日历 帮助：查看说明。暂不支持历史月份、指定日期或区服参数。\n'
-        '不会按绑定区服筛选；多标签只截图当前选中项，Raid仅为活动日程。\n'
-        '截图缓存30分钟；官网异常时可能发送标明拍摄时间的旧图，失败后至少冷却5分钟。')
+        '不会按绑定区服筛选，Raid仅为活动日程，不含阵容或分数。\n'
+        '图片缓存30分钟；官网异常时可能发送标明生成时间的旧图，失败后至少冷却5分钟。')
 
 
 class CalendarCommands:
-    def __init__(self, policy, *, service_factory=get_calendar, image_factory=None):
+    def __init__(self, policy, *, service_factory=get_calendar, image_factory=None, forward_sender=None):
         self.policy = policy
         self.service_factory = service_factory
         self.image_factory = image_factory
+        self.forward_sender = forward_sender
 
     async def handle(self, bot, ev):
         try:
@@ -35,7 +36,12 @@ class CalendarCommands:
         except CalendarUnavailable as exc:
             await send_reply(bot, ev, str(exc), at_sender=True)
             return
-        except Exception:
+        except Exception as exc:
+            try:
+                from ..nikke_logs.store import record_failure
+                record_failure('活动日历', 'HANDLE', exc)
+            except Exception:
+                pass
             await send_reply(bot, ev, '官网日历截图暂不可用，请稍后重试。', at_sender=True)
             return
         # The caption always includes source and actual capture time, including cache hits.
@@ -43,8 +49,18 @@ class CalendarCommands:
         if image_factory is None:
             from gsuid_core.segment import MessageSegment
             image_factory = MessageSegment.image
-        # Both are already ready: keep provenance/stale warning with its image.
-        await send_reply(bot, ev, [image_factory(result.png), result.caption()], at_sender=True, newline=True)
+        sender = self.forward_sender
+        if sender is None:
+            from ..nikke_message import send_with_forward
+            sender = send_with_forward
+        await sender(
+            bot,
+            ev,
+            [image_factory(result.png), result.caption()],
+            config_key='AliceUID_CalendarForward',
+            title='[BlablaBot·活动日历]',
+            at_sender=True,
+        )
 
 
 _sv = None

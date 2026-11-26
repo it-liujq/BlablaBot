@@ -1,0 +1,274 @@
+<!doctype html>
+<html lang="{{ html_lang or 'zh-CN' }}">
+<head>
+<meta charset="utf-8" />
+<style>
+{% include 'alice_v2_tokens.css' %}
+{% include 'calendar_v2.css' %}
+</style>
+</head>
+<body style="font-family: '{{ font_family or 'MiSans' }}', 'MiSans', sans-serif;">
+  <div class="cal-root cal-root-{{ card_theme or 'light' }}">
+    <div class="cal-hero-card cal-hero-card-{{ card_theme or 'light' }}">
+      <div class="cal-hero-left">
+        {% if hero_art %}
+        <div class="avatar-glass cal-hero-avatar">
+          <img src="{{ hero_art }}" alt="BlablaBot" />
+          <span class="avatar-glass-edge"></span>
+        </div>
+        {% endif %}
+        <div class="cal-hero-meta">
+          <div class="cal-hero-eyebrow-row">
+            <span class="cal-eyebrow">BLABLALINK // OFFICIAL ACTIVITY CALENDAR</span>
+            <span class="ui-pill cal-hero-brand-pill">BlablaBot</span>
+          </div>
+          <div class="cal-title">NIKKE 官网活动日历</div>
+          <div class="cal-hero-sub">官网全板块公开活动排期 · 实时倒计时一览</div>
+        </div>
+      </div>
+      <div class="cal-hero-right">
+        <div class="cal-hero-divider cal-hero-divider-{{ card_theme or 'light' }}"></div>
+        <div class="cal-hero-brand-col">
+          <div class="cal-hero-mark-row">
+            <span class="cal-hero-mark cal-hero-mark-{{ card_theme or 'light' }}">NIKKE · BlablaBot</span>
+            <span class="ui-pill cal-hero-ver cal-hero-ver-{{ card_theme or 'light' }}">v{{ app_version or '1.4.02' }}</span>
+          </div>
+          <span class="ui-pill cal-stamp cal-stamp-{{ card_theme or 'light' }}">北京时间 · {{ captured_text }}</span>
+        </div>
+      </div>
+    </div>
+
+    <!-- 1. 队员招募 -->
+    <div class="cal-sec">
+      <div class="sec-bar">
+        <div class="sec-tag"><span class="sec-slash">///</span><span>队员招募</span></div>
+        <div class="sec-line"></div>
+        <span class="sec-en">RECRUITMENT</span>
+      </div>
+      {% if char_items %}
+      <div class="avatar-strip">
+        {% for item in char_items %}
+        <div class="av-slot {% if item.active_first %}av-slot-active{% endif %}">
+          <div class="ui-pill av-timer">{{ item.short_remain }}</div>
+          <div class="avatar-glass cal-av {% if item.active_first %}cal-av-active{% endif %}">
+            {% if item.avatar_uri %}<img src="{{ item.avatar_uri }}" />{% endif %}
+            <span class="avatar-glass-edge"></span>
+          </div>
+        </div>
+        {% endfor %}
+      </div>
+      <div class="banner-stack">
+        {% for item in char_items %}
+        <div class="banner-card cal-card-{{ card_theme or 'light' }}">
+          {% if item.banner_uri %}
+          <div class="banner-img-box"><img class="banner-img" src="{{ item.banner_uri }}" /></div>
+          {% else %}
+          <div class="banner-fallback">{{ item.pool_type }} · {{ item.title }}</div>
+          {% endif %}
+          <div class="banner-meta">
+            <div class="banner-head-row">
+              <div class="banner-name">{{ item.title }}</div>
+              <span class="ui-pill st-pill st-{{ item.status }}">{{ item.status_label }} · {{ item.short_remain }}</span>
+            </div>
+            <div class="banner-date">{{ item.pool_type }} · {{ item.time_range }}</div>
+            {% if item.description %}<div class="banner-desc">{{ item.description }}</div>{% endif %}
+          </div>
+        </div>
+        {% endfor %}
+      </div>
+      {% else %}
+      <div class="empty-card cal-card-{{ card_theme or 'light' }}">当前暂无公开队员招募卡池</div>
+      {% endif %}
+    </div>
+
+    <!-- 2. 最新时装 -->
+    <div class="cal-sec">
+      <div class="sec-bar">
+        <div class="sec-tag"><span class="sec-slash">///</span><span>最新时装</span></div>
+        <div class="sec-line"></div>
+        <span class="sec-en">COSTUMES</span>
+      </div>
+      {% if skin_items %}
+      <div class="avatar-strip">
+        {% for item in skin_items %}
+        <div class="av-slot {% if item.active_first %}av-slot-active{% endif %}">
+          <div class="ui-pill av-timer">{{ item.short_remain }}</div>
+          <div class="avatar-glass cal-av {% if item.active_first %}cal-av-active{% endif %}">
+            {% if item.avatar_uri %}<img src="{{ item.avatar_uri }}" />{% endif %}
+            <span class="avatar-glass-edge"></span>
+          </div>
+          <span class="ui-pill skin-tag">{{ item.source_tag }}</span>
+        </div>
+        {% endfor %}
+      </div>
+      {% if featured_skin %}
+      <div class="banner-card cal-card-{{ card_theme or 'light' }}">
+        {% if featured_skin.banner_uri %}
+        <div class="banner-img-box"><img class="banner-img" src="{{ featured_skin.banner_uri }}" /></div>
+        {% else %}
+        <div class="banner-fallback">{{ featured_skin.source_tag }} · {{ featured_skin.title }}</div>
+        {% endif %}
+        <div class="banner-meta">
+          <div class="banner-head-row">
+            <div class="banner-name">{{ featured_skin.title }}</div>
+            <span class="ui-pill st-pill st-{{ featured_skin.status }}">{{ featured_skin.status_label }} · {{ featured_skin.short_remain }}</span>
+          </div>
+          <div class="banner-date">{{ featured_skin.source_tag }} · {{ featured_skin.time_range }}</div>
+          {% if featured_skin.description %}<div class="banner-desc">{{ featured_skin.description }}</div>{% endif %}
+        </div>
+      </div>
+      {% endif %}
+      {% if other_skins %}
+      <div class="sub-grid">
+        {% for item in other_skins %}
+        <div class="sub-card cal-card-{{ card_theme or 'light' }}">
+          <div class="avatar-glass sub-av">
+            {% if item.avatar_uri %}<img src="{{ item.avatar_uri }}" />{% endif %}
+            <span class="avatar-glass-edge"></span>
+          </div>
+          <div class="sub-info">
+            <div class="sub-name">{{ item.title }}</div>
+            <div class="sub-meta">{{ item.source_tag }} · {{ item.time_range }}</div>
+          </div>
+          <span class="ui-pill st-pill st-{{ item.status }}">{{ item.short_remain }}</span>
+        </div>
+        {% endfor %}
+      </div>
+      {% endif %}
+      {% else %}
+      <div class="empty-card cal-card-{{ card_theme or 'light' }}">当前暂无公开时装活动</div>
+      {% endif %}
+    </div>
+
+    <!-- 3. 版本活动 -->
+    <div class="cal-sec">
+      <div class="sec-bar">
+        <div class="sec-tag"><span class="sec-slash">///</span><span>版本活动</span></div>
+        <div class="sec-line"></div>
+        <span class="sec-en">VERSION EVENTS</span>
+      </div>
+      {% if event_items %}
+      <div class="row-list">
+        {% for item in event_items %}
+        <div class="row-card cal-card-{{ card_theme or 'light' }}">
+          <div class="row-left">
+            <div class="row-title">{{ item.title }}</div>
+            <div class="row-date">{{ item.time_range }}{% if item.subtitle %} · {{ item.subtitle }}{% endif %}</div>
+          </div>
+          {% if item.rewards %}
+          <div class="reward-strip">
+            {% for ruri in item.rewards %}
+            <div class="reward-box"><img src="{{ ruri }}" /></div>
+            {% endfor %}
+          </div>
+          {% endif %}
+          <span class="ui-pill timer-pill">{{ item.short_remain }}</span>
+        </div>
+        {% endfor %}
+      </div>
+      {% else %}
+      <div class="empty-card cal-card-{{ card_theme or 'light' }}">当前暂无公开版本活动</div>
+      {% endif %}
+    </div>
+
+    <!-- 4. Raid -->
+    <div class="cal-sec">
+      <div class="sec-bar">
+        <div class="sec-tag"><span class="sec-slash">///</span><span>Raid</span></div>
+        <div class="sec-line"></div>
+        <span class="sec-en">RAID SCHEDULE</span>
+      </div>
+      {% if raid_items %}
+      <div class="row-list">
+        {% for item in raid_items %}
+        <div class="row-card cal-card-{{ card_theme or 'light' }}">
+          <div class="row-left">
+            <div class="row-title">{{ item.title }}</div>
+            <div class="row-date">{{ item.time_range }}</div>
+          </div>
+          <span class="ui-pill timer-pill">{{ item.short_remain }}</span>
+        </div>
+        {% endfor %}
+      </div>
+      {% else %}
+      <div class="empty-card cal-card-{{ card_theme or 'light' }}">当前无排期突袭活动</div>
+      {% endif %}
+    </div>
+
+    <!-- 5. 模拟室 -->
+    <div class="cal-sec">
+      <div class="sec-bar">
+        <div class="sec-tag"><span class="sec-slash">///</span><span>模拟室</span></div>
+        <div class="sec-line"></div>
+        <span class="sec-en">SIMULATION OVERCLOCK</span>
+      </div>
+      {% if sim_card %}
+      <div class="sim-card cal-card-{{ card_theme or 'light' }}">
+        <div class="row-card-inner">
+          <div class="row-left">
+            <div class="row-title">{{ sim_card.title }}</div>
+            <div class="row-date">{{ sim_card.time_range }}</div>
+          </div>
+          {% if sim_card.rewards %}
+          <div class="reward-strip">
+            {% for ruri in sim_card.rewards %}
+            <div class="reward-box"><img src="{{ ruri }}" /></div>
+            {% endfor %}
+          </div>
+          {% endif %}
+        </div>
+        <div class="sim-timers">
+          <div class="sim-row"><span>距离赛季结束</span><span class="sim-val">{{ sim_card.season_remain }}</span></div>
+          <div class="sim-row"><span>距离 Buff 重置</span><span class="sim-val">{{ sim_card.buff_remain }}</span></div>
+        </div>
+      </div>
+      {% else %}
+      <div class="empty-card cal-card-{{ card_theme or 'light' }}">当前暂无超频赛程</div>
+      {% endif %}
+    </div>
+
+    <!-- 6. 竞技场 -->
+    <div class="cal-sec">
+      <div class="sec-bar">
+        <div class="sec-tag"><span class="sec-slash">///</span><span>竞技场</span></div>
+        <div class="sec-line"></div>
+        <span class="sec-en">ARENA SCHEDULE</span>
+      </div>
+      {% if arena_main %}
+      <div class="row-list">
+        {% for item in arena_main %}
+        <div class="row-card cal-card-{{ card_theme or 'light' }}">
+          <div class="row-left">
+            <div class="row-title">{{ item.title }}</div>
+            <div class="row-date">{{ item.time_range }}</div>
+          </div>
+          <span class="ui-pill timer-pill">{{ item.short_remain }}</span>
+        </div>
+        {% endfor %}
+      </div>
+      {% endif %}
+      {% if promo_rows %}
+      <div class="sched-box cal-card-{{ card_theme or 'light' }}">
+        <div class="sched-head"><span>晋级赛</span><span>日程 / 状态</span></div>
+        {% for r in promo_rows %}
+        <div class="sched-row"><span class="{% if r.active %}sched-active{% endif %}">{{ r.label }}</span><span class="{% if r.active %}sched-active{% endif %}">{{ r.state }}</span></div>
+        {% endfor %}
+      </div>
+      {% endif %}
+      {% if champ_rows %}
+      <div class="sched-box cal-card-{{ card_theme or 'light' }}">
+        <div class="sched-head"><span>冠军争夺赛</span><span>日程 / 状态</span></div>
+        {% for r in champ_rows %}
+        <div class="sched-row"><span class="{% if r.active %}sched-active{% endif %}">{{ r.label }}</span><span class="{% if r.active %}sched-active{% endif %}">{{ r.state }}</span></div>
+        {% endfor %}
+      </div>
+      {% endif %}
+    </div>
+
+    <div class="cal-footer cal-footer-{{ card_theme or 'light' }}">
+      <span>来源：https://www.blablalink.com/activity-calendar（官网默认日程）</span>
+      {% include 'brand_credit.html' %}
+    </div>
+  </div>
+</body>
+</html>

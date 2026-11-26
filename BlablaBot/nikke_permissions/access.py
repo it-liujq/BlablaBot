@@ -1,8 +1,54 @@
 """Global actor guard for every Trigger belonging to the registered plugin."""
+from collections import OrderedDict
 from functools import wraps
+import threading
 
 DENIED = "你无权使用BlablaBot，请联系Bot主。"
 _group_observer = None
+_LOGGED_MSGS: OrderedDict[tuple, None] = OrderedDict()
+_LOGGED_LOCK = threading.Lock()
+
+
+def _log_triggered_command(ev, *, allowed: bool):
+    """Record anonymized command text with [bot主]/[普通成员] role (never sender name/QQ)."""
+    if ev is None:
+        return
+    msg_id = str(getattr(ev, "msg_id", "") or "").strip()
+    if msg_id:
+        dedup_key = (
+            str(getattr(ev, "bot_id", "") or ""),
+            str(getattr(ev, "group_id", "") or "dm"),
+            str(getattr(ev, "user_id", "") or ""),
+            msg_id,
+        )
+        with _LOGGED_LOCK:
+            if dedup_key in _LOGGED_MSGS:
+                return
+            _LOGGED_MSGS[dedup_key] = None
+            _LOGGED_MSGS.move_to_end(dedup_key)
+            while len(_LOGGED_MSGS) > 128:
+                _LOGGED_MSGS.popitem(last=False)
+    try:
+        if getattr(ev, "_alice_cmd_logged", False):
+            return
+        setattr(ev, "_alice_cmd_logged", True)
+    except Exception:
+        pass
+    try:
+        is_owner = getattr(ev, "user_pm", 6) == 0
+        if not is_owner:
+            try:
+                from ..nikke_user.service import is_master
+                is_owner = is_master(getattr(ev, "user_id", ""))
+            except Exception:
+                is_owner = False
+        role = "bot主" if is_owner else "普通成员"
+        route = "group" if getattr(ev, "group_id", None) else "dm"
+        raw_cmd = getattr(ev, "raw_text", None) or getattr(ev, "command", None) or getattr(ev, "text", "")
+        from ..nikke_logs.store import record_command
+        record_command(role, route, str(raw_cmd or ""), result="ALLOWED" if allowed else "DENIED")
+    except Exception:
+        pass
 
 def set_group_observer(observer):
     global _group_observer
@@ -29,12 +75,14 @@ def require_user_access(policy):
         async def guarded(bot, ev):
             # Framework-authenticated sender; never ev.at / target QQ.
             if not policy.user_allowed(getattr(ev, "user_id", None)):
+                _log_triggered_command(ev, allowed=False)
                 try:
                     from ..nikke_message.persona import send_reply
                     await send_reply(bot, ev, DENIED, at_sender=True)
                 except ImportError:
                     await bot.send(DENIED, at_sender=True)
                 return None
+            _log_triggered_command(ev, allowed=True)
             # Authenticated group presence is local metadata, never a member-list claim.
             if _group_observer is not None:
                 try:

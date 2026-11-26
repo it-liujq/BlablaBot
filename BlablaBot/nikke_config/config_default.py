@@ -18,15 +18,6 @@ CONFIG_DEFAULT: Dict[str, GSC] = {
         '高速：1秒，速度最快，报错时建议降至中速或缓速重试；中速：2秒，速度与稳定性较平衡（默认推荐）；缓速：5秒，等待较长。三档均串行，保存后新查询任务生效。适用于游戏查询及收菜复核；个人突袭、签到、兑换和数据库策略独立。旧极速自动转为中速。',
         '中速（推荐）', options=['高速', '中速（推荐）', '缓速'],
     ),
-    'AliceUID_CacheTTL': GsIntConfig(
-        "查询缓存（秒）",
-        "同一账号的角色列表/资料缓存时间，避免触发上游限流",
-        600,
-        3600,
-    ),
-    'AliceUID_ResourceCacheSeconds': GsIntConfig(
-        "资源查询刷新间隔（固定300秒）", "按用户独立限频5分钟；期间复用已渲染图片，显式刷新也不绕过。兼容旧配置键，实际固定300秒。", 300, 300,
-    ),
     'AliceUID_UnionCacheSeconds': GsIntConfig(
         "联盟查询缓存秒数", "出刀与会战血量共用同联盟快照并合并在途请求；默认180秒，可设60秒，0表示不缓存。", 180, 3600,
     ),
@@ -63,12 +54,6 @@ CONFIG_DEFAULT: Dict[str, GSC] = {
         "登录链接用转发消息（实验性）",
         "实验性功能，默认开启，首次登录/重新登录共用，二维码独立。NapCat未确认发送时自动回退一次普通消息，并暂停本连接转发60秒。开启后若看不到消息，请关闭此功能回退普通模式。保留已有配置值。",
         True,
-    ),
-    'AliceUID_DefaultArea': GsIntConfig(
-        "默认区服（旧版兼容）",
-        f"仅保留兼容旧配置。新登录须用 {command_prefix()}登录日服/国际服/北美服/韩服/东南亚服 选择；不会自动切换区服。港澳台登录暂未支持",
-        81,
-        91,
     ),
     'AliceUID_BrowserAutoInstall': GsBoolConfig(
         "自动准备浏览器组件",
@@ -108,6 +93,9 @@ CONFIG_DEFAULT: Dict[str, GSC] = {
     'AliceUID_CardTheme': GsStrConfig(
         "全局卡片主题", "默认random随机亮暗；dark暗色、light亮色。只在新渲染时随机，已有缓存图片直接复用，保留已有自定义值", "random", options=["dark", "light", "random"],
     ),
+    'AliceUID_ThemeRandomStrategy': GsStrConfig(
+        "卡片主题随机策略", "纯随机=默认随机亮暗（兼容原策略）；交替=在亮色与暗色之间轮替发送；昼夜=北京时间 06:00~17:59 发送亮色、18:00~05:59 发送暗色。仅在主题处于随机模式时生效，已固定亮/暗的设置不变。", "纯随机", options=["纯随机", "交替", "昼夜"],
+    ),
     'AliceUID_CharacterCardStyle': GsStrConfig(
         "角色练度卡片主题", "默认横版亮色；可选横版亮色、横版暗色、纵版亮色、纵版暗色（兼容旧英文配置自动迁移）。", "横版亮色", options=["横版亮色", "横版暗色", "纵版亮色", "纵版暗色"],
     ),
@@ -121,9 +109,9 @@ CONFIG_DEFAULT: Dict[str, GSC] = {
     ),
     'AliceUID_NoticeStyle': GsStrConfig(
         "通知与提示文案风格",
-        "控制收菜提醒、社区签到、兑换码回执、群播报及等待提示的说话口吻；登录说明、安全提示、报错与管理命令始终保持清晰说明文。默认爱丽丝风格，保存后立即生效。",
-        "爱丽丝风格",
-        options=["爱丽丝风格", "默认说明文"],
+        "通知与提示统一使用历史说明文风格；保留该配置项用于兼容旧配置。",
+        "默认说明文",
+        options=["默认说明文"],
     ),
     'AliceUID_SoloCardTheme': GsStrConfig(
         "个人突袭推荐卡片主题（独立）", "只影响个人突袭推荐卡片，默认暗色；可选亮色或随机，不跟随其他卡片主题。查询时可用亮色/暗色/随机参数临时指定。毛玻璃强度仍使用全局设置。", "dark", options=["light","dark","random"],
@@ -162,7 +150,15 @@ CONFIG_DEFAULT: Dict[str, GSC] = {
     ),
     'AliceUID_RaidGuideForward': GsBoolConfig(
         '会战阵容用转发消息',
-        '默认开启，依次发送帖子原标题及作者来源、組隊示例下的第一张阵容原图、帖子完整长截图。长截图JPG质量沿用转发设置，默认95。', True,
+        '默认开启，依次发送帖子原标题及作者来源、組隊示例下的第一张阵容原图、帖子完整长图。长图JPG质量沿用转发设置，默认95。', True,
+    ),
+    'AliceUID_GuideForward': GsBoolConfig(
+        '攻略查询用转发消息',
+        '默认开启，依次发送标题作者来源与实验性说明、完整攻略长图（含镇楼图）、纯文字正文（含【镇楼图】【图1】标注）。关闭或转发不可用时回退普通发送。', True,
+    ),
+    'AliceUID_CalendarForward': GsBoolConfig(
+        '活动日历用转发消息',
+        '默认开启，使用标准合并转发发送官网活动日历长图及说明（首节点标题 [BlablaBot·活动日历]）；关闭或转发不可用时回退普通发送。', True,
     ),
     'AliceUID_AccountListForward': GsBoolConfig(
         "账号列表用转发消息",
@@ -269,6 +265,26 @@ CONFIG_DEFAULT: Dict[str, GSC] = {
     ),
     'AliceUID_AIQueryEnabled': GsBoolConfig(
         "允许AI调用只读查询", "默认关闭；开启后须同时启用Core AI并重启完成注册。开放帮助、本人资料、角色练度和角色别名查询；始终遵守Core与BlablaBot权限。关闭后立即拒绝AI调用，普通命令不受影响。", False,
+    ),
+
+    # 兼容保留项（一般无需修改）
+    'AliceUID_CacheTTL': GsIntConfig(
+        "【旧版兼容】查询缓存（秒）",
+        "旧版兼容键，持久面板快照不依此过期，一般无需修改。",
+        600,
+        3600,
+    ),
+    'AliceUID_ResourceCacheSeconds': GsIntConfig(
+        "【旧版兼容】资源查询刷新间隔（固定300秒）",
+        "兼容旧配置键，实际固定300秒，一般无需修改。",
+        300,
+        300,
+    ),
+    'AliceUID_DefaultArea': GsIntConfig(
+        "【旧版兼容】默认区服",
+        f"仅保留兼容旧配置。新登录须用 {command_prefix()}登录日服/国际服/北美服/韩服/东南亚服 选择；不会自动切换区服。",
+        81,
+        91,
     ),
 
 }
