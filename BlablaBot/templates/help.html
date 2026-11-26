@@ -59,7 +59,7 @@
     {% for band in section_bands %}
     <div class="section-band">
       {% for section in band %}
-      <section class="bento-card section {{ 'wide' if section.wide else 'half' }}" data-module="{{ section.title }}" data-count="{{ section['items']|length }}">
+      <section class="bento-card section {{ 'wide' if section.wide else 'half' }} cols-{{ section.cols }}" data-module="{{ section.title }}" data-count="{{ section['items']|length }}">
         <div class="section-header">
           <h2>{{ section.title }}</h2>
           <span class="ui-pill tag-pill">{{ section.tag }} · {{ section['items']|length }}条</span>

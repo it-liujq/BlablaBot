@@ -74,6 +74,7 @@ html,body{width:1000px;margin:0;padding:0}
 .item-row{display:grid;grid-template-columns:repeat(2,minmax(0,1fr));gap:8px;width:100%}
 .section.half .item-row{grid-template-columns:minmax(0,1fr)}
 .section.wide .item-row.single{grid-template-columns:minmax(0,1fr)}
+.section.cols-3 .item-row{grid-template-columns:repeat(3,minmax(0,1fr))}
 .item-slot{
   position:relative;border-radius:11px;padding:9px 11px 9px 14px;
   background:{{ palette.slot_bg }};border:1px solid {{ palette.sub_border }};

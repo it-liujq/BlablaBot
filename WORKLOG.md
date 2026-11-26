@@ -193,3 +193,13 @@ python -m unittest discover -s tests
   - 31 项单元测试通过；
   - 配置键：上游全部存在，本项目 LPass/签到通知等额外键保留，无重复；
   - 帮助页重新包含 LPass 分节；`#bla` 与 `#LPass*` 命令保持。
+## 17. 帮助图 LI PASS 奖励中心改为两行展示（2026-11-26）
+
+- **问题**：`#bla帮助` 图片里「LI PASS 奖励中心」5 条命令竖排 5 行，占用过高。
+- **处理**：
+  - `nikke_help/draw.py` 中 LPass 分节设置 `columns=3, full_width=True`；
+  - `section_bands` 支持按分节 `columns` 生成行（5 条 → 3+2 两行），并向模板传递 `cols`；
+  - `templates/help.html` 增加 `cols-{{ section.cols }}` 类，`help_v2.css` 增加 `.section.cols-3 .item-row` 三列网格；
+  - `CACHE_VERSION` 提升为 `1.4.02:lpass-2rows`，强制重建 30 天帮助图缓存；
+  - 顺带移除 `nikke_help/cache.py` 未使用的 `random` 导入。
+- **验证**：`compileall` / `ruff F,E9` 通过；31 项单元测试通过（帮助图实际渲染需部署环境 jinja2）。
